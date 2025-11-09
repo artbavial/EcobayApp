@@ -1,0 +1,1293 @@
+﻿@page "/"
+<PageTitle>Вывоз бытовой техники в Гомеле, Бобруйске, Жлобине, Рогачеве</PageTitle>
+<HeadContent>
+    <meta name="description" content="Приём техники на утилизацию. Быстро и выгодно — 26 копеек за кг." />
+    <meta name="keywords" content="утилизация, техника, переработка, приём техники, утилизация электроники" />
+</HeadContent>
+
+<!-- preloader -->
+@* <div class="loader"><span>Loading</span></div> *@
+
+<div id="scroll-content">
+    <!-- hero -->
+    <header id="top" class="d-flex flex-column">
+        <!-- Desktop Menu -->
+        <nav class="starta-nav">
+            <div class="container d-flex justify-content-between align-items-center">
+                <div class="logo">
+                    <img src="images/hero/icon.png" alt="Icon" />Ecobay<span>.by</span>
+                </div>
+                <ul class="list-unstyled starta-menu">
+                    <li><a class="menu-animation active" href="#top">Начало</a></li>
+                    <li><a class="menu-animation" href="#about">О нас</a></li>
+                    <li><a class="menu-animation" href="#services">Что принимаем</a></li>
+                    <li><a class="menu-animation" href="#plan">Цены</a></li>
+                    <li><a class="menu-animation" href="#team">Наша работа</a></li>
+
+                    <li><a class="menu-animation" href="#faqs">Частые вопросы</a></li>
+                </ul>
+                <a href="tel:@phone" class="starta-helpline">
+                    <i class="fa-solid fa-phone-volume"></i>
+                    <article>
+                        <h4>Связатся с нами</h4>
+                        <p>@phone</p>
+                    </article>
+                </a>
+            </div>
+        </nav>
+
+        <!-- Mobile Menu Icon -->
+        <li class="menuIcon" id="menuBtn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </li>
+
+        <!-- Mobile Menu -->
+        <nav class="starta-mobile-nav">
+            <ul class="list-unstyled starta-menu">
+                <li><a class="menu-animation active" href="#top">Home</a></li>
+                <li><a class="menu-animation" href="#about">About</a></li>
+                <li><a class="menu-animation" href="#services">Services</a></li>
+                <li><a class="menu-animation" href="#plan">Plans</a></li>
+                <li><a class="menu-animation" href="#team">Team</a></li>
+
+                <li><a class="menu-animation" href="#faqs">FAQs</a></li>
+            </ul>
+        </nav>
+        <div class="container d-flex flex-column flex-grow-1 position-relative z-index-3">
+            <!-- hero section -->
+            <section class="starta-hero my-5 d-flex flex-column justify-content-center flex-grow-1">
+                <div class="row mt-5 pt-4">
+                    <div class="col-md-7 order_c_2">
+                        <h1 class="heroHeading">
+                            Быстрый вывоз техники на утилизацию
+                        </h1>
+                        <p class="heroDesc">
+                            С нами всё просто: оставляете заявку или звоните — мы сами приезжаем по вашему адресу.
+                            Наши специалисты аккуратно вынесут и погрузят технику, а расчёт произведём прямо на месте.
+                            За каждый килограмм техники платим <strong>мы</strong>, а итоговая сумма зависит от её веса.
+                            Вы получаете честную оплату и удобный сервис без лишних хлопот —
+                            <span style="font-size:22px;"><strong>@cost</strong></span>.
+                            Вся техника отправляется на переработку — ваше решение помогает экологии нашей планеты.
+                        </p>
+                        <div class="col-md-8 mt-5">
+                            <div class="row">
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <img src="images/hero/services/1.png"
+                                         alt="Утилизация"
+                                         class="hero-service" />
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <img src="images/hero/services/2.png"
+                                         alt="Утилизация"
+                                         class="hero-service" />
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <img src="images/hero/services/3.png"
+                                         alt="Утилизация"
+                                         class="hero-service" />
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <img src="images/hero/services/4.png"
+                                         alt="Утилизация"
+                                         class="hero-service" />
+                                </div>
+                            </div>
+                        </div>
+                        <button class="starta-button">
+                            <span class="position-relative">Сдать технику</span>
+                            <span class="starta-button-hover"></span>
+                        </button>
+                    </div>
+
+
+                    <!-- Hero Side Image -->
+                    <div class="col-md-5 position-relative">
+                        <form class="heroForm">
+                            <article class="formContent">
+                                <h2 class="starta-h2">Оставьте заявку</h2>
+                                <p class="starta-desc">Мы свяжемся с вами в ближайшее время</p>
+                            </article>
+
+                            <!-- Имя -->
+                            <div class="inputField">
+                                <input class="starta-desc"
+                                       type="text"
+                                       name="username"
+                                       id="username"
+                                       placeholder="Ваше имя" />
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+
+                            <!-- Телефон -->
+                            <div class="inputField">
+                                <input class="starta-desc"
+                                       type="tel"
+                                       name="phone"
+                                       id="phone"
+                                       placeholder="Ваш телефон" />
+                                <i class="fa-solid fa-phone"></i>
+                            </div>
+
+                            <!-- Сообщение -->
+                            <div class="inputField messageField">
+                                <textarea class="starta-desc"
+                                          name="message"
+                                          id="message"
+                                          rows="3"
+                                          placeholder="Ваше сообщение"></textarea>
+                                <i class="fa-solid fa-comment"></i>
+                            </div>
+
+
+                            <div class="border-bottom pt-4 mb-4"></div>
+
+                            <!-- Кнопка -->
+                            <button class="starta-button" type="submit">
+                                <span class="position-relative">Отправить заявку</span>
+                                <span class="starta-button-hover"></span>
+                            </button>
+                        </form>
+
+                        <!-- Shapes -->
+                        <div class="shapes">
+                            <img src="images/hero/shape1.svg" alt="shape" />
+                            <img src="images/hero/shape2.svg" alt="shape" />
+                            <img src="images/hero/shape3.svg" alt="shape" />
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Hero Background -->
+        <div class="heroBG">
+            <img src="images/hero/bg.jpg" alt="Background" />
+        </div>
+    </header>
+
+    <!-- Starta about -->
+    <!-- Features -->
+    <section class="startaFeatures" id="about">
+        <div class="container">
+            <div class="row my-5 pb-4 justify-content-between align-items-center">
+                <!-- Feature single -->
+                <div class="col-md-4 col-sm-6">
+                    <div class="row align-items-center featureSingle">
+                        <div class="col-md-4">
+                            <i class="starta-icon featureIcon fa-regular fa-lightbulb"></i>
+                        </div>
+                        <div class="col-md-7">
+                            <article>
+                                <h4 class="starta-h4">Quiqtue</h4>
+                                <p class="starta-desc">
+                                    free trial plan to give a new start to your business,
+                                </p>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+                <!-- feature single -->
+                <div class="col-md-4 col-sm-6">
+                    <div class="row align-items-center featureSingle">
+                        <div class="col-md-4">
+                            <i class="starta-icon featureIcon fa-regular fa-lightbulb"></i>
+                        </div>
+                        <div class="col-md-7">
+                            <article>
+                                <h4 class="starta-h4">Quiqtue</h4>
+                                <p class="starta-desc">
+                                    free trial plan to give a new start to your business,
+                                </p>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+                <!-- feature single -->
+                <div class="col-md-4 col-sm-6">
+                    <div class="row align-items-center featureSingle">
+                        <div class="col-md-4">
+                            <i class="starta-icon featureIcon fa-regular fa-lightbulb"></i>
+                        </div>
+                        <div class="col-md-7">
+                            <article>
+                                <h4 class="starta-h4">Quiqtue</h4>
+                                <p class="starta-desc">
+                                    free trial plan to give a new start to your business,
+                                </p>
+                            </article>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- gap -->
+            <div class="lineGap my-4"></div>
+            <div class="row my-5 py-md-4">
+                <!-- Starta BLock -->
+                <div class="col-md-6 position-relative">
+                    <img class="starta-block-img animate-img"
+                         src="images/main/block1.png"
+                         alt="Block" />
+
+                    <!-- block Performance -->
+                    <div class="starta-performance">
+                        <h4 class="starta-h4 fw-normal mb-3">Performance</h4>
+                        <div class="row pb-3 border-bottom">
+                            <div class="col-md-6 col-sm-6 col-6">
+                                <div class="row">
+                                    <div class="col-md-4 pe-0">
+                                        <i class="performance-icon fa-solid fa-display"></i>
+                                    </div>
+                                    <div class="col-md-8 ps-1">
+                                        <article>
+                                            <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
+                                                2584+<i class="fa-solid fa-arrow-up"></i>
+                                            </h4>
+                                            <p class="starta-desc">Customers</p>
+                                        </article>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-sm-6 col-6">
+                                <div class="row">
+                                    <div class="col-md-4 pe-0">
+                                        <i class="performance-icon fa-solid fa-signal"></i>
+                                    </div>
+                                    <div class="col-md-8 ps-1">
+                                        <article>
+                                            <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
+                                                150K<i class="fa-solid text-warning fa-arrow-down"></i>
+                                            </h4>
+                                            <p class="starta-desc">Income</p>
+                                        </article>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <h5 class="starta-h5 my-3">
+                            New Business innovation<span>75%</span>
+                        </h5>
+                        <div class="bar">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- About Content -->
+                <div class="col-md-6 mt-3">
+                    <h2 class="starta-heading">
+                        <i class="fa-solid fa-star"></i>Top Rated Company
+                    </h2>
+                    <h1 class="starta-h1">We Develop & Create Digital Future</h1>
+                    <p class="starta-desc">
+                        Every pleasure is to be welcomed and every pain avoided. But in
+                        certain circumstances and owing to the
+                        <a href="">claims of duty obligations of business</a> it will
+                        frequently occur Contact us today.
+                    </p>
+                    <div class="row my-3">
+                        <div class="col-md-5">
+                            <h1 class="starta-h1 my-0"><span>4.7</span>+</h1>
+                            <div class="stars mx-0">
+                                <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                            </div>
+                            <h5 class="starta-h5 fw-bold mt-4">Review customer</h5>
+                        </div>
+                        <div class="col-md-7">
+                            <ul class="starta-list list-unstyled">
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Data Storage and
+                                    Analysis
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>International
+                                    Online Support
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Branding Project
+                                    Development
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <button class="starta-button mt-4">
+                        <span class="position-relative">Get Quote Now</span>
+                        <span class="starta-button-hover"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Starta Service -->
+    <section id="services" class="starta-service">
+        <div class="container">
+            <h1 class="starta-heading mx-auto">Top Rated Company</h1>
+            <h1 class="starta-h1 text-center mb-md-5">
+                Choice The Right Pricing
+            </h1>
+            <div class="row">
+                <div class="col-md-4 col-sm-6">
+                    <div class="service">
+                        <div class="serviceImg">
+                            <div class="imgOverlay">
+                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
+                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
+                                   target="_blank">
+                                    <i class="ytLink fa-solid fa-play"></i>
+                                </a>
+                            </div>
+                            <img src="images/main/services/1.jpg" alt="Service" />
+                        </div>
+                        <article class="serviceContent">
+                            <span>Easy Chating UI</span>
+                            <h4 class="starta-h4">Video Meeting</h4>
+                        </article>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="service">
+                        <div class="serviceImg">
+                            <div class="imgOverlay">
+                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
+                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
+                                   target="_blank">
+                                    <i class="ytLink fa-solid fa-play"></i>
+                                </a>
+                            </div>
+                            <img src="images/main/services/2.jpg" alt="Service" />
+                        </div>
+                        <article class="serviceContent">
+                            <span>Easy Chating UI</span>
+                            <h4 class="starta-h4">Video Meeting</h4>
+                        </article>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="service">
+                        <div class="serviceImg">
+                            <div class="imgOverlay">
+                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
+                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
+                                   target="_blank">
+                                    <i class="ytLink fa-solid fa-play"></i>
+                                </a>
+                            </div>
+                            <img src="images/main/services/3.jpg" alt="Service" />
+                        </div>
+                        <article class="serviceContent">
+                            <span>Easy Chating UI</span>
+                            <h4 class="starta-h4">Video Meeting</h4>
+                        </article>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="service">
+                        <div class="serviceImg">
+                            <div class="imgOverlay">
+                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
+                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
+                                   target="_blank">
+                                    <i class="ytLink fa-solid fa-play"></i>
+                                </a>
+                            </div>
+                            <img src="images/main/services/4.jpg" alt="Service" />
+                        </div>
+                        <article class="serviceContent">
+                            <span>Easy Chating UI</span>
+                            <h4 class="starta-h4">Video Meeting</h4>
+                        </article>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="service">
+                        <div class="serviceImg">
+                            <div class="imgOverlay">
+                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
+                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
+                                   target="_blank">
+                                    <i class="ytLink fa-solid fa-play"></i>
+                                </a>
+                            </div>
+                            <img src="images/main/services/5.jpg" alt="Service" />
+                        </div>
+                        <article class="serviceContent">
+                            <span>Easy Chating UI</span>
+                            <h4 class="starta-h4">Video Meeting</h4>
+                        </article>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <div class="service">
+                        <div class="serviceImg">
+                            <div class="imgOverlay">
+                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
+                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
+                                   target="_blank">
+                                    <i class="ytLink fa-solid fa-play"></i>
+                                </a>
+                            </div>
+                            <img src="images/main/services/6.jpg" alt="Service" />
+                        </div>
+                        <article class="serviceContent">
+                            <span>Easy Chating UI</span>
+                            <h4 class="starta-h4">Video Meeting</h4>
+                        </article>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Starta Project -->
+    <section class="starta-project my-5 py-md-5">
+        <div class="container">
+            <div class="row mt-3">
+                <div class="col-md-6 pe-md-5">
+                    <!-- Video BLock -->
+                    <div class="video-block mb-4">
+                        <img class="starta-block-img"
+                             src="images/main/project/videoBG.jpg"
+                             alt="BG" />
+
+                        <!-- PLay Button -->
+                        <div class="playBtn startplay">
+                            <i class="fa-solid fa-play"></i>
+                            <span id="circle-text">
+                                &nbsp;. play reel . play reel . play reel . play reel . play
+                                reel
+                            </span>
+                        </div>
+
+                        <!-- video frame -->
+                        <iframe src="https://www.youtube-nocookie.com/embed/O5O3yK8DJCc?si=JgM3-6Rmon62WHzq&amp;controls=0"
+                                title="Sample Video"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                referrerpolicy="strict-origin-when-cross-origin"
+                                allowfullscreen></iframe>
+                        <i class="close fa-solid fa-circle-xmark"></i>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="starta-list list-unstyled">
+                                <li class="mb-3">
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                                <li class="mb-3">
+                                    <i class="fa-solid fa-circle-check"></i>Virtual Private
+                                    Server
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="starta-list list-unstyled">
+                                <li class="mb-3">
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                                <li class="mb-3">
+                                    <i class="fa-solid fa-circle-check"></i>Virtual Private
+                                    Server
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center justify-space-between flex-wrap mt-5">
+                        <button class="starta-button starta-button-2">
+                            <span class="position-relative">Learn More</span>
+                            <span class="starta-button-hover"></span>
+                        </button>
+                        <div class="communityNumbers">
+                            <div class="communityImgs">
+                                <img src="images/communitymem.jpg"
+                                     alt="Community Member" />
+                                <img src="images/communitymem2.jpg"
+                                     alt="Community Member" />
+                                <img src="images/communitymem.jpg"
+                                     alt="Community Member" />
+                            </div>
+                            <article class="communityContent">
+                                <h6>Joined Our Community</h6>
+                                <p><span class="highlight">150k+</span> Creators</p>
+                            </article>
+                        </div>
+                    </div>
+                    <div class="d-flex communityC flex-wrap mt-5">
+                        <img src="images/main/project/clients/1.png"
+                             alt="Community" />
+                        <img src="images/main/project/clients/2.png"
+                             alt="Community" />
+                        <img src="images/main/project/clients/3.png"
+                             alt="Community" />
+                        <img src="images/main/project/clients/1.png"
+                             alt="Community" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h2 class="starta-heading">Top Rated Company</h2>
+                    <h1 class="starta-h1">
+                        Starting a Consulting Business With No Experience
+                    </h1>
+                    <p class="starta-desc">
+                        A custom logo design is a crucial part of your overall branding
+                        tprocess. Your logo design is a significant. is a crucial part
+                        of your overall branding part of your overall branding
+                    </p>
+                    <img class="starta-block-img mt-3 animate-img3"
+                         src="images/main/project/blockImg2.png"
+                         alt="Block Img" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Starta Plans -->
+    <section class="starta-plans" id="plan">
+        <div class="container">
+            <h1 class="starta-heading mx-auto">Top rated Company</h1>
+            <h1 class="starta-h1 text-center">
+                Choice The Right Pricing Plan That Suits your Need
+            </h1>
+
+            <div class="row justify-content-center">
+                <div class="col-md-4 lap-sm-50 tab-100">
+                    <!-- plan single -->
+                    <div class="plan">
+                        <div class="row align-items-center">
+                            <div class="col-md-5 col-sm-3 col-5">
+                                <i class="starta-icon featureIcon fa-regular fa-lightbulb"></i>
+                            </div>
+                            <div class="col-md-7 p-md-0 col-sm-9 col-7">
+                                <article class="plan-heading">
+                                    <h3 class="starta-h2">Basic Plan</h3>
+                                    <p class="starta-h2"><span>$</span>29/monthly</p>
+                                </article>
+                            </div>
+                            <p class="starta-desc fw-medium my-4">
+                                Every pleasure is to be welcomed and every pain avoided. is
+                                to be welcomed and every
+                            </p>
+                            <button class="starta-button">
+                                <a href="#">Get Started</a>
+                            </button>
+
+                            <ul class="starta-list list-unstyled">
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Virtual Private
+                                    Server
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                            </ul>
+                        </div>
+                        <span class="discount">14-day free trial - No credit card Required</span>
+                    </div>
+                </div>
+                <div class="col-md-4 lap-sm-50 tab-100">
+                    <!-- plan single -->
+                    <div class="plan best">
+                        <div class="row align-items-center">
+                            <div class="col-md-5 col-sm-3 col-5">
+                                <i class="starta-icon featureIcon fa-regular fa-lightbulb"></i>
+                            </div>
+                            <div class="col-md-7 p-md-0 col-sm-9 col-7">
+                                <article class="plan-heading">
+                                    <h3 class="starta-h2">Basic Plan</h3>
+                                    <p class="starta-h2"><span>$</span>29/monthly</p>
+                                </article>
+                            </div>
+                            <p class="starta-desc fw-medium my-4">
+                                Every pleasure is to be welcomed and every pain avoided. is
+                                to be welcomed and every
+                            </p>
+
+                            <ul class="starta-list list-unstyled">
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Virtual Private
+                                    Server
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                            </ul>
+                            <button class="starta-button">
+                                <a href="#" class="position-relative">Get Started</a>
+                                <span class="starta-button-hover"></span>
+                            </button>
+                        </div>
+                        <span class="discount">14-day free trial - No credit card Required</span>
+                    </div>
+                </div>
+                <div class="col-md-4 lap-sm-50 tab-100">
+                    <!-- plan single -->
+                    <div class="plan">
+                        <div class="row align-items-center">
+                            <div class="col-md-5 col-sm-3 col-5">
+                                <i class="starta-icon featureIcon fa-regular fa-lightbulb"></i>
+                            </div>
+                            <div class="col-md-7 p-md-0 col-sm-9 col-7">
+                                <article class="plan-heading">
+                                    <h3 class="starta-h2">Basic Plan</h3>
+                                    <p class="starta-h2"><span>$</span>29/monthly</p>
+                                </article>
+                            </div>
+                            <p class="starta-desc fw-medium my-4">
+                                Every pleasure is to be welcomed and every pain avoided. is
+                                to be welcomed and every
+                            </p>
+                            <button class="starta-button">
+                                <a href="#">Get Started</a>
+                            </button>
+                            <ul class="starta-list list-unstyled">
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Virtual Private
+                                    Server
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Get high
+                                    conversion rates
+                                </li>
+                            </ul>
+                        </div>
+                        <span class="discount">14-day free trial - No credit card Required</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="starta-details py-5 my-5" id="team">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1 class="starta-heading">Top Rating Company</h1>
+                    <h1 class="starta-h1">Starting a Consulting Business With</h1>
+                    <p class="starta-desc">
+                        A custom logo design is a crucial part of your overall branding
+                        Process. Your logo design is a sitgnificant. is a crucial part
+                        of your overall branding part of your overall branding
+                    </p>
+                    <ul class="list-unstyled details-list">
+                        <li>
+                            <img src="images/main/services/details/1.png"
+                                 alt="Icon" />Sync to Cloud
+                        </li>
+                        <li>
+                            <img src="images/main/services/details/2.png"
+                                 alt="Icon" />Create your own Playlist
+                        </li>
+                        <li>
+                            <img src="images/main/services/details/3.png"
+                                 alt="Icon" />Share instantly
+                        </li>
+                    </ul>
+                    <button class="starta-button starta-button-2">
+                        <span class="position-relative">Learn More</span>
+                        <span class="starta-button-hover"></span>
+                    </button>
+                </div>
+                <div class="col-md-6 position-relative">
+                    <div class="details_img detail_img1">
+                        <img src="images/main/services/details/detail1.jpg"
+                             alt="Details" />
+                    </div>
+                    <div class="details_img detail_img2">
+                        <img src="images/main/services/details/detail3.jpg"
+                             alt="Details" />
+                    </div>
+                    <div class="details_img detail_img3">
+                        <img src="images/main/services/details/detail2.jpg"
+                             alt="Details" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About 2 -->
+    <section class="starta-about pb-5 my-5">
+        <div class="container position-relative" style="z-index: 2">
+            <div class="about-inner pt-4 position-relative">
+                <!-- video Block -->
+                <div class="video-block animate-block">
+                    <img class="starta-block-img"
+                         src="images/main/about/videoBG2.jpg"
+                         alt="BG" />
+                    <!-- play button -->
+                    <div class="play-btn">
+                        <i class="startplay fa-solid fa-circle-play">
+                            <span class="glow"></span>
+                        </i>
+                    </div>
+                    <h1 class="starta-h1 starta-h1-2 text-center mx-auto">
+                        Expect Great things From your SEO Agency
+                    </h1>
+                    <ul class="d-flex flex-wrap starta-list list-unstyled position-relative">
+                        <li class="me-3">
+                            <i class="fa-solid fa-circle-check"></i>Data Storage and
+                            Analysis
+                        </li>
+                        <li>
+                            <i class="fa-solid fa-circle-check"></i>International Online
+                            Support
+                        </li>
+                    </ul>
+                    <button class="starta-button starta-button-2">
+                        <span class="position-relative">Learn More</span>
+                    </button>
+                    <!-- iframe -->
+                    <iframe src="https://www.youtube-nocookie.com/embed/O5O3yK8DJCc?si=JgM3-6Rmon62WHzq&amp;controls=0"
+                            title="Sample Video"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            allowfullscreen></iframe>
+                    <i class="close fa-solid fa-circle-xmark"></i>
+                </div>
+                <div class="row align-items-center pt-5">
+                    <div class="col-md-7 pt-3">
+                        <h5 class="starta-semi">Connect our Software</h5>
+                        <h1 class="starta-h1">
+                            Seamless integration With your Favorite
+                        </h1>
+
+                        <!-- clients  -->
+                        <div class="clients">
+                            <div class="row">
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c1.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c2.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c3.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c4.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c5.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c6.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c7.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-3 col-3">
+                                    <div class="client">
+                                        <img src="images/main/about/clients/c1.png"
+                                             alt="Client" />
+                                    </div>
+                                </div>
+                                <button class="starta-button w-auto mx-auto starta-button-2">
+                                    <span class="position-relative">Get Quote Now</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <p class="starta-desc mt-sm-4">
+                            A custom logo design is a crucial part of your overall
+                            branding Process. Your logo design is a sitgnificant. is a
+                            crucial part of your Overall branding part of your overall
+                            branding
+                        </p>
+                        <div class="row align-items-center">
+                            <div class="col-md-3 col-sm-2 col-3">
+                                <img class="check"
+                                     src="images/main/about/check.png"
+                                     alt="Check" />
+                            </div>
+                            <div class="col-md-9 my-5 col-sm-10 col-9">
+                                <h5 class="starta-h3">Seamless integration</h5>
+                                <p class="starta-semi">$29 / Package</p>
+                            </div>
+                            <ul class="starta-list list-unstyled">
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Data Storage and
+                                    Analysis
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>International
+                                    Online Support
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Branding Project
+                                    Development
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check"></i>Data Storage and
+                                    Analysis
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Contact Box -->
+                        <div class="contact-box mt-5">
+                            <div class="row align-items-center">
+                                <div class="col-md-2 col-sm-2 col-2">
+                                    <i class="fa-solid fa-envelope-open"></i>
+                                </div>
+                                <div class="col-md-10 col-sm-10 col-10">
+                                    <article>
+                                        Got questions? We've got answers
+                                        <a href="#">Userthemes@gmail.com</a>
+                                    </article>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- starta about bg -->
+        <div class="starta-about-bg">
+            <img src="images/main/about/aboutBG.png" alt="" />
+        </div>
+    </section>
+
+    <!-- Starta Faqs -->
+    <section class="starta-faq my-5 pb-md-5" id="faqs">
+        <div class="container pt-4">
+            <h1 class="starta-heading mx-auto">Top Rated Company</h1>
+            <h1 class="starta-h1 text-center">Meet Our Expert Team</h1>
+
+            <!-- FAQs -->
+            <div class="accordion accordion-flush" id="startaFaq">
+                <div class="accordion-item">
+                    <!-- faq 1 header -->
+                    <h2 class="accordion-header">
+                        <button type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#faq1"
+                                aria-expanded="false"
+                                aria-controls="#faq1">
+                            Revisiting Your Investment & Distribution Goals
+                        </button>
+                    </h2>
+
+                    <!-- faq 1 body -->
+                    <div id="faq1" data-bs-parent="#startaFaq" class="collapse show">
+                        <div class="accordion-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-3 col-sm-6 col-6">
+                                    <img src="images/main/about/faqs/f1.jpg"
+                                         alt="Faq"
+                                         class="starta-block-img" />
+                                </div>
+                                <div class="col-md-3 col-sm-6 col-6">
+                                    <img src="images/main/about/faqs/f2.jpg"
+                                         alt="Faq"
+                                         class="starta-block-img" />
+                                </div>
+                                <div class="col-md-6 col-sm-12 mt-sm-4">
+                                    <h3 class="starta-h3">
+                                        Revisiting Your Investment Distribution Goals
+                                    </h3>
+                                    <p class="starta-desc">
+                                        Every pleasure is to be welcomed and every pain avoided.
+                                        But in certain circumstances and owing to the claims of
+                                        duty obligations of business
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <!-- faq 2 header -->
+                    <h2 class="accordion-header">
+                        <button class="collapsed"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#faq2"
+                                aria-expanded="false"
+                                aria-controls="faq2">
+                            Revisiting Your Investment & Distribution Goals
+                        </button>
+                    </h2>
+                    <!-- faq 2 body -->
+                    <div id="faq2" data-bs-parent="#startaFaq" class="collapse">
+                        <div class="accordion-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-3 col-sm-6 col-6">
+                                    <img src="images/main/about/faqs/f3.jpg"
+                                         alt="Faq"
+                                         class="starta-block-img" />
+                                </div>
+                                <div class="col-md-3 col-sm-6 col-6">
+                                    <img src="images/main/about/faqs/f4.jpg"
+                                         alt="Faq"
+                                         class="starta-block-img" />
+                                </div>
+                                <div class="col-md-6 col-sm-12 mt-sm-4">
+                                    <h3 class="starta-h3">
+                                        Revisiting Your Investment Distribution Goals
+                                    </h3>
+                                    <p class="starta-desc">
+                                        Every pleasure is to be welcomed and every pain avoided.
+                                        But in certain circumstances and owing to the claims of
+                                        duty obligations of business
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Starta Testionials -->
+    <section class="starta-testimonials py-5">
+        <div class="container py-5">
+            <div class="testimonialsSlides">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide">
+                        <!-- Testionial Single -->
+                        <div class="testimonialSingle py-5">
+                            <div class="row position-relative justify-content-center">
+                                <div class="col-md-3 text-end col-sm-3 col-3">
+                                    <img class="qoute"
+                                         src="images/main/members/quote.png"
+                                         alt="Quote" />
+                                    <div class="d-inline-block">
+                                        <img class="testimonialClient"
+                                             src="images/main/members/member3.png"
+                                             alt="Client" />
+                                        <div class="stars clientStars">
+                                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-7 col-sm-9 col-9">
+                                    <h2 class="starta-h2">
+                                        When an unknown printer took A galley of type and
+                                        scrambled it to make a type specimen Book. It has
+                                        survived not only Five centuries.
+                                    </h2>
+                                    <h4 class="starta-h4">Charli Hapan</h4>
+                                </div>
+                            </div>
+                            <div class="testimonialCircle"></div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <!-- Testionial Single -->
+                        <div class="testimonialSingle py-5">
+                            <div class="row position-relative justify-content-center">
+                                <div class="col-md-3 text-end col-sm-3 col-3">
+                                    <img class="qoute"
+                                         src="images/main/members/quote.png"
+                                         alt="Quote" />
+                                    <div class="d-inline-block">
+                                        <img class="testimonialClient"
+                                             src="images/main/members/member3.png"
+                                             alt="Client" />
+                                        <div class="stars clientStars">
+                                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-7 col-sm-9 col-9">
+                                    <h2 class="starta-h2">
+                                        When an unknown printer took A galley of type and
+                                        scrambled it to make a type specimen Book. It has
+                                        survived not only Five centuries.
+                                    </h2>
+                                    <h4 class="stara-h4">Charli Hapan</h4>
+                                </div>
+                            </div>
+                            <div class="testimonialCircle"></div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <!-- Testionial Single -->
+                        <div class="testimonialSingle py-5">
+                            <div class="row position-relative justify-content-center">
+                                <div class="col-md-3 text-end col-sm-3 col-3">
+                                    <img class="qoute"
+                                         src="images/main/members/quote.png"
+                                         alt="Quote" />
+                                    <div class="d-inline-block">
+                                        <img class="testimonialClient"
+                                             src="images/main/members/member3.png"
+                                             alt="Client" />
+                                        <div class="stars clientStars">
+                                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-7 col-sm-9 col-9">
+                                    <h2 class="starta-h2">
+                                        When an unknown printer took A galley of type and
+                                        scrambled it to make a type specimen Book. It has
+                                        survived not only Five centuries.
+                                    </h2>
+                                    <h4 class="stara-h4">Charli Hapan</h4>
+                                </div>
+                            </div>
+                            <div class="testimonialCircle"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="starta-stories py-md-5 my-5">
+        <div class="container">
+            <a class="starta-h3 d-block text-center mb-4" href="#">Instagram</a>
+
+            <!-- Insta Feed -->
+            <div class="instaFeed swiper">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed1.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed2.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed3.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed4.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed5.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed6.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed7.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed1.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed2.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed3.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed4.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed5.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed6.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="swiper-slide">
+                        <div class="swiper-material-wrapper">
+                            <div class="swiper-material-content">
+                                <img src="images/main/feed/feed7.jpg" alt="feed" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- starta footer -->
+    <footer class="starta-footer pt-5">
+        <div class="container py-5">
+            <div class="row">
+                <!-- block 1 -->
+                <div class="col-md-5 border-end">
+                    <h1 class="starta-h1">Let's Connect.</h1>
+                    <p class="starta-desc">
+                        Quisquam est, qui dolorem ipsum quia dolor sit amet, consecte
+                        adipisci velit, sed quia non numquam eius modi tempora incidu
+                        labore et dolore magnam voluptatem.
+                    </p>
+                    <ul class="starta-social list-unstyled">
+                        <li>
+                            <a href="#"><i class="fa-brands fa-youtube"></i></a>
+                        </li>
+                        <li>
+                            <a href="#"><i class="fa-brands fa-twitter"></i></a>
+                        </li>
+                        <li>
+                            <a href="#"><i class="fa-brands fa-google-plus"></i></a>
+                        </li>
+                        <li>
+                            <a href="#"><i class="fa-brands fa-square-facebook"></i></a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-4 lap-sm-50 tab-100 mt-sm-4">
+                    <div class="row mx-auto">
+                        <!-- block 2 -->
+                        <div class="col-md-6 col-sm-6">
+                            <h4 class="starta-h4 mb-4">Services</h4>
+                            <ul class="footer-list list-unstyled">
+                                <li>
+                                    <a class="menu-animation" href="#">Instructions</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">Style guide</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">Licenses</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">404 Not found</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">Password protected</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <!-- block 3 -->
+                        <div class="col-md-6 col-sm-6">
+                            <h4 class="starta-h4 mb-4">Links</h4>
+                            <ul class="footer-list list-unstyled">
+                                <li>
+                                    <a class="menu-animation" href="#">Support</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">Privacy policy</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">Terms & Conditions</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">Strategic finance </a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="#">Video guide</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- block 4 -->
+                <div class="col-md-3 lap-sm-100">
+                    <h4 class="starta-h4 mb-4 lap-sm-none">Subscribe</h4>
+                    <div class="newsLetter">
+                        <input type="email"
+                               name="email"
+                               id="email"
+                               placeholder="Email Address" />
+                        <button class="starta-button submit">
+                            <span class="position-relative">Subscribe</span>
+                            <span class="starta-button-hover"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- copyright -->
+        <div class="copyright pt-5 pb-5">
+            © Ecobay.by 2018-@thisYear by Artbavial Software
+        </div>
+    </footer>
+</div>
+
+
+
+
+@code {
+    string phone = "+375 (29) 991-06-66";
+    string thisYear = DateTime.Now.Year.ToString();
+    string cost = "от 26 копеек за кг.";
+}
