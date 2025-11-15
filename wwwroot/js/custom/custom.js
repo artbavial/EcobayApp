@@ -1,3 +1,4 @@
+
 $(document).ready(function () {
   // // start animations
   gsap.to(".loader", 0.5, {
@@ -314,3 +315,6 @@ $(document).ready(function () {
     });
   });
 });
+
+
+

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap&subset=cyrillic");
+п»ї@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap&subset=cyrillic");
 
 
 
@@ -355,6 +355,7 @@ header {
   margin-left: 0px;
   margin-top: 0px;
   pointer-events: none;
+
 }
 .starta-button span.position-relative,
 .starta-button a.position-relative {
@@ -395,6 +396,25 @@ header {
 .starta-button-2:hover span {
   transform: translateX(-20px);
 }
+
+.call-button {
+    display: inline-block;
+    font-size: 20px;
+    padding: 15px 30px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* РўРѕР»СЊРєРѕ РґР»СЏ РјРѕР±РёР»СЊРЅС‹С… */
+@media (max-width: 768px) {
+    .call-button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%; /* СЂР°СЃС‚СЏРіРёРІР°РµРј */
+    }
+}
+
 /* hero form */
 .heroForm {
   border-radius: 20px;
@@ -463,20 +483,20 @@ header {
   color: var(--primary-color);
   transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-/* отдельный стиль для поля сообщения */
+/* РѕС‚РґРµР»СЊРЅС‹Р№ СЃС‚РёР»СЊ РґР»СЏ РїРѕР»СЏ СЃРѕРѕР±С‰РµРЅРёСЏ */
 .messageField {
-    height: auto; /* высота под контент */
-    min-height: 120px; /* примерно 3 строки */
-    align-items: flex-start; /* текст и иконка сверху */
-    padding-top: 15px; /* отступ сверху для текста */
+    height: auto; /* РІС‹СЃРѕС‚Р° РїРѕРґ РєРѕРЅС‚РµРЅС‚ */
+    min-height: 120px; /* РїСЂРёРјРµСЂРЅРѕ 3 СЃС‚СЂРѕРєРё */
+    align-items: flex-start; /* С‚РµРєСЃС‚ Рё РёРєРѕРЅРєР° СЃРІРµСЂС…Сѓ */
+    padding-top: 15px; /* РѕС‚СЃС‚СѓРї СЃРІРµСЂС…Сѓ РґР»СЏ С‚РµРєСЃС‚Р° */
 }
 
-    /* textarea в стиле input */
+    /* textarea РІ СЃС‚РёР»Рµ input */
     .messageField textarea {
         flex: 1;
         background-color: transparent;
         border: 0;
-        resize: none; /* запрет ручного изменения размера */
+        resize: none; /* Р·Р°РїСЂРµС‚ СЂСѓС‡РЅРѕРіРѕ РёР·РјРµРЅРµРЅРёСЏ СЂР°Р·РјРµСЂР° */
         line-height: 1.4;
         font-family: inherit;
         font-size: 16px;
@@ -1618,3 +1638,5 @@ button.collapsed::after {
   color: rgb(182, 189, 185);
   font-weight: bold;
 }
+
+
