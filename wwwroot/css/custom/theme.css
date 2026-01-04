@@ -322,14 +322,14 @@ header {
   font-weight: 900;
   line-height: 1.1;
 }
+/* Только косметика */
 .heroDesc {
-  font-size: 18px;
-  font-family: "Roboto";
-  color: var(--text-color);
-  font-weight: normal;
-  width: 90%;
-  line-height: 1.5;
-  margin: 15px 0;
+    font-size: 18px;
+    font-family: "Roboto";
+    color: var(--text-color);
+    font-weight: normal;
+    line-height: 1.5;
+    margin: 15px 0;
 }
 .starta-button {
   background-color: var(--primary-color);
@@ -399,21 +399,30 @@ header {
 
 .call-button {
     display: inline-block;
-    font-size: 20px;
-    padding: 15px 30px;
+    padding: 15px 40px;
     margin-bottom: 20px;
-    text-align: center;
+    font-size: 18px;
 }
 
-/* Только для мобильных */
+/* На мобиле: сокращение разрыва между кнопкой и формой */
 @media (max-width: 768px) {
     .call-button {
         display: flex;
+        width: 100%;
         justify-content: center;
         align-items: center;
-        width: 100%; /* растягиваем */
+        padding: 0;
+        height: 62px;
+        margin-bottom: 10px;
+    }
+
+    .col-12.col-md-5 {
+        margin-top: -1rem; /* Сокращаем разрыв */
     }
 }
+
+
+
 
 /* hero form */
 .heroForm {
@@ -1638,5 +1647,10 @@ button.collapsed::after {
   color: rgb(182, 189, 185);
   font-weight: bold;
 }
+
+
+
+
+
 
 

@@ -48,12 +48,12 @@
         <!-- Mobile Menu -->
         <nav class="starta-mobile-nav">
             <ul class="list-unstyled starta-menu">
-                <li><a class="menu-animation active" href="#top">Home</a></li>
-                <li><a class="menu-animation" href="#about">About</a></li>
-                <li><a class="menu-animation" href="#services">Services</a></li>
-                <li><a class="menu-animation" href="#plan">Plans</a></li>
-                <li><a class="menu-animation" href="#team">Team</a></li>
-                <li><a class="menu-animation" href="#faqs">FAQs</a></li>
+                <li><a class="menu-animation active" href="#top">Начало</a></li>
+                <li><a class="menu-animation" href="#about">О нас</a></li>
+                <li><a class="menu-animation" href="#services">Что принимаем</a></li>
+                <li><a class="menu-animation" href="#plan">Цены</a></li>
+                <li><a class="menu-animation" href="#team">Наша работа</a></li>
+                <li><a class="menu-animation" href="#faqs">Частые вопросы</a></li>
             </ul>
         </nav>
 
@@ -61,12 +61,21 @@
             <!-- hero section -->
             <section class="starta-hero my-5 d-flex flex-column justify-content-center flex-grow-1">
                 <div class="row mt-5 pt-4">
-                    <!-- Текст -->
-                    <div class="col-md-7 order-1 order-md-1">
+                    <!-- ТЕКСТОВАЯ КОЛОНКА ВВЕРХУ (на мобиле и десктопе) -->
+                    <div class="col-12 col-md-7">
                         <h1 class="heroHeading">
                             Быстрый вывоз техники на утилизацию
                         </h1>
-                        <p class="heroDesc">
+
+                        <!-- КОРОТКИЙ ТЕКСТ С ЦЕНОЙ (Только мобиле) -->
+                        <p class="heroDesc d-block d-md-none">
+                            Быстро заберём технику на утилизацию и заплатим за каждый килограмм.
+                            Оставьте заявку — перезвоним и согласуем удобное время выезда.
+                            <span style="font-size:22px;"><strong>@cost</strong></span>.
+                        </p>
+
+                        <!-- ДЛИННЫЙ ТЕКСТ (Только на десктопе) -->
+                        <p class="heroDesc d-none d-md-block">
                             С нами всё просто: оставляете заявку или звоните — мы сами приезжаем по вашему адресу.
                             Наши специалисты аккуратно вынесут и погрузят технику, а расчёт произведём прямо на месте.
                             За каждый килограмм техники платим <strong>мы</strong>, а итоговая сумма зависит от её веса.
@@ -74,52 +83,57 @@
                             <span style="font-size:22px;"><strong>@cost</strong></span>.
                             Вся техника отправляется на переработку — ваше решение помогает экологии нашей планеты.
                         </p>
-                        <div class="col-md-8 mt-5">
+
+                        <!-- Иконки (ТОЛЬКО на десктопе) -->
+                        <div class="col-md-8 mt-5 d-none d-md-block">
                             <div class="row">
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <img src="images/hero/services/1.png" alt="Утилизация" class="hero-service" />
+                                <div class="col-md-3 col-3">
+                                    <img src="images/hero/services/1.png" alt="Утилизация" class="hero-service w-100" />
                                 </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <img src="images/hero/services/2.png" alt="Утилизация" class="hero-service" />
+                                <div class="col-md-3 col-3">
+                                    <img src="images/hero/services/2.png" alt="Утилизация" class="hero-service w-100" />
                                 </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <img src="images/hero/services/3.png" alt="Утилизация" class="hero-service" />
+                                <div class="col-md-3 col-3">
+                                    <img src="images/hero/services/3.png" alt="Утилизация" class="hero-service w-100" />
                                 </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <img src="images/hero/services/4.png" alt="Утилизация" class="hero-service" />
+                                <div class="col-md-3 col-3">
+                                    <img src="images/hero/services/4.png" alt="Утилизация" class="hero-service w-100" />
                                 </div>
                             </div>
                         </div>
-                        <!-- Кнопка Позвонить-->
-                        <a href="tel:@phone" class="starta-button call-button">
+
+                        <!-- Кнопка "Позвонить" -->
+                        <a href="tel:@phone" class="starta-button call-button mt-5">
                             <span class="position-relative">Позвонить</span>
                             <span class="starta-button-hover"></span>
                         </a>
-
-
                     </div>
 
-                    <!-- Форма -->
-                    <div class="col-md-5 position-relative order-2 order-md-2">
+                    <!-- ФОРМА (Вторая колонка на десктопе, внизу на мобиле) -->
+                    <div class="col-12 col-md-5 position-relative mt-5 mt-md-0">
+                        <!-- Shapes (ТОЛЬКО на десктопе) -->
+                        <div class="shapes d-none d-md-block">
+                            <img src="images/hero/shape1.svg" alt="shape" />
+                            <img src="images/hero/shape2.svg" alt="shape" />
+                            <img src="images/hero/shape3.svg" alt="shape" />
+                        </div>
+
                         <form class="heroForm">
                             <article class="formContent">
                                 <h2 class="starta-h2">Оставьте заявку</h2>
                                 <p class="starta-desc">Мы свяжемся с вами в ближайшее время</p>
                             </article>
 
-                            <!-- Имя -->
                             <div class="inputField">
                                 <input class="starta-desc" type="text" name="username" id="username" placeholder="Ваше имя" />
                                 <i class="fa-solid fa-user"></i>
                             </div>
 
-                            <!-- Телефон -->
                             <div class="inputField">
                                 <input class="starta-desc" type="tel" name="phone" id="phone" placeholder="Ваш телефон" />
                                 <i class="fa-solid fa-phone"></i>
                             </div>
 
-                            <!-- Сообщение -->
                             <div class="inputField messageField">
                                 <textarea class="starta-desc" name="message" id="message" rows="3" placeholder="Ваше сообщение"></textarea>
                                 <i class="fa-solid fa-comment"></i>
@@ -127,19 +141,11 @@
 
                             <div class="border-bottom pt-4 mb-4"></div>
 
-                            <!-- Кнопка -->
-                            <button class="starta-button" type="submit">
+                            <button class="starta-button w-100" type="submit">
                                 <span class="position-relative">Отправить заявку</span>
                                 <span class="starta-button-hover"></span>
                             </button>
                         </form>
-
-                        <!-- Shapes -->
-                        <div class="shapes">
-                            <img src="images/hero/shape1.svg" alt="shape" />
-                            <img src="images/hero/shape2.svg" alt="shape" />
-                            <img src="images/hero/shape3.svg" alt="shape" />
-                        </div>
                     </div>
                 </div>
             </section>
@@ -252,11 +258,12 @@
                             </div>
                         </div>
                         <h5 class="starta-h5 my-3">
-                            Выполенение цели<span>74%</span>
+                            Выполнение цели <span>@ProgresPercent%</span>
                         </h5>
                         <div class="bar">
-                            <div class="fill"></div>
+                            <div class="fill" style="width:@ProgresPercent%;"></div>
                         </div>
+
                     </div>
                 </div>
 
@@ -299,19 +306,29 @@
         <div class="container">
             <div class="row mt-3">
                 <div class="col-md-6 pe-md-5">
-                    <!-- Видео блок -->
+                    <!-- Video BLock -->
                     <div class="video-block mb-4">
-                        <iframe src="https://www.youtube.com/embed/O5O3yK8DJCc"
+                        <img class="starta-block-img"
+                             src="images/main/project/videoBG.jpg"
+                             alt="BG" />
+
+                        <!-- PLay Button -->
+                        <div class="playBtn startplay">
+                            <i class="fa-solid fa-play"></i>
+                            <span id="circle-text">
+                                &nbsp;. смотреть видео . смотреть видео . смотреть видео 
+                            </span>
+                        </div>
+
+                        <!-- video frame -->
+                        <iframe src="https://www.youtube-nocookie.com/embed/O5O3yK8DJCc?si=JgM3-6Rmon62WHzq&amp;controls=0"
                                 title="Sample Video"
-                                width="560"
-                                height="315"
                                 frameborder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowfullscreen
-                                style="border-radius:15px;">
-                        </iframe>
+                                referrerpolicy="strict-origin-when-cross-origin"
+                                allowfullscreen></iframe>
+                        <i class="close fa-solid fa-circle-xmark"></i>
                     </div>
-
 
 
                     <!-- Списки -->
@@ -523,45 +540,56 @@
                             </p>
                         </div>
 
-                        <span class="discount">Расчёт без скрытых условий</span>
+                        <span class="discount">* Конечную цену уточняйте у менеджера</span>
                     </div>
                 </div>
 
-                <div class="col-md-4 lap-sm-50 tab-100"></div>
+                <div class="col-md-4 lap-sm-50 tab-100">
+                    <div class="plan info">
+                        <h3 class="starta-h2 text-center">Вес техники*</h3>
+                        <ul class="starta-desc">
+                            <li>Холодильник — <strong>~ 45–80 кг</strong></li>
+                            <li>Стиральная машина — <strong>~ 50–80 кг</strong></li>
+                            <li>Советская стиралка — <strong>~ 10–45 кг</strong></li>
+                            <li>Телевизор — <strong>~ 10–50 кг</strong></li>
+                            <li>Газовая плита — <strong>~ 28–56 кг</strong></li>
+                            <li>Газовый котёл — <strong>~ 40–150 кг</strong></li>
+                            <li>Газовая колонка — <strong>~ 15–40 кг</strong></li>
+                        </ul>
+                        <span class="discount">
+                            * Указанные значения носят справочный характер.
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
+
 
 
     <section class="starta-details py-5 my-5" id="team">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <h1 class="starta-heading">Top Rating Company</h1>
-                    <h1 class="starta-h1">Starting a Consulting Business With</h1>
+                    <h1 class="starta-heading">Наши будние дни</h1>
+                    <h1 class="starta-h1">Мы вывозим технику ежедневно. Выходной воскресенье.</h1>
                     <p class="starta-desc">
-                        Принимаемая бытовая техника, отправляется на переработку
-                        и утилизацию согласно всех требований и норм законодательства
-                        Республики Беларусь.
+                        Начиная с 9 утра и позднего вечера, наша служба принимает и вывозит технику по заявкам.
                     </p>
                     <ul class="list-unstyled details-list">
                         <li>
                             <img src="images/main/services/details/1.png"
-                                 alt="Icon" />Sync to Cloud
+                                 alt="Icon" />Обработка заявки и согласование удобного времени.
                         </li>
                         <li>
                             <img src="images/main/services/details/2.png"
-                                 alt="Icon" />Create your own Playlist
+                                 alt="Icon" />В договоренное время мы перезваниваем и уточняем детали.
                         </li>
                         <li>
                             <img src="images/main/services/details/3.png"
-                                 alt="Icon" />Share instantly
+                                 alt="Icon" />Приезжаем к вам по адресу.
                         </li>
                     </ul>
-                    <button class="starta-button starta-button-2">
-                        <span class="position-relative">Learn More</span>
-                        <span class="starta-button-hover"></span>
-                    </button>
                 </div>
                 <div class="col-md-6 position-relative">
                     <div class="details_img detail_img1">
@@ -597,28 +625,21 @@
                         </i>
                     </div>
                     <h1 class="starta-h1 starta-h1-2 text-center mx-auto">
-                        Expect Great things From your SEO Agency
+                        Утилизация техники в Беларуси
                     </h1>
-                    <ul class="d-flex flex-wrap starta-list list-unstyled position-relative">
-                        <li class="me-3">
-                            <i class="fa-solid fa-circle-check"></i>Data Storage and
-                            Analysis
-                        </li>
-                        <li>
-                            <i class="fa-solid fa-circle-check"></i>International Online
-                            Support
-                        </li>
-                    </ul>
-                    <button class="starta-button starta-button-2">
-                        <span class="position-relative">Learn More</span>
-                    </button>
-                    <!-- iframe -->
-                    <iframe src="https://www.youtube-nocookie.com/embed/O5O3yK8DJCc?si=JgM3-6Rmon62WHzq&amp;controls=0"
+
+
+                    <iframe src="https://www.youtube.com/embed/heUa5ZOVo3o?controls=0"
                             title="Sample Video"
                             frameborder="0"
+                            width="560"
+                            height="315"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             referrerpolicy="strict-origin-when-cross-origin"
-                            allowfullscreen></iframe>
+                            allowfullscreen
+                            style="border-radius:15px;">
+                    </iframe>
+
                     <i class="close fa-solid fa-circle-xmark"></i>
                 </div>
                 <div class="row align-items-center pt-5">
@@ -680,7 +701,7 @@
                                     </div>
                                 </div>
                                 <button class="starta-button w-auto mx-auto starta-button-2">
-                                    <span class="position-relative">Get Quote Now</span>
+                                    <span class="position-relative">Пользовательское соглашение</span>
                                 </button>
                             </div>
                         </div>
@@ -741,8 +762,8 @@
     <!-- Starta Faqs -->
     <section class="starta-faq my-5 pb-md-5" id="faqs">
         <div class="container pt-4">
-            <h1 class="starta-heading mx-auto">Top Rated Company</h1>
-            <h1 class="starta-h1 text-center">Meet Our Expert Team</h1>
+            <h1 class="starta-heading mx-auto">Частые вопросы</h1>
+            <h1 class="starta-h1 text-center">Все ответы на ваши вопросы.</h1>
 
             <!-- FAQs -->
             <div class="accordion accordion-flush" id="startaFaq">
@@ -754,7 +775,7 @@
                                 data-bs-target="#faq1"
                                 aria-expanded="false"
                                 aria-controls="#faq1">
-                            Revisiting Your Investment & Distribution Goals
+                            Как долго нужно ждать вывоза техники?
                         </button>
                     </h2>
 
@@ -774,12 +795,14 @@
                                 </div>
                                 <div class="col-md-6 col-sm-12 mt-sm-4">
                                     <h3 class="starta-h3">
-                                        Revisiting Your Investment Distribution Goals
+                                        Обычно вывозим в день заявки или на следующий день.
                                     </h3>
                                     <p class="starta-desc">
-                                        Every pleasure is to be welcomed and every pain avoided.
-                                        But in certain circumstances and owing to the claims of
-                                        duty obligations of business
+                                        Но в редких случаях нужно подождать пару дней.
+                                        Если у вас срочный вывоз, рекомендуем сообщить
+                                        об этом сразу, что бы сделать вашу заявку приоритенее.
+                                        Мы стараемся всегда учитывать ваши пожеления и подстаиватся
+                                        по возможности под удобное для вас время.
                                     </p>
                                 </div>
                             </div>
@@ -795,7 +818,7 @@
                                 data-bs-target="#faq2"
                                 aria-expanded="false"
                                 aria-controls="faq2">
-                            Revisiting Your Investment & Distribution Goals
+                            У меня бытовая техника неисправна, это влияет на цену?
                         </button>
                     </h2>
                     <!-- faq 2 body -->
@@ -814,12 +837,12 @@
                                 </div>
                                 <div class="col-md-6 col-sm-12 mt-sm-4">
                                     <h3 class="starta-h3">
-                                        Revisiting Your Investment Distribution Goals
+                                        Нет, это на цену не влияет.
                                     </h3>
                                     <p class="starta-desc">
-                                        Every pleasure is to be welcomed and every pain avoided.
-                                        But in certain circumstances and owing to the claims of
-                                        duty obligations of business
+                                        Мы принимаем технику на вторичную переработку и утилизацию.
+                                        Для нас нет разницы исправна техника(приборы) или нет.
+                                        Поэтому смело оставляйте заявку :)
                                     </p>
                                 </div>
                             </div>
@@ -854,11 +877,10 @@
                                 </div>
                                 <div class="col-md-7 col-sm-9 col-9">
                                     <h2 class="starta-h2">
-                                        When an unknown printer took A galley of type and
-                                        scrambled it to make a type specimen Book. It has
-                                        survived not only Five centuries.
+                                        Спасибо большое, вывезли у родителей со двора этот старый хлам, а то они складировали его годами, а оно все уже давно хламьё.
+                                        Буду рекомендовать!
                                     </h2>
-                                    <h4 class="starta-h4">Charli Hapan</h4>
+                                    <h4 class="starta-h4">Владимир (Жлобин)</h4>
                                 </div>
                             </div>
                             <div class="testimonialCircle"></div>
@@ -874,7 +896,7 @@
                                          alt="Quote" />
                                     <div class="d-inline-block">
                                         <img class="testimonialClient"
-                                             src="images/main/members/member3.png"
+                                             src="images/main/members/member4.png"
                                              alt="Client" />
                                         <div class="stars clientStars">
                                             <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
@@ -883,11 +905,11 @@
                                 </div>
                                 <div class="col-md-7 col-sm-9 col-9">
                                     <h2 class="starta-h2">
-                                        When an unknown printer took A galley of type and
-                                        scrambled it to make a type specimen Book. It has
-                                        survived not only Five centuries.
+                                        Спасибо мальчикам! Отключили и вынесли старую стиральную машину.
+                                        Передайте им большое спасибо, я уже думала нанять кого,
+                                        что бы вынесли на мусор ее.
                                     </h2>
-                                    <h4 class="stara-h4">Charli Hapan</h4>
+                                    <h4 class="stara-h4">Надежда (Гомель)</h4>
                                 </div>
                             </div>
                             <div class="testimonialCircle"></div>
@@ -903,7 +925,7 @@
                                          alt="Quote" />
                                     <div class="d-inline-block">
                                         <img class="testimonialClient"
-                                             src="images/main/members/member3.png"
+                                             src="images/main/members/member2.png"
                                              alt="Client" />
                                         <div class="stars clientStars">
                                             <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
@@ -912,11 +934,10 @@
                                 </div>
                                 <div class="col-md-7 col-sm-9 col-9">
                                     <h2 class="starta-h2">
-                                        When an unknown printer took A galley of type and
-                                        scrambled it to make a type specimen Book. It has
-                                        survived not only Five centuries.
+                                        Купили старый дом, думали что придется грузовик нанимать что бы всю эту старую технику вывезти.
+                                        А тут оказывается еще и денюшку получили. Осталось найти куда так-же избавится от старой мебели.
                                     </h2>
-                                    <h4 class="stara-h4">Charli Hapan</h4>
+                                    <h4 class="stara-h4">Дарья (Бобруйск)</h4>
                                 </div>
                             </div>
                             <div class="testimonialCircle"></div>
@@ -928,7 +949,7 @@
     </section>
     <section class="starta-stories py-md-5 my-5">
         <div class="container">
-            <a class="starta-h3 d-block text-center mb-4" href="#">Instagram</a>
+            <a class="starta-h3 d-block text-center mb-4" href="#">Фотографии</a>
 
             <!-- Insta Feed -->
             <div class="instaFeed swiper">
@@ -1042,11 +1063,10 @@
             <div class="row">
                 <!-- block 1 -->
                 <div class="col-md-5 border-end">
-                    <h1 class="starta-h1">Let's Connect.</h1>
+                    <h1 class="starta-h1">Ecobay.by</h1>
                     <p class="starta-desc">
-                        Quisquam est, qui dolorem ipsum quia dolor sit amet, consecte
-                        adipisci velit, sed quia non numquam eius modi tempora incidu
-                        labore et dolore magnam voluptatem.
+                        Прием бытовой техники в Гомеле, Бобруйске,
+                        Рогачеве, Жлобине и  в других городах, районах.
                     </p>
                     <ul class="starta-social list-unstyled">
                         <li>
@@ -1067,43 +1087,43 @@
                     <div class="row mx-auto">
                         <!-- block 2 -->
                         <div class="col-md-6 col-sm-6">
-                            <h4 class="starta-h4 mb-4">Services</h4>
+                            <h4 class="starta-h4 mb-4">Где мы работаем</h4>
                             <ul class="footer-list list-unstyled">
                                 <li>
-                                    <a class="menu-animation" href="#">Instructions</a>
+                                    <a class="menu-animation" href="#">Сдать бытовую технику в Гомеле</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Style guide</a>
+                                    <a class="menu-animation" href="#">Сдать бытовую технику в Бобруйске</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Licenses</a>
+                                    <a class="menu-animation" href="#">Сдать бытовую технику в Жлобине</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">404 Not found</a>
+                                    <a class="menu-animation" href="#">Сдать бытовую технику в Рогачеве</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Password protected</a>
+                                    <a class="menu-animation" href="#">Сдать бытовую технику в Мозыре</a>
                                 </li>
                             </ul>
                         </div>
                         <!-- block 3 -->
                         <div class="col-md-6 col-sm-6">
-                            <h4 class="starta-h4 mb-4">Links</h4>
+                            <h4 class="starta-h4 mb-4">Дополнительная информация</h4>
                             <ul class="footer-list list-unstyled">
                                 <li>
-                                    <a class="menu-animation" href="#">Support</a>
+                                    <a class="menu-animation" href="#">Правила сайта и защита персональных данных</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Privacy policy</a>
+                                    <a class="menu-animation" href="#">Контакты</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Terms & Conditions</a>
+                                    <a class="menu-animation" href="#">Жалобы и предложения</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Strategic finance </a>
+                                    <a class="menu-animation" href="#">В разработке</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Video guide</a>
+                                    <a class="menu-animation" href="#">В разработке</a>
                                 </li>
                             </ul>
                         </div>
@@ -1112,14 +1132,14 @@
 
                 <!-- block 4 -->
                 <div class="col-md-3 lap-sm-100">
-                    <h4 class="starta-h4 mb-4 lap-sm-none">Subscribe</h4>
+                    <h4 class="starta-h4 mb-4 lap-sm-none">Подпишись на рассылку</h4>
                     <div class="newsLetter">
                         <input type="email"
                                name="email"
                                id="email"
-                               placeholder="Email Address" />
+                               placeholder="Email адрес" />
                         <button class="starta-button submit">
-                            <span class="position-relative">Subscribe</span>
+                            <span class="position-relative">Подписаться</span>
                             <span class="starta-button-hover"></span>
                         </button>
                     </div>
@@ -1139,6 +1159,8 @@
     string phone = "+375 (29) 991-06-66";
     string thisYear = DateTime.Now.Year.ToString();
     string cost = "от 26 копеек за кг.";
+    int ProgresPercent = 72;
+    private string VideoUrl;
 
     private decimal price = 0.26m; // цена за 1 кг
     private decimal weight = 100;  // начальный вес
@@ -1148,14 +1170,29 @@
     protected override void OnInitialized()
     {
         Calculate(); // сразу рассчитываем при загрузке
+        VideoUrl = "https://www.youtube.com/embed/O5O3yK8DJCc?autoplay=1&controls=1";
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("initHoverButtons");
+            await JS.InvokeVoidAsync("initVideoBlock");
+            await JS.InvokeVoidAsync("initCircleText");
+            await JS.InvokeVoidAsync("initGsapAnimations");
+            await JS.InvokeVoidAsync("initSwiper");
+            await JS.InvokeVoidAsync("initMobileMenu");
+        }
+    }
+
 
     private void Calculate()
     {
         if (weight > 0)
         {
             total = weight * price;
-            resultMessage = $"Вы получите <strong>{total:F2} BYN</strong> за {weight} кг техники.";
+            resultMessage = $"Вы получите <strong>~{total:F2} BYN</strong> за {weight} кг техники.*";
         }
         else
         {
