@@ -1,10 +1,19 @@
 using EcobayApp.Components;
+using EcobayApp.Contex;
+using Microsoft.EntityFrameworkCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// строка подключения из appsettings.json
+var connectionString = builder.Configuration.GetConnectionString("EcobayConnection");
+
+builder.Services.AddDbContext<AppDBContext>(options =>
+	options.UseSqlServer(connectionString));
 
 var app = builder.Build();
 
