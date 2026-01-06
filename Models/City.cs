@@ -12,6 +12,11 @@ namespace EcobayApp.Models
 		[MaxLength(100)]
 		public string Name { get; set; } = null!;
 
+		/// <summary>Название в предложном падеже — в Гомеле, в Бобруйске.</summary>
+		[Required]
+		[MaxLength(120)]
+		public string NameIn { get; set; } = null!;
+
 		/// <summary>Код/slug для URL, например "gomel".</summary>
 		[Required]
 		[MaxLength(50)]

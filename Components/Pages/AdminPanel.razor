@@ -1,0 +1,693 @@
+﻿@page "/adminpanel"
+@rendermode InteractiveServer
+
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using Microsoft.EntityFrameworkCore
+@inject AppDBContext Db
+
+<h1 class="starta-heading mx-auto">Админ‑панель</h1>
+
+<div class="container my-4">
+
+    <!-- TAB-и -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == AdminTab.Dashboard ? "active" : "")"
+                    @onclick="() => SetTab(AdminTab.Dashboard)">
+                Dashboard
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == AdminTab.Cities ? "active" : "")"
+                    @onclick="() => SetTab(AdminTab.Cities)">
+                Города
+            </button>
+        </li>
+    </ul>
+
+    @if (activeTab == AdminTab.Dashboard)
+    {
+        @DashboardTab()
+    }
+    else if (activeTab == AdminTab.Cities)
+    {
+        @CitiesTab()
+    }
+</div>
+
+@code {
+    private enum AdminTab
+    {
+        Dashboard,
+        Cities
+    }
+
+    private AdminTab activeTab = AdminTab.Dashboard;
+
+    private void SetTab(AdminTab tab)
+    {
+        activeTab = tab;
+    }
+
+    // ---------- DASHBOARD ----------
+
+    private Goal? goal;
+    private int progressPercentDisplay;
+    private int totalRequests;
+
+    private List<Request> requests = new();
+    private List<Request> filteredRequests = new();
+
+    private string? filterName;
+    private string? filterPhone;
+    private string? filterCity;
+
+    private RenderFragment DashboardTab() => __builder =>
+    {
+        <h1 class="starta-h1 text-center mb-4">Dashboard</h1>
+
+        <div class="row gy-4 mb-4">
+            <div class="col-md-3 col-6">
+                <div class="plan info">
+                    <h3 class="starta-h2 text-center">Цель клиентов</h3>
+                    <p class="starta-desc text-center display-6 fw-bold mb-0">
+                        @goal?.TargetClients
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="plan info">
+                    <h3 class="starta-h2 text-center">Цель техники</h3>
+                    <p class="starta-desc text-center display-6 fw-bold mb-0">
+                        @goal?.TargetItems
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="plan info">
+                    <h3 class="starta-h2 text-center">Заявок всего</h3>
+                    <p class="starta-desc text-center display-6 fw-bold mb-0">
+                        @totalRequests
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="plan info">
+                    <h3 class="starta-h2 text-center">Прогресс, %</h3>
+                    <p class="starta-desc text-center display-6 fw-bold mb-0">
+                        @progressPercentDisplay
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="plan">
+                    <h3 class="starta-h2 mb-3">Заявки</h3>
+
+                    <div class="row mb-3">
+                        <div class="col-md-3 mb-2">
+                            <input class="form-control"
+                                   placeholder="Фильтр по имени"
+                                   @bind="FilterName"
+                                   @bind:event="oninput" />
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <input class="form-control"
+                                   placeholder="Фильтр по телефону"
+                                   @bind="FilterPhone"
+                                   @bind:event="oninput" />
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <input class="form-control"
+                                   placeholder="Фильтр по городу"
+                                   @bind="FilterCity"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Клиент</th>
+                                    <th>Телефон</th>
+                                    <th>Сообщение</th>
+                                    <th>Город</th>
+                                    <th></th> @* колонка под кнопку *@
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in filteredRequests)
+                                {
+                                    <tr>
+                                        <td>@r.DateCreate.ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td>@r.Client?.Name</td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(r.Client?.Phone))
+                                            {
+                                                <a href=@($"tel:{r.Client.Phone}")>@r.Client.Phone</a>
+                                            }
+                                        </td>
+                                        <td style="max-width: 300px;">
+                                            @r.Message
+                                        </td>
+                                        <td>
+                                            @(r.PageCity?.City?.Name ?? r.Client?.City?.Name ?? "—")
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    @onclick="() => DeleteRequestAsync(r.Id)">
+                                                Удалить
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <p class="starta-desc mt-2">
+                        Показано @filteredRequests.Count из @totalRequests заявок.
+                    </p>
+                </div>
+            </div>
+        </div>
+    };
+
+    private string? FilterName
+    {
+        get => filterName;
+        set { filterName = value; ApplyFilter(); }
+    }
+
+    private string? FilterPhone
+    {
+        get => filterPhone;
+        set { filterPhone = value; ApplyFilter(); }
+    }
+
+    private string? FilterCity
+    {
+        get => filterCity;
+        set { filterCity = value; ApplyFilter(); }
+    }
+
+    private void ApplyFilter()
+    {
+        IEnumerable<Request> query = requests;
+
+        if (!string.IsNullOrWhiteSpace(filterName))
+        {
+            query = query.Where(r =>
+                !string.IsNullOrWhiteSpace(r.Client?.Name) &&
+                r.Client.Name.Contains(filterName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterPhone))
+        {
+            query = query.Where(r =>
+                !string.IsNullOrWhiteSpace(r.Client?.Phone) &&
+                r.Client.Phone.Contains(filterPhone, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterCity))
+        {
+            query = query.Where(r =>
+                (r.PageCity?.City?.Name ?? r.Client?.City?.Name ?? string.Empty)
+                    .Contains(filterCity, StringComparison.OrdinalIgnoreCase));
+        }
+
+        filteredRequests = query.ToList();
+    }
+
+    // ---------- CITIES TAB ----------
+
+    private List<City> cities = new();
+    private City? editCity;
+    private PageCity? editPage;
+
+    private PromoMessage? editPromo;
+
+    private bool saving;
+    private bool saveOk;
+    private bool savingPage;
+    private bool savePageOk;
+    private bool savingPromo;
+    private bool savePromoOk;
+
+    private RenderFragment CitiesTab() => __builder =>
+    {
+        <h1 class="starta-h1 text-center mb-4">Города и страницы</h1>
+
+        <div class="row gy-4">
+            <!-- Список городов -->
+            <div class="col-md-3">
+                <div class="plan">
+                    <h3 class="starta-h2 mb-3">Города</h3>
+
+                    <button class="starta-button-admin" @onclick="CreateNewCity">
+                        <span class="position-relative">Добавить город</span>
+                        <span class="starta-button-hover"></span>
+                    </button>
+
+                    <ul class="starta-desc">
+                        @foreach (var c in cities)
+                        {
+                            <li>
+                                <a href="javascript:void(0);" @onclick="() => SelectCity(c.Id)">
+                                    <strong>@c.Name</strong> (@c.Slug)
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Редактирование города -->
+            <div class="col-md-3">
+                <div class="plan">
+                    <h3 class="starta-h2 mb-3">Город</h3>
+
+                    @if (editCity is null)
+                    {
+                        <p class="starta-desc">Выберите город или создайте новый.</p>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label class="starta-desc">Название (И.п.)</label>
+                            <input class="form-control" @bind="editCity.Name" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Название (в Гомеле)</label>
+                            <input class="form-control" @bind="editCity.NameIn" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Slug (для URL)</label>
+                            <input class="form-control" @bind="editCity.Slug" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Телефон по умолчанию</label>
+                            <input class="form-control" @bind="editCity.DefaultPhone" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Цена по умолчанию (BYN/кг)</label>
+                            <input class="form-control" type="number" step="0.01"
+                                   @bind="editCity.DefaultPrice" />
+                        </div>
+
+                        <button class="starta-button-admin" @onclick="SaveCityAsync" disabled="@saving">
+                            <span class="position-relative">
+                                @(saving ? "Сохранение..." : "Сохранить город")
+                            </span>
+                            <span class="starta-button-hover"></span>
+                        </button>
+
+                        @if (saveOk)
+                        {
+                            <p class="starta-desc mt-2" style="color:#28a745;">
+                                Город сохранён.
+                            </p>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Посадочная страница -->
+            <div class="col-md-3">
+                <div class="plan">
+                    <h3 class="starta-h2 mb-3">Страница города</h3>
+
+                    @if (editPage is null)
+                    {
+                        <p class="starta-desc">
+                            Выберите город — страница создастся автоматически, если её ещё нет.
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label class="starta-desc">Title страницы</label>
+                            <input class="form-control" @bind="editPage.Title" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Описание (meta description)</label>
+                            <textarea class="form-control" rows="3"
+                                      @bind="editPage.Description"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Ключевые слова (meta keywords)</label>
+                            <textarea class="form-control" rows="2"
+                                      @bind="editPage.KeyWords"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Телефон для страницы</label>
+                            <input class="form-control" @bind="editPage.PhoneCity" />
+                            <small class="starta-desc">
+                                Если пусто — используется телефон города (@editCity?.DefaultPhone).
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Цена для страницы (BYN/кг)</label>
+                            <input class="form-control" type="number" step="0.01"
+                                   @bind="editPage.Price" />
+                            <small class="starta-desc">
+                                Если пусто — используется цена города (@editCity?.DefaultPrice).
+                            </small>
+                        </div>
+
+                        <button class="starta-button-admin" @onclick="SavePageAsync" disabled="@savingPage">
+                            <span class="position-relative">
+                                @(savingPage ? "Сохранение..." : "Сохранить страницу")
+                            </span>
+                            <span class="starta-button-hover"></span>
+                        </button>
+
+                        @if (savePageOk)
+                        {
+                            <p class="starta-desc mt-2" style="color:#28a745;">
+                                Страница сохранена.
+                            </p>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Промо-сообщение -->
+            <div class="col-md-3">
+                <div class="plan">
+                    <h3 class="starta-h2 mb-3">Промо для города</h3>
+
+                    @if (editPromo is null)
+                    {
+                        <p class="starta-desc">
+                            Выберите город — можно будет настроить промо‑сообщение.
+                        </p>
+                    }
+                    else
+                    {
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="promoActiveCheck"
+                                   @bind="editPromo.IsActive" />
+                            <label class="form-check-label starta-desc" for="promoActiveCheck">
+                                Активно
+                            </label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Заголовок промо</label>
+                            <input class="form-control" @bind="editPromo.Title" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="starta-desc">Текст промо</label>
+                            <textarea class="form-control" rows="3"
+                                      @bind="editPromo.Text"></textarea>
+                        </div>
+
+                        <button class="starta-button-admin"
+                                @onclick="SavePromoAsync"
+                                disabled="@savingPromo">
+                            <span class="position-relative">
+                                @(savingPromo ? "Сохранение..." : "Сохранить промо")
+                            </span>
+                            <span class="starta-button-hover"></span>
+                        </button>
+
+                        @if (savePromoOk)
+                        {
+                            <p class="starta-desc mt-2" style="color:#28a745;">
+                                Промо сохранено.
+                            </p>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentYear = DateTime.Now.Year;
+
+        // goal
+        goal = await Db.Goals
+            .Where(g => g.IsActive && g.Year == currentYear)
+            .OrderByDescending(g => g.StartDate)
+            .FirstOrDefaultAsync();
+
+        if (goal == null)
+        {
+            goal = new Goal
+            {
+                Year = currentYear,
+                TargetClients = 5000,
+                TargetItems = 12000,
+                ActualClients = 0,
+                ActualItems = 0,
+                InactiveRequests = 0,
+                StartDate = new DateTime(currentYear, 1, 5),
+                IsActive = true
+            };
+            Db.Goals.Add(goal);
+            await Db.SaveChangesAsync();
+        }
+
+        var clientsProgress = goal.ActualClients + goal.InactiveRequests;
+        if (goal.TargetClients > 0)
+            progressPercentDisplay = (int)Math.Round(100.0 * clientsProgress / goal.TargetClients);
+        else
+            progressPercentDisplay = 0;
+
+        // заявки
+        requests = await Db.Requests
+            .Take(50)
+            .Include(r => r.Client)
+            .Include(r => r.PageCity)
+                .ThenInclude(pc => pc.City)
+            .OrderByDescending(r => r.DateCreate)
+            .ToListAsync();
+
+        totalRequests = requests.Count;
+        ApplyFilter();
+
+        // города
+        cities = await Db.Cities
+            .OrderBy(c => c.Name)
+            .ToListAsync();
+    }
+
+    // --- Города / страница города / промо ---
+
+    private void CreateNewCity()
+    {
+        editCity = new City
+        {
+            Name = "",
+            NameIn = "",
+            Slug = "",
+            DefaultPhone = "",
+            DefaultPrice = 0.20m
+        };
+        editPage = null;
+        editPromo = null;
+        saveOk = false;
+        savePageOk = false;
+        savePromoOk = false;
+    }
+
+    private async Task SelectCity(long cityId)
+    {
+        saveOk = false;
+        savePageOk = false;
+        savePromoOk = false;
+
+        editCity = await Db.Cities
+            .FirstOrDefaultAsync(c => c.Id == cityId);
+
+        if (editCity is null)
+        {
+            editPage = null;
+            editPromo = null;
+            return;
+        }
+
+        editPage = await Db.PageCities
+            .FirstOrDefaultAsync(p => p.CityId == cityId);
+
+        if (editPage is null)
+        {
+            editPage = new PageCity
+            {
+                CityId = editCity.Id,
+                Title = $"Вывоз бытовой техники в {editCity.NameIn}",
+                Description = $"Быстрый и выгодный вывоз бытовой техники в {editCity.NameIn}.",
+                KeyWords = $"вывоз техники {editCity.Name}, утилизация техники {editCity.Name}",
+                Price = editCity.DefaultPrice,
+                PhoneCity = editCity.DefaultPhone,
+                IsShowPromo = false
+            };
+        }
+
+        editPromo = await Db.PromoMessages
+            .FirstOrDefaultAsync(p => p.CityId == cityId);
+
+        if (editPromo is null)
+        {
+            editPromo = new PromoMessage
+            {
+                CityId = editCity.Id,
+                Title = $"Акция в {editCity.NameIn}",
+                Text = "",
+                IsActive = false
+            };
+        }
+    }
+
+    private async Task SaveCityAsync()
+    {
+        if (editCity is null)
+            return;
+
+        saving = true;
+        saveOk = false;
+
+        try
+        {
+            if (editCity.Id == 0)
+            {
+                Db.Cities.Add(editCity);
+            }
+            else
+            {
+                Db.Cities.Update(editCity);
+            }
+
+            await Db.SaveChangesAsync();
+
+            cities = await Db.Cities
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+
+            editCity = await Db.Cities
+                .FirstOrDefaultAsync(c => c.Id == editCity.Id);
+
+            saveOk = true;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task SavePageAsync()
+    {
+        if (editCity is null || editPage is null)
+            return;
+
+        savingPage = true;
+        savePageOk = false;
+
+        try
+        {
+            if (editCity.Id == 0)
+            {
+                Db.Cities.Add(editCity);
+                await Db.SaveChangesAsync();
+            }
+
+            editPage.CityId = editCity.Id;
+
+            if (editPage.Id == 0)
+            {
+                Db.PageCities.Add(editPage);
+            }
+            else
+            {
+                Db.PageCities.Update(editPage);
+            }
+
+            await Db.SaveChangesAsync();
+
+            savePageOk = true;
+        }
+        finally
+        {
+            savingPage = false;
+        }
+    }
+
+    private async Task SavePromoAsync()
+    {
+        if (editCity is null || editPromo is null)
+            return;
+
+        savingPromo = true;
+        savePromoOk = false;
+
+        try
+        {
+            if (editCity.Id == 0)
+            {
+                Db.Cities.Add(editCity);
+                await Db.SaveChangesAsync();
+            }
+
+            editPromo.CityId = editCity.Id;
+
+            if (editPromo.Id == 0)
+            {
+                Db.PromoMessages.Add(editPromo);
+            }
+            else
+            {
+                Db.PromoMessages.Update(editPromo);
+            }
+
+            await Db.SaveChangesAsync();
+
+            savePromoOk = true;
+        }
+        finally
+        {
+            savingPromo = false;
+        }
+    }
+
+    private async Task DeleteRequestAsync(long requestId)
+    {
+        var request = await Db.Requests
+            .FirstOrDefaultAsync(r => r.Id == requestId);
+
+        if (request == null)
+            return;
+
+        Db.Requests.Remove(request);
+        await Db.SaveChangesAsync();
+
+        // убираем из локальных списков
+        var original = requests.FirstOrDefault(r => r.Id == requestId);
+        if (original != null)
+            requests.Remove(original);
+
+        ApplyFilter(); // пересчитать filteredRequests и счётчик
+
+        totalRequests = requests.Count;
+        StateHasChanged();
+    }
+
+}

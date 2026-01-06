@@ -1,13 +1,22 @@
 ﻿@page "/"
+@page "/{slug:nonfile?}"
 @rendermode InteractiveServer
+@inject AppDBContext Db
+@inject IEmailSender EmailSender
 @inject IJSRuntime JS
+@using EcobayApp.Contex
+@using EcobayApp.Models
 @using System.Net
 @using System.Net.Mail
+@using Microsoft.EntityFrameworkCore
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Web
 
-<PageTitle>Вывоз бытовой техники в Гомеле, Бобруйске, Жлобине, Рогачеве</PageTitle>
+
+<PageTitle>@Title</PageTitle>
 <HeadContent>
-    <meta name="description" content="Приём техники на утилизацию. Быстро и выгодно — 26 копеек за кг." />
-    <meta name="keywords" content="утилизация, техника, переработка, приём техники, утилизация электроники" />
+    <meta name="description" content="@(pageCity?.Description ?? "Вывоз и утилизация бытовой техники в Гомеле, Бобруйске, Жлобине, Рогачеве")" />
+    <meta name="keywords" content="@(pageCity?.KeyWords ?? "утилизация, техника, переработка, приём техники, утилизация электроники")" />
 </HeadContent>
 
 <!-- preloader -->
@@ -83,14 +92,22 @@
                     <!-- ТЕКСТОВАЯ КОЛОНКА ВВЕРХУ (на мобиле и десктопе) -->
                     <div class="col-12 col-md-7">
                         <h1 class="heroHeading">
-                            Быстрый вывоз техники на утилизацию
+                            @if (currentCity is not null)
+                            {
+                                @($"Быстрый вывоз техники на утилизацию в {currentCity.NameIn}")
+                            }
+                            else
+                            {
+                                @("Быстрый вывоз техники на утилизацию")
+                            }
                         </h1>
+
 
                         <!-- КОРОТКИЙ ТЕКСТ С ЦЕНОЙ (Только мобиле) -->
                         <p class="heroDesc d-block d-md-none">
                             Быстро заберём технику на утилизацию и заплатим за каждый килограмм.
                             Оставьте заявку — перезвоним и согласуем удобное время выезда.
-                            <span style="font-size:22px;"><strong>@cost</strong></span>.
+                            <span style="font-size:22px;"><strong> от @price копеек за килограмм</strong></span>
                         </p>
 
                         <!-- ДЛИННЫЙ ТЕКСТ (Только на десктопе) -->
@@ -98,8 +115,8 @@
                             С нами всё просто: оставляете заявку или звоните — мы сами приезжаем по вашему адресу.
                             Наши специалисты аккуратно вынесут и погрузят технику, а расчёт произведём прямо на месте.
                             За каждый килограмм техники платим <strong>мы</strong>, а итоговая сумма зависит от её веса.
-                            Вы получаете честную оплату и удобный сервис без лишних хлопот —
-                            <span style="font-size:22px;"><strong>@cost</strong></span>.
+                            Вы получаете честную оплату и удобный сервис без лишних хлопот — от
+                            <span style="font-size:22px;"><strong>@price копеек за кг.</strong></span>
                             Вся техника отправляется на переработку — ваше решение помогает экологии нашей планеты.
                         </p>
 
@@ -123,7 +140,7 @@
 
                         <!-- Кнопка "Позвонить" -->
                         <a href="tel:@phone" class="starta-button call-button mt-5">
-                            <span class="position-relative">Позвонить</span>
+                            <span class="position-relative">@phone</span>
                             <span class="starta-button-hover"></span>
                         </a>
                     </div>
@@ -137,7 +154,8 @@
                             <img src="images/hero/shape3.svg" alt="shape" />
                         </div>
 
-                        <EditForm Model="client" OnValidSubmit="OnSubmitAsync">
+                        <EditForm Model="form" OnValidSubmit="OnSubmitAsync">>
+
                             <div class="heroForm">
                                 <article class="formContent">
                                     <h2 class="starta-h2">Оставьте заявку</h2>
@@ -148,21 +166,21 @@
 
                                 <div class="inputField">
                                     <InputText class="starta-desc"
-                                               @bind-Value="client.Name"
+                                               @bind-Value="form.Name"
                                                placeholder="Ваше имя" />
                                     <i class="fa-solid fa-user"></i>
                                 </div>
 
                                 <div class="inputField">
                                     <InputText class="starta-desc"
-                                               @bind-Value="client.Phone"
-                                               placeholder="Ваш телефон" />
-                                    <i class="fa-solid fa-phone"></i>
+                                                @bind-Value="form.Phone"
+                                                placeholder="Ваш телефон"
+                                               @onfocus="EventCallback.Factory.Create(this, OnPhoneFocus)" />
                                 </div>
 
                                 <div class="inputField messageField">
                                     <InputTextArea class="starta-desc"
-                                                   @bind-Value="client.Comment"
+                                                   @bind-Value="form.Comment"
                                                    rows="3"
                                                    placeholder="Ваше сообщение" />
                                     <i class="fa-solid fa-comment"></i>
@@ -179,7 +197,13 @@
                                     <span class="starta-button-hover"></span>
                                 </button>
 
-                                @if (isSuccessMessageVisible)
+                                @if (!string.IsNullOrEmpty(formErrorMessage))
+                                {
+                                    <p class="starta-desc mt-3" style="color:#dc3545;">
+                                        @formErrorMessage
+                                    </p>
+                                }
+                                else if (isSuccessMessageVisible)
                                 {
                                     <p class="starta-desc mt-3" style="color:#28a745;">
                                         Заявка успешно отправлена. Мы свяжемся с вами в ближайшее время.
@@ -263,7 +287,6 @@
                          src="images/main/block1.png"
                          alt="Block" />
 
-                    <!-- block Performance -->
                     <div class="starta-performance">
                         <h4 class="starta-h4 fw-normal mb-3">Наши цели @thisYear</h4>
                         <div class="row pb-3 border-bottom">
@@ -275,9 +298,9 @@
                                     <div class="col-md-8 ps-1">
                                         <article>
                                             <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
-                                                5000+<i class="fa-solid fa-arrow-up"></i>
+                                                @totalClientsDisplay<i class="fa-solid fa-arrow-up"></i>
                                             </h4>
-                                            <p class="starta-desc">Клиентов</p>
+                                            <p class="starta-descbox">Клиентов</p>
                                         </article>
                                     </div>
                                 </div>
@@ -290,9 +313,9 @@
                                     <div class="col-md-8 ps-1">
                                         <article>
                                             <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
-                                                12000<i class="fa-solid fa-arrow-up"></i>
+                                                @totalItemsDisplay<i class="fa-solid fa-arrow-up"></i>
                                             </h4>
-                                            <p class="starta-desc">Единиц техники</p>
+                                            <p class="starta-descbox">Ед. техники</p>
                                         </article>
                                     </div>
                                 </div>
@@ -304,8 +327,9 @@
                         <div class="bar">
                             <div class="fill" style="width:@ProgresPercent%;"></div>
                         </div>
-
                     </div>
+
+
                 </div>
 
                 <!-- About Content -->
@@ -362,7 +386,7 @@
                         </div>
 
                         <!-- video frame -->
-                        <iframe src="https://www.youtube-nocookie.com/embed/O5O3yK8DJCc?si=JgM3-6Rmon62WHzq&amp;controls=0"
+                        <iframe src="https://www.youtube.com/embed/e0TblOS6o_s;controls=0"
                                 title="Sample Video"
                                 frameborder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -546,8 +570,7 @@
             </h1>
 
             <div class="row justify-content-center">
-                <div class="col-md-4 lap-sm-50 tab-100"></div>
-
+                <!-- Калькулятор -->
                 <div class="col-md-4 lap-sm-50 tab-100">
                     <div class="plan best">
                         <div class="row align-items-center">
@@ -585,17 +608,19 @@
                     </div>
                 </div>
 
+                <!-- Справочный вес -->
                 <div class="col-md-4 lap-sm-50 tab-100">
                     <div class="plan info">
                         <h3 class="starta-h2 text-center">Вес техники*</h3>
+                        <strong>Вес указан в килогаммах</strong>
                         <ul class="starta-desc">
-                            <li>Холодильник — <strong>~ 45–80 кг</strong></li>
-                            <li>Стиральная машина — <strong>~ 50–80 кг</strong></li>
-                            <li>Советская стиралка — <strong>~ 10–45 кг</strong></li>
-                            <li>Телевизор — <strong>~ 10–50 кг</strong></li>
-                            <li>Газовая плита — <strong>~ 28–56 кг</strong></li>
-                            <li>Газовый котёл — <strong>~ 40–150 кг</strong></li>
-                            <li>Газовая колонка — <strong>~ 15–40 кг</strong></li>
+                            <li>Холодильник <strong>~ 45–80</strong></li>
+                            <li>Стиральная машина <strong>~ 50–80</strong></li>
+                            <li>Советская стиралка <strong>~ 10–45</strong></li>
+                            <li>Телевизор <strong>~ 10–50</strong></li>
+                            <li>Газовая плита <strong>~ 28–56</strong></li>
+                            <li>Газовый котёл <strong>~ 40–150</strong></li>
+                            <li>Газовая колонка <strong>~ 15–40</strong></li>
                         </ul>
                         <span class="discount">
                             * Указанные значения носят справочный характер.
@@ -607,32 +632,37 @@
     </section>
 
 
-
     <section class="starta-details py-5 my-5" id="team">
         <div class="container">
             <div class="row">
+                <!-- Текстовый блок -->
                 <div class="col-md-6">
                     <h1 class="starta-heading">Наши будние дни</h1>
-                    <h1 class="starta-h1">Мы вывозим технику ежедневно. Выходной воскресенье.</h1>
+                    <h1 class="starta-h1">Мы вывозим технику ежедневно. Выходной — воскресенье.</h1>
                     <p class="starta-desc">
-                        Начиная с 9 утра и позднего вечера, наша служба принимает и вывозит технику по заявкам.
+                        Начиная с 9 утра и до позднего вечера, наша служба принимает заявки и вывозит технику по согласованному времени.
                     </p>
                     <ul class="list-unstyled details-list">
                         <li>
                             <img src="images/main/services/details/1.png"
-                                 alt="Icon" />Обработка заявки и согласование удобного времени.
+                                 alt="Icon" />
+                            Обработка заявки и согласование удобного времени.
                         </li>
                         <li>
                             <img src="images/main/services/details/2.png"
-                                 alt="Icon" />В договоренное время мы перезваниваем и уточняем детали.
+                                 alt="Icon" />
+                            В договорённое время мы перезваниваем и уточняем детали.
                         </li>
                         <li>
                             <img src="images/main/services/details/3.png"
-                                 alt="Icon" />Приезжаем к вам по адресу.
+                                 alt="Icon" />
+                            Приезжаем к вам по адресу и вывозим технику.
                         </li>
                     </ul>
                 </div>
-                <div class="col-md-6 position-relative">
+
+                <!-- Блок с картинками -->
+                <div class="col-12 col-md-6 position-relative mt-4 mt-md-0">
                     <div class="details_img detail_img1">
                         <img src="images/main/services/details/detail1.jpg"
                              alt="Details" />
@@ -649,6 +679,7 @@
             </div>
         </div>
     </section>
+
 
     <!-- About 2 -->
     <section class="starta-about pb-5 my-5">
@@ -693,13 +724,13 @@
                         <!-- clients  -->
                         <div class="clients">
                             <div class="row">
-                                <div class="col-md-3 col-sm-3 col-3">
+@*                                 <div class="col-md-3 col-sm-3 col-3">
                                     <div class="client">
                                         <img src="images/main/about/clients/c1.png"
                                              alt="Client" />
                                     </div>
-                                </div>
-                                <div class="col-md-3 col-sm-3 col-3">
+                                </div> *@
+@*                                 <div class="col-md-3 col-sm-3 col-3">
                                     <div class="client">
                                         <img src="images/main/about/clients/c2.png"
                                              alt="Client" />
@@ -740,10 +771,13 @@
                                         <img src="images/main/about/clients/c1.png"
                                              alt="Client" />
                                     </div>
-                                </div>
-                                <button class="starta-button w-auto mx-auto starta-button-2">
+                                </div> *@
+                                <button class="starta-button w-auto mx-auto starta-button-2"
+                                        type="button"
+                                        onclick="window.open('/user-agreement', '_blank');">
                                     <span class="position-relative">Пользовательское соглашение</span>
                                 </button>
+
                             </div>
                         </div>
                     </div>
@@ -785,7 +819,7 @@
                                 <div class="col-md-10 col-sm-10 col-10">
                                     <article>
                                         Остались вопросы? Напишите нам
-                                        <a href="#">Userthemes@gmail.com</a>
+                                        <a href="#">info@ecobay.by</a>
                                     </article>
                                 </div>
                             </div>
@@ -806,52 +840,44 @@
             <h1 class="starta-heading mx-auto">Частые вопросы</h1>
             <h1 class="starta-h1 text-center">Все ответы на ваши вопросы.</h1>
 
-            <!-- FAQs -->
             <div class="accordion accordion-flush" id="startaFaq">
+                <!-- FAQ 1 -->
                 <div class="accordion-item">
-                    <!-- faq 1 header -->
                     <h2 class="accordion-header">
                         <button type="button"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#faq1"
-                                aria-expanded="false"
-                                aria-controls="#faq1">
+                                aria-expanded="true"
+                                aria-controls="faq1">
                             Как долго нужно ждать вывоза техники?
                         </button>
                     </h2>
 
-                    <!-- faq 1 body -->
                     <div id="faq1" data-bs-parent="#startaFaq" class="collapse show">
                         <div class="accordion-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-3 col-sm-6 col-6">
-                                    <img src="images/main/about/faqs/f1.jpg"
-                                         alt="Faq"
-                                         class="starta-block-img" />
-                                </div>
-                                <div class="col-md-3 col-sm-6 col-6">
-                                    <img src="images/main/about/faqs/f2.jpg"
-                                         alt="Faq"
-                                         class="starta-block-img" />
-                                </div>
-                                <div class="col-md-6 col-sm-12 mt-sm-4">
+                            <div class="row">
+                                <div class="col-12">
                                     <h3 class="starta-h3">
                                         Обычно вывозим в день заявки или на следующий день.
                                     </h3>
                                     <p class="starta-desc">
-                                        Но в редких случаях нужно подождать пару дней.
-                                        Если у вас срочный вывоз, рекомендуем сообщить
-                                        об этом сразу, что бы сделать вашу заявку приоритенее.
-                                        Мы стараемся всегда учитывать ваши пожеления и подстаиватся
-                                        по возможности под удобное для вас время.
+                                        В большинстве случаев выезд происходит в день обращения или уже на следующий день.
+                                        В редких ситуациях ожидание может составить несколько дней — всё зависит от загрузки
+                                        и вашего района.
+                                    </p>
+                                    <p class="starta-desc">
+                                        Если вам нужен срочный вывоз, обязательно скажите об этом оператору или укажите в
+                                        комментарии к заявке — такие обращения стараемся ставить в приоритет и подстраиваемся
+                                        под удобное для вас время.
                                     </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- FAQ 2 -->
                 <div class="accordion-item">
-                    <!-- faq 2 header -->
                     <h2 class="accordion-header">
                         <button class="collapsed"
                                 type="button"
@@ -862,37 +888,99 @@
                             У меня бытовая техника неисправна, это влияет на цену?
                         </button>
                     </h2>
-                    <!-- faq 2 body -->
+
                     <div id="faq2" data-bs-parent="#startaFaq" class="collapse">
                         <div class="accordion-body">
-                            <div class="row align-items-center">
-                                <div class="col-md-3 col-sm-6 col-6">
-                                    <img src="images/main/about/faqs/f3.jpg"
-                                         alt="Faq"
-                                         class="starta-block-img" />
-                                </div>
-                                <div class="col-md-3 col-sm-6 col-6">
-                                    <img src="images/main/about/faqs/f4.jpg"
-                                         alt="Faq"
-                                         class="starta-block-img" />
-                                </div>
-                                <div class="col-md-6 col-sm-12 mt-sm-4">
+                            <div class="row">
+                                <div class="col-12">
                                     <h3 class="starta-h3">
-                                        Нет, это на цену не влияет.
+                                        Нет, исправность техники на цену не влияет.
                                     </h3>
                                     <p class="starta-desc">
-                                        Мы принимаем технику на вторичную переработку и утилизацию.
-                                        Для нас нет разницы исправна техника(приборы) или нет.
-                                        Поэтому смело оставляйте заявку :)
+                                        Мы принимаем технику на переработку и утилизацию, поэтому для нас неважно, работает
+                                        она или давно вышла из строя. Главное — чтобы её можно было безопасно вывезти.
+                                    </p>
+                                    <p class="starta-desc">
+                                        Смело оставляйте заявку даже если техника сломана, разобрана или частично не
+                                        комплектна — условия оплаты остаются такими же, как для исправных приборов.
                                     </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="collapsed"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#faq3"
+                                aria-expanded="false"
+                                aria-controls="faq3">
+                            Можно ли сдать фен, утюг или мобильный телефон?
+                        </button>
+                    </h2>
+
+                    <div id="faq3" data-bs-parent="#startaFaq" class="collapse">
+                        <div class="accordion-body">
+                            <div class="row">
+                                <div class="col-12">
+                                    <h3 class="starta-h3">
+                                        Да, но выезд от 10 кг техники.
+                                    </h3>
+                                    <p class="starta-desc">
+                                        Отдельно за одним феном, утюгом или телефоном мы не выезжаем.
+                                        Выезд осуществляется, когда общий вес техники от 10 кг и выше —
+                                        например, если есть хотя бы микроволновка или несколько приборов вместе.
+                                    </p>
+                                    <p class="starta-desc">
+                                        Мелкую технику можно собрать и сдать вместе с крупной — так мы заберём всё за один выезд.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ 4: Бывают ли выходные -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="collapsed"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#faq4"
+                                aria-expanded="false"
+                                aria-controls="faq4">
+                            Бывают ли у вас выходные?
+                        </button>
+                    </h2>
+
+                    <div id="faq4" data-bs-parent="#startaFaq" class="collapse">
+                        <div class="accordion-body">
+                            <div class="row">
+                                <div class="col-12">
+                                    <h3 class="starta-h3">
+                                        Да, но заявки принимаем каждый день.
+                                    </h3>
+                                    <p class="starta-desc">
+                                        Выезды обычно не выполняются по воскресеньям и в праздничные дни.
+                                        В эти дни техника не вывозится, но вы можете спокойно оставить заявку заранее.
+                                    </p>
+                                    <p class="starta-desc">
+                                        Заявки принимаются ежедневно — по телефону и через сайт.
+                                        Мы свяжемся с вами в ближайшее время (даже если это выходной) и согласуем удобное время вывоза.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </section>
+
 
     <!-- Starta Testionials -->
     <section class="starta-testimonials py-5">
@@ -988,7 +1076,8 @@
             </div>
         </div>
     </section>
-    <section class="starta-stories py-md-5 my-5">
+
+    @* <section class="starta-stories py-md-5 my-5">
         <div class="container">
             <a class="starta-h3 d-block text-center mb-4" href="#">Фотографии</a>
 
@@ -1096,7 +1185,7 @@
                 </div>
             </div>
         </div>
-    </section>
+    </section> *@
 
     <!-- starta footer -->
     <footer class="starta-footer pt-5">
@@ -1111,16 +1200,13 @@
                     </p>
                     <ul class="starta-social list-unstyled">
                         <li>
-                            <a href="#"><i class="fa-brands fa-youtube"></i></a>
+                            <a href="https://www.tiktok.com/@@ecobay.by?_r=1"><i class="fa-brands fa-tiktok"></i></a>
                         </li>
                         <li>
-                            <a href="#"><i class="fa-brands fa-twitter"></i></a>
+                            <a href="https://www.instagram.com/ecobay.by?igsh=anR4enZ4cWRtZXlv"><i class="fa-brands fa-instagram"></i></a>
                         </li>
                         <li>
-                            <a href="#"><i class="fa-brands fa-google-plus"></i></a>
-                        </li>
-                        <li>
-                            <a href="#"><i class="fa-brands fa-square-facebook"></i></a>
+                            <a href="https://vk.ru/ecobayby"><i class="fa-brands fa-vk"></i></a>
                         </li>
                     </ul>
                 </div>
@@ -1130,21 +1216,17 @@
                         <div class="col-md-6 col-sm-6">
                             <h4 class="starta-h4 mb-4">Где мы работаем</h4>
                             <ul class="footer-list list-unstyled">
-                                <li>
-                                    <a class="menu-animation" href="#">Сдать бытовую технику в Гомеле</a>
-                                </li>
-                                <li>
-                                    <a class="menu-animation" href="#">Сдать бытовую технику в Бобруйске</a>
-                                </li>
-                                <li>
-                                    <a class="menu-animation" href="#">Сдать бытовую технику в Жлобине</a>
-                                </li>
-                                <li>
-                                    <a class="menu-animation" href="#">Сдать бытовую технику в Рогачеве</a>
-                                </li>
-                                <li>
-                                    <a class="menu-animation" href="#">Сдать бытовую технику в Мозыре</a>
-                                </li>
+                                @foreach (var pc in footerCities)
+                                {
+                                    var cityNameIn = pc.City?.NameIn ?? pc.City?.Name ?? "городе";
+                                    var slug = pc.City?.Slug ?? "gomel";
+
+                                    <li>
+                                        <a class="menu-animation" href=@($"/{slug}")>
+                                            Сдать бытовую технику в @cityNameIn
+                                        </a>
+                                    </li>
+                                }
                             </ul>
                         </div>
                         <!-- block 3 -->
@@ -1160,18 +1242,12 @@
                                 <li>
                                     <a class="menu-animation" href="#">Жалобы и предложения</a>
                                 </li>
-                                <li>
-                                    <a class="menu-animation" href="#">В разработке</a>
-                                </li>
-                                <li>
-                                    <a class="menu-animation" href="#">В разработке</a>
-                                </li>
                             </ul>
                         </div>
                     </div>
                 </div>
 
-                <!-- block 4 -->
+@*                 <!-- block 4 -->
                 <div class="col-md-3 lap-sm-100">
                     <h4 class="starta-h4 mb-4 lap-sm-none">Подпишись на рассылку</h4>
                     <div class="newsLetter">
@@ -1184,36 +1260,52 @@
                             <span class="starta-button-hover"></span>
                         </button>
                     </div>
-                </div>
+                </div> *@
             </div>
         </div>
 
         <!-- copyright -->
         <div class="copyright pt-5 pb-5">
-            © Ecobay.by 2018-@thisYear. Разработка и поддержка Artbavial Software
+            © Ecobay.by 2018-@thisYear. ООО "ЭКОТЕХБЕЛК" УНП 491508819 | Разработка и поддержка Artbavial Software
         </div>
     </footer>
 </div>
 
 
+@using System.ComponentModel.DataAnnotations
+
 @code
 {
+    #region Параметры маршрута и данные страницы
+
+    [Parameter] public string? slug { get; set; }
+
+    private PageCity? pageCity;
+    private City? currentCity;
+    private bool isCityMode => pageCity != null;
+
+    private List<City> allCities = new();
+
+    private PromoMessage? promo;   // промо из БД
+    private Goal? goal;            // цели по году
+
+    #endregion
+
     #region Константы и текстовые данные
 
-    string phone = "+375 (29) 991-06-66";
+    private string? formErrorMessage;
+    private List<PageCity> footerCities = new();
+    string phone = "+375 (29) 991-06-66"; // дефолтный телефон
     string thisYear = DateTime.Now.Year.ToString();
-    string cost = "от 20 копеек за кг.";
-    int ProgresPercent = 72;
-    int year = 2026;
-    string Title = "Вывоз бытовой техники в Гомеле";
-
-    private string VideoUrl;
+    int ProgresPercent = 0;
+    int year = DateTime.Now.Year;
+    string Title = "Вывоз бытовой техники по всей Беларуси";
 
     #endregion
 
     #region Калькулятор выплаты
 
-    private decimal price = 0.20m;   // цена за 1 кг
+    private decimal price = 0.20m;   // цена за 1 кг (дефолт)
     private decimal weight = 500;    // начальный вес
     private decimal total;
     private string resultMessage = "";
@@ -1234,13 +1326,159 @@
 
     #endregion
 
+    #region Показатели/цели
+
+    private int totalClientsDisplay;
+    private int totalItemsDisplay;
+    private int progressPercentDisplay;
+
+    #endregion
+
     #region Жизненный цикл компонента
 
-    protected override void OnInitialized()
+    protected override async Task OnParametersSetAsync()
     {
-        Calculate(); // сразу рассчитываем при загрузке
-        VideoUrl = "https://www.youtube.com/embed/O5O3yK8DJCc?autoplay=1&controls=1";
-        ShowPromo();
+        await EnsureSeedDataAsync();
+
+        footerCities = await Db.PageCities
+            .Include(p => p.City)
+            .OrderBy(p => p.City.Name)
+            .ToListAsync();
+
+        // 1. Город / список городов
+        if (!string.IsNullOrWhiteSpace(slug))
+        {
+            // режим конкретного города
+            pageCity = await Db.PageCities
+                .Include(p => p.City)
+                .FirstOrDefaultAsync(p => p.City.Slug == slug);
+
+            currentCity = pageCity?.City;
+        }
+        else
+        {
+            // режим по умолчанию — вся Беларусь
+            pageCity = null;
+            currentCity = null;
+
+            allCities = await Db.Cities
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+        }
+
+        // 2. Настройка заголовков/цены/телефона
+        if (pageCity != null && currentCity != null)
+        {
+            Title = pageCity.Title;
+            phone = pageCity.PhoneCity ?? currentCity.DefaultPhone ?? phone;
+            price = pageCity.Price ?? currentCity.DefaultPrice ?? price;
+        }
+        else
+        {
+            Title = "Вывоз бытовой техники по всей Беларуси";
+            phone = "+375 (29) 991-06-66";
+            price = 0.20m;
+        }
+
+        // 3. Промо-сообщение
+
+        if (currentCity != null)
+        {
+            // 1) сначала пробуем промо для конкретного города
+            promo = await Db.PromoMessages
+                .Where(p => p.IsActive && p.CityId == currentCity.Id)
+                .FirstOrDefaultAsync();
+
+            // 2) если нет городского промо — берём общее
+            if (promo == null)
+            {
+                promo = await Db.PromoMessages
+                    .Where(p => p.IsActive && p.CityId == null)
+                    .FirstOrDefaultAsync();
+            }
+        }
+        else
+        {
+            // главная / вся Беларусь — только общее промо
+            promo = await Db.PromoMessages
+                .Where(p => p.IsActive && p.CityId == null)
+                .FirstOrDefaultAsync();
+        }
+
+        isPromoVisible = promo != null;
+
+        // 4. Цели и прогресс
+        await LoadGoalsAsync();
+
+        // 5. Калькулятор и видео
+        Calculate();
+    }
+
+    private async Task LoadGoalsAsync()
+    {
+        var currentYear = DateTime.Now.Year;
+
+        goal = await Db.Goals
+            .Where(g => g.IsActive && g.Year == currentYear)
+            .OrderByDescending(g => g.StartDate)
+            .FirstOrDefaultAsync();
+
+        if (goal == null)
+        {
+            goal = new Goal
+            {
+                Year = currentYear,
+                TargetClients = 5000,
+                TargetItems = 12000,
+                ActualClients = 0,
+                ActualItems = 0,
+                InactiveRequests = 0,
+                StartDate = new DateTime(currentYear, 1, 5),
+                IsActive = true
+            };
+            Db.Goals.Add(goal);
+            await Db.SaveChangesAsync();
+        }
+
+        // цели, которые показываем в блоке
+        totalClientsDisplay = goal.TargetClients;
+        totalItemsDisplay = goal.TargetItems;
+
+        // прогресс по формуле (ActualClients + InactiveRequests) / TargetClients
+        var clientsProgress = goal.ActualClients + goal.InactiveRequests;
+
+        if (goal.TargetClients > 0)
+            progressPercentDisplay = (int)Math.Round(100.0 * clientsProgress / goal.TargetClients);
+        else
+            progressPercentDisplay = 0;
+
+        ProgresPercent = progressPercentDisplay;
+    }
+
+    private static int CalculateVirtualAdds(DateTime start, DateTime now)
+    {
+        if (now <= start)
+            return 0;
+
+        int total = 0;
+        var day = start.Date;
+
+        while (day <= now.Date)
+        {
+            for (int hour = 8; hour <= 21; hour++)
+            {
+                var point = day.AddHours(hour);
+                if (point > now)
+                    break;
+
+                if (point >= start)
+                    total++;
+            }
+
+            day = day.AddDays(1);
+        }
+
+        return total;
     }
 
     #endregion
@@ -1262,7 +1500,6 @@
                 await JS.InvokeVoidAsync("initCircleText");
                 await JS.InvokeVoidAsync("initGsapAnimations");
                 await JS.InvokeVoidAsync("initSwiper");
-                // ВАЖНО: initMobileMenu закомментирован, т.к. он всё ломал
                 // await JS.InvokeVoidAsync("initMobileMenu");
             }
             catch (Exception ex)
@@ -1274,9 +1511,9 @@
 
     #endregion
 
-    #region Отправка заявки (форма)
+    #region Отправка заявки (форма -> Client + Request)
 
-    private ClientModel client = new();
+    private RequestFormModel form = new();
     private bool isSending;
     private bool isSuccessMessageVisible;
 
@@ -1287,65 +1524,133 @@
 
         isSending = true;
         isSuccessMessageVisible = false;
+        formErrorMessage = null;
 
-        var success = await SendRequestToMail();
-
-        if (success)
-        {
-            // очистка формы
-            client = new ClientModel();
-            isSuccessMessageVisible = true;
-        }
-
-        isSending = false;
-    }
-
-    private async Task<bool> SendRequestToMail()
-    {
         try
         {
-            var from = new MailAddress("artbavial@yandex.ru", "Сайт Ecobay.by");
-            var to = new MailAddress("artbavial@yandex.ru"); // временно
+            // нормализуем телефон
+            form.Phone = NormalizePhone(form.Phone ?? string.Empty);
 
-            var m = new MailMessage(from, to)
+            // достаём только цифры для проверки длины
+            var digits = new string((form.Phone ?? string.Empty)
+                .Where(char.IsDigit)
+                .ToArray());
+
+            if (string.IsNullOrWhiteSpace(form.Phone) || digits.Length == 0)
             {
-                Subject = $"Новый запрос на звонок с сайта Ecobay.by от {client.Name}",
-                Body = $@"
-<h2>У вас новый запрос на звонок с сайта от {client.Name}!</h2>
-<p><b>Имя:</b> <span>{client.Name}</span></p>
-<p><b>Номер телефона:</b> <a href=""tel:{client.Phone}"">{client.Phone}</a></p>
-<p><b>Комментарий:</b> {client.Comment}</p>
-<br/>
-<h6>Сервис предоставлен ArtBavial Software</h6>",
-                IsBodyHtml = true
+                formErrorMessage = "Укажите телефон.";
+                return;
+            }
+
+            if (digits.Length < 9 || digits.Length > 15)
+            {
+                formErrorMessage = "Телефон должен содержать от 9 до 15 цифр.";
+                return;
+            }
+
+            var last9 = GetLast9Digits(form.Phone!);
+            if (string.IsNullOrEmpty(last9))
+            {
+                formErrorMessage = "Не удалось распознать номер телефона.";
+                return;
+            }
+
+            var client = await Db.Clients
+                .FirstOrDefaultAsync(c => c.Phone.EndsWith(last9));
+
+            if (client == null)
+            {
+                client = new Client
+                {
+                    Name = form.Name ?? string.Empty,
+                    Phone = form.Phone,
+                    Comment = form.Comment,
+                    CityId = currentCity?.Id
+                };
+
+                Db.Clients.Add(client);
+                await Db.SaveChangesAsync();
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(form.Name))
+                    client.Name = form.Name;
+                if (!string.IsNullOrWhiteSpace(form.Comment))
+                    client.Comment = form.Comment;
+
+                await Db.SaveChangesAsync();
+            }
+
+            var request = new Request
+            {
+                ClientId = client.Id,
+                PageCityId = pageCity?.Id,
+                DateCreate = DateTime.Now,
+                Message = form.Comment,
+                Source = slug is null ? "/" : $"/city/{slug}"
             };
 
-            using var smtp = new SmtpClient("smtp.yandex.ru", 587)
+            Db.Requests.Add(request);
+
+            if (goal != null)
             {
-                Credentials = new NetworkCredential("artbavial@yandex.ru", "soyayuicwdknntxj"),
-                EnableSsl = true
-            };
+                goal.ActualClients += 1;
+                goal.ActualItems += 1;
+            }
 
-            smtp.Send(m);
+            await Db.SaveChangesAsync();
 
-            client.Date = DateTime.Now;
-            //clientService.addClientdb(client);
+            try
+            {
+                await EmailSender.SendRequestCreatedAsync(client, request, currentCity, pageCity);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Email send error: " + ex);
+            }
 
-            return true;
+            form = new RequestFormModel();
+            isSuccessMessageVisible = true;
         }
-        catch (Exception ex)
+        finally
         {
-            //Logger.Error(ex.ToString());
-            return false;
+            isSending = false;
         }
     }
 
-    public class ClientModel
+    public class RequestFormModel
     {
         public string? Name { get; set; }
         public string? Phone { get; set; }
         public string? Comment { get; set; }
-        public DateTime Date { get; set; }
+    }
+
+    private static string NormalizePhone(string phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+            return phone;
+
+        var cleaned = new string(phone.Where(c => char.IsDigit(c) || c == '+').ToArray());
+
+        if (cleaned.StartsWith("+375"))
+            return cleaned;
+
+        if (cleaned.StartsWith("375"))
+            return "+" + cleaned;
+
+        var digits = new string(cleaned.Where(char.IsDigit).ToArray());
+        if (digits.Length == 9)
+            return "+375" + digits;
+
+        return cleaned;
+    }
+
+    private static string GetLast9Digits(string input)
+    {
+        var digits = new string(input.Where(char.IsDigit).ToArray());
+        if (digits.Length <= 9)
+            return digits;
+        return digits[^9..];
     }
 
     #endregion
@@ -1353,12 +1658,15 @@
     #region Промо-окно
 
     private bool isPromoVisible;
-    private string promoTitle = "Внимание!";
-    private string promoText = "В ближайшие выходные мы не работаем. Заявки будут обработаны в понедельник.";
+
+    private string promoTitle => promo?.Title ?? "Внимание!";
+    private string promoText => promo?.Text
+        ?? "В ближайшие выходные мы не работаем. Заявки будут обработаны в понедельник.";
 
     private void ShowPromo()
     {
-        isPromoVisible = true;
+        if (promo != null)
+            isPromoVisible = true;
     }
 
     private void ClosePromo()
@@ -1368,4 +1676,84 @@
 
     #endregion
 
+    private void OnPhoneFocus()
+    {
+        if (string.IsNullOrWhiteSpace(form.Phone))
+        {
+            form.Phone = "+375";
+        }
+    }
+
+    private async Task EnsureSeedDataAsync()
+    {
+        if (await Db.Cities.AnyAsync())
+            return;
+
+        const decimal basePrice = 0.20m;
+        const string basePhone = "+375 (29) 991-06-66";
+
+        var cities = new List<City>
+        {
+            new City
+            {
+                Name = "Гомель",
+                NameIn = "Гомеле",
+                Slug = "gomel",
+                DefaultPhone = basePhone,
+                DefaultPrice = basePrice
+            },
+            new City
+            {
+                Name = "Рогачёв",
+                NameIn = "Рогачёве",
+                Slug = "rogachev",
+                DefaultPhone = basePhone,
+                DefaultPrice = basePrice
+            },
+            new City
+            {
+                Name = "Бобруйск",
+                NameIn = "Бобруйске",
+                Slug = "bobruisk",
+                DefaultPhone = basePhone,
+                DefaultPrice = basePrice
+            },
+            new City
+            {
+                Name = "Жлобин",
+                NameIn = "Жлобине",
+                Slug = "zhlobin",
+                DefaultPhone = basePhone,
+                DefaultPrice = basePrice
+            },
+            new City
+            {
+                Name = "Светлогорск",
+                NameIn = "Светлогорске",
+                Slug = "svetlogorsk",
+                DefaultPhone = basePhone,
+                DefaultPrice = basePrice
+            }
+        };
+
+        Db.Cities.AddRange(cities);
+        await Db.SaveChangesAsync();
+
+        var pages = cities.Select(c => new PageCity
+        {
+            CityId = c.Id,
+            Title = $"Вывоз бытовой техники в {c.NameIn}",
+            Description = $"Быстрый и выгодный вывоз бытовой техники в {c.NameIn}. Цена от {basePrice:0.00} BYN за кг.",
+            KeyWords = $"вывоз техники {c.Name}, утилизация техники {c.Name}, приём техники {c.Name}",
+            Price = basePrice,
+            PhoneCity = basePhone,
+            IsShowPromo = false
+        }).ToList();
+
+        Db.PageCities.AddRange(pages);
+        await Db.SaveChangesAsync();
+    }
 }
+
+
+

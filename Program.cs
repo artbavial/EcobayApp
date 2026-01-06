@@ -1,5 +1,6 @@
 using EcobayApp.Components;
 using EcobayApp.Contex;
+using EcobayApp.Models;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -15,7 +16,20 @@ var connectionString = builder.Configuration.GetConnectionString("EcobayConnecti
 builder.Services.AddDbContext<AppDBContext>(options =>
 	options.UseSqlServer(connectionString));
 
+builder.Services.Configure<EmailSettings>(
+	builder.Configuration.GetSection("Email"));
+
+builder.Services.AddScoped<IEmailSender, EmailSender>();
+
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+	var db = scope.ServiceProvider.GetRequiredService<AppDBContext>();
+
+	// создаст БД/таблицы по миграциям, если их ещё нет
+	db.Database.Migrate();
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
