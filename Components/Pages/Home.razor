@@ -57,7 +57,7 @@
         </li>
 
         <!-- Mobile Menu -->
-        <nav class="starta-mobile-nav">
+        <nav class="starta-mobile-nav mobile-menu--hidden">
             <ul class="list-unstyled starta-menu">
                 <li><a class="menu-animation active" href="#top">Начало</a></li>
                 <li><a class="menu-animation" href="#about">О нас</a></li>
@@ -90,7 +90,7 @@
             <section class="starta-hero my-5 d-flex flex-column justify-content-center flex-grow-1">
                 <div class="row mt-5 pt-4">
                     <!-- ТЕКСТОВАЯ КОЛОНКА ВВЕРХУ (на мобиле и десктопе) -->
-                    <div class="col-12 col-md-7">
+                    <div class="col-12 col-md-7 text-md-start text-center">
                         <h1 class="heroHeading">
                             @if (currentCity is not null)
                             {
@@ -102,12 +102,13 @@
                             }
                         </h1>
 
-
                         <!-- КОРОТКИЙ ТЕКСТ С ЦЕНОЙ (Только мобиле) -->
-                        <p class="heroDesc d-block d-md-none">
+                        <p class="heroDesc d-block d-md-none heroDesc-mobile">
                             Быстро заберём технику на утилизацию и заплатим за каждый килограмм.
                             Оставьте заявку — перезвоним и согласуем удобное время выезда.
-                            <span style="font-size:22px;"><strong> от @price копеек за килограмм</strong></span>
+                        </p>
+                        <p class="heroPrice-mobile d-block d-md-none">
+                            <strong>Платим от @price.ToString("0.##") копеек за килограмм</strong>
                         </p>
 
                         <!-- ДЛИННЫЙ ТЕКСТ (Только на десктопе) -->
@@ -116,7 +117,7 @@
                             Наши специалисты аккуратно вынесут и погрузят технику, а расчёт произведём прямо на месте.
                             За каждый килограмм техники платим <strong>мы</strong>, а итоговая сумма зависит от её веса.
                             Вы получаете честную оплату и удобный сервис без лишних хлопот — от
-                            <span style="font-size:22px;"><strong>@price копеек за кг.</strong></span>
+                            <span class="heroPrice-desktop"><strong>@price.ToString("0.##") копеек за кг.</strong></span>
                             Вся техника отправляется на переработку — ваше решение помогает экологии нашей планеты.
                         </p>
 
@@ -154,7 +155,7 @@
                             <img src="images/hero/shape3.svg" alt="shape" />
                         </div>
 
-                        <EditForm Model="form" OnValidSubmit="OnSubmitAsync">>
+                        <EditForm Model="form" OnValidSubmit="OnSubmitAsync">
 
                             <div class="heroForm">
                                 <article class="formContent">
@@ -283,7 +284,7 @@
             <div class="row my-5 py-md-4">
                 <!-- Starta BLock -->
                 <div class="col-md-6 position-relative">
-                    <img class="starta-block-img animate-img"
+                    <img class="starta-block-img1 animate-img"
                          src="images/main/block1.png"
                          alt="Block" />
 
@@ -1271,9 +1272,6 @@
     </footer>
 </div>
 
-
-@using System.ComponentModel.DataAnnotations
-
 @code
 {
     #region Параметры маршрута и данные страницы
@@ -1377,7 +1375,7 @@
         {
             Title = "Вывоз бытовой техники по всей Беларуси";
             phone = "+375 (29) 991-06-66";
-            price = 0.20m;
+            price = 20m;
         }
 
         // 3. Промо-сообщение

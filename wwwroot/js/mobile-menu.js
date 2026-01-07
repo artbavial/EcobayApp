@@ -2,13 +2,11 @@
     init: function () {
         const menuIcon = document.querySelector(".menuIcon");
         const mobileNav = document.querySelector(".starta-mobile-nav");
+        if (!menuIcon || !mobileNav) return;
 
-        if (!menuIcon || !mobileNav) {
-            console.warn("mobileMenu.init: elements not found");
-            return;
-        }
+        // меню всё ещё скрыто, пока не будет menu-active
+        mobileNav.classList.remove("mobile-menu--hidden");
 
-        // Сброс старых обработчиков
         const newMenuIcon = menuIcon.cloneNode(true);
         menuIcon.parentNode.replaceChild(newMenuIcon, menuIcon);
 

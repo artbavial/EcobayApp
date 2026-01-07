@@ -375,7 +375,7 @@
   .starta-list i,
   .starta-list li,
   .starta-h5 {
-    font-size: 14px;
+    font-size: 16px;
   }
   .starta-heading {
     font-size: 16px;
@@ -572,7 +572,7 @@
   .starta-helpline article h4,
   .heroDesc,
   .starta-list li {
-    font-size: 14px;
+    font-size: 16px;
   }
   .starta-mobile-nav .starta-menu li a {
     font-size: 35px;
@@ -628,7 +628,7 @@
     min-height: 300px;
   }
   .accordion-header button {
-    font-size: 12px;
+    font-size: 15px;
     height: 30px;
     padding: 20px;
   }

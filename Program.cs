@@ -21,15 +21,17 @@ builder.Services.Configure<EmailSettings>(
 
 builder.Services.AddScoped<IEmailSender, EmailSender>();
 
+builder.Environment.EnvironmentName = "Development";
+
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-	var db = scope.ServiceProvider.GetRequiredService<AppDBContext>();
+//using (var scope = app.Services.CreateScope())
+//{
+//	var db = scope.ServiceProvider.GetRequiredService<AppDBContext>();
 
-	// создаст БД/таблицы по миграциям, если их ещё нет
-	db.Database.Migrate();
-}
+//	// создаст БД/таблицы по миграциям, если их ещё нет
+//	db.Database.Migrate();
+//}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
