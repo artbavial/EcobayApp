@@ -475,12 +475,13 @@
 
         // заявки
         requests = await Db.Requests
-            .Take(50)
             .Include(r => r.Client)
             .Include(r => r.PageCity)
                 .ThenInclude(pc => pc.City)
-            .OrderByDescending(r => r.DateCreate)
+            .OrderByDescending(r => r.DateCreate) // сначала сортировка
+            .Take(50)                             // потом берём 50
             .ToListAsync();
+
 
         totalRequests = requests.Count;
         ApplyFilter();

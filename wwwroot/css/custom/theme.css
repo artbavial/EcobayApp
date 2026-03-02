@@ -985,30 +985,29 @@ header {
   left: 0;
 }
 .playBtn {
-  width: 140px;
-  height: 140px;
-  display: grid;
-  place-content: center;
-  background-color: transparent;
-  position: relative;
-  cursor: pointer;
+    width: 140px;
+    height: 140px;
+    display: grid;
+    place-content: center;
+    background-color: transparent;
+    position: relative;
+    cursor: pointer;
 }
-.playBtn i {
-  font-size: 20px;
-  color: rgb(250, 100, 0);
-}
+
+/* сам круговой текст – заполняет весь playBtn */
 #circle-text {
-  position: absolute;
-  top: -10%;
-  left: 45%;
-  width: auto;
-  height: auto;
-  font-size: 15px;
-  transform: rotate(0deg);
-  font-weight: 300;
-  text-transform: uppercase;
-  color: var(--heading-color);
+    position: absolute;
+    inset: 0; /* top:0; right:0; bottom:0; left:0 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 300;
+    text-transform: uppercase;
+    color: var(--heading-color);
+    pointer-events: none;
 }
+
 
 .starta-project .starta-list li {
   font-size: 18px;
