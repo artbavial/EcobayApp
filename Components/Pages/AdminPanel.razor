@@ -5,6 +5,7 @@
 @using EcobayApp.Models
 @using Microsoft.EntityFrameworkCore
 @inject AppDBContext Db
+@inject IJSRuntime JS
 
 <h1 class="starta-heading mx-auto">Админ‑панель</h1>
 
@@ -137,7 +138,7 @@
                                     <th>Телефон</th>
                                     <th>Сообщение</th>
                                     <th>Город</th>
-                                    <th></th> @* колонка под кнопку *@
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -160,7 +161,7 @@
                                         </td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-danger"
-                                                    @onclick="() => DeleteRequestAsync(r.Id)">
+                                                    @onclick="() => ConfirmDeleteRequestAsync(r.Id, r.Client?.Name)">
                                                 Удалить
                                             </button>
                                         </td>
@@ -368,6 +369,16 @@
                             </small>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="starta-desc">Цена до (в копейках)</label>
+                            <InputNumber class="form-control"
+                                         TValue="int?"
+                                         @bind-Value="editPage.PriceToKopeks" />
+                            <small class="starta-desc">
+                                Если пусто — будет показано только "от X копеек", без слова "до".
+                            </small>
+                        </div>
+
                         <button class="starta-button-admin" @onclick="SavePageAsync" disabled="@savingPage">
                             <span class="position-relative">
                                 @(savingPage ? "Сохранение..." : "Сохранить страницу")
@@ -444,7 +455,6 @@
     {
         var currentYear = DateTime.Now.Year;
 
-        // goal
         goal = await Db.Goals
             .Where(g => g.IsActive && g.Year == currentYear)
             .OrderByDescending(g => g.StartDate)
@@ -473,20 +483,17 @@
         else
             progressPercentDisplay = 0;
 
-        // заявки
         requests = await Db.Requests
             .Include(r => r.Client)
             .Include(r => r.PageCity)
                 .ThenInclude(pc => pc.City)
-            .OrderByDescending(r => r.DateCreate) // сначала сортировка
-            .Take(50)                             // потом берём 50
+            .OrderByDescending(r => r.DateCreate)
+            .Take(50)
             .ToListAsync();
-
 
         totalRequests = requests.Count;
         ApplyFilter();
 
-        // города
         cities = await Db.Cities
             .OrderBy(c => c.Name)
             .ToListAsync();
@@ -539,6 +546,7 @@
                 Description = $"Быстрый и выгодный вывоз бытовой техники в {editCity.NameIn}.",
                 KeyWords = $"вывоз техники {editCity.Name}, утилизация техники {editCity.Name}",
                 Price = editCity.DefaultPrice,
+                PriceToKopeks = null,
                 PhoneCity = editCity.DefaultPhone,
                 IsShowPromo = false
             };
@@ -669,6 +677,19 @@
         }
     }
 
+    private async Task ConfirmDeleteRequestAsync(long requestId, string? clientName)
+    {
+        var confirmText = string.IsNullOrWhiteSpace(clientName)
+            ? "Вы уверены, что хотите удалить эту заявку?"
+            : $"Вы уверены, что хотите удалить заявку клиента \"{clientName}\"?";
+
+        var confirmed = await JS.InvokeAsync<bool>("confirm", confirmText);
+        if (!confirmed)
+            return;
+
+        await DeleteRequestAsync(requestId);
+    }
+
     private async Task DeleteRequestAsync(long requestId)
     {
         var request = await Db.Requests
@@ -680,15 +701,12 @@
         Db.Requests.Remove(request);
         await Db.SaveChangesAsync();
 
-        // убираем из локальных списков
         var original = requests.FirstOrDefault(r => r.Id == requestId);
         if (original != null)
             requests.Remove(original);
 
-        ApplyFilter(); // пересчитать filteredRequests и счётчик
-
+        ApplyFilter();
         totalRequests = requests.Count;
         StateHasChanged();
     }
-
 }

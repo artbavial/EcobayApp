@@ -1,0 +1,287 @@
+﻿@page "/contacts"
+@page "/{slug}/contacts"
+@rendermode InteractiveServer
+
+@inject AppDBContext Db
+@inject IJSRuntime JS
+
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>@Title</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="Контакты, реквизиты и юридическая информация Ecobay.by @(currentCity is not null ? $"в {currentCity.NameIn}" : "в Беларуси")" />
+    <meta name="keywords" content="контакты Ecobay, реквизиты, юридическая информация, @currentCity?.NameIn" />
+</HeadContent>
+
+<div id="scroll-content">
+    <header id="top">
+        <nav class="starta-nav transitionNav">
+            <div class="container d-flex justify-content-between align-items-center">
+                <div class="logo">
+                    <img src="images/hero/icon.png" alt="Icon">
+                    Ecobay<span>.by</span>
+                </div>
+
+                <ul class="list-unstyled starta-menu">
+                    <li>
+                        <a class="menu-animation" href="@(string.IsNullOrWhiteSpace(slug) ? "/#top" : $"/{slug}#top")">Главная</a>
+                    </li>
+                    <li>
+                        <a class="menu-animation active" href="@(string.IsNullOrWhiteSpace(slug) ? "/contacts#top" : $"/{slug}/contacts#top")">Контакты</a>
+                    </li>
+                </ul>
+
+                <a href="tel:@phone" class="starta-helpline">
+                    <i class="fa-solid fa-phone-volume"></i>
+                    <article>
+                        <h4>Позвонить сейчас</h4>
+                        <p>@phone</p>
+                    </article>
+                </a>
+            </div>
+        </nav>
+
+        <div class="heroBG">
+            <img src="images/hero/bg.jpg" alt="Background">
+        </div>
+
+        <div class="container position-relative z-index-3 py-5">
+            <div class="row py-5">
+                <div class="col-12 col-lg-8">
+                    <h2 class="starta-heading mt-5">
+                        <i class="fa-solid fa-address-book"></i>
+                        Контакты
+                    </h2>
+
+                    <h1 class="starta-h1" style="color: #f5f7ff;">
+                        @(currentCity is not null
+                            ? $"Контакты и реквизиты в {currentCity.NameIn}"
+                            : "Контакты и реквизиты Ecobay.by")
+                    </h1>
+
+                    <p class="heroDesc heroDesc-desktopLarge">
+                        Здесь вы найдёте основные контактные данные, режим работы и юридическую информацию.
+                        @(currentCity is not null
+                            ? $"Если вы находитесь в {currentCity.NameIn}, мы покажем актуальные данные именно для этого города."
+                            : "Если вы открыли общую версию сайта, ниже будет показана основная информация по сервису.")
+                    </p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="starta-contacts py-5 my-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <h2 class="starta-heading mb-4">Как с нами связаться</h2>
+
+                    <div class="plan p-4">
+                        <p class="starta-desc mb-3">
+                            <strong>Телефон:</strong>
+                            <a href="tel:@phone">@phone</a>
+                        </p>
+
+                        <p class="starta-desc mb-3">
+                            <strong>Email:</strong>
+                            <a href="mailto:belyavskiy2909@gmail.com">belyavskiy2909@gmail.com</a>
+                        </p>
+
+                        @if (currentCity is not null)
+                        {
+                            <p class="starta-desc mb-3">
+                                <strong>Город:</strong> @currentCity.NameIn
+                            </p>
+                        }
+
+                        <p class="starta-desc mb-0">
+                            <strong>Режим работы:</strong> ежедневно с 9:00 до 20:00
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h2 class="starta-heading mb-4">Юридическая информация</h2>
+
+                    <div class="plan p-4">
+                        <p class="starta-desc mb-3">
+                            <strong>Название организации:</strong> ООО «ЭКОБЭЙ»
+                        </p>
+
+                        <p class="starta-desc mb-3">
+                            <strong>УНП:</strong> 491508819
+                        </p>
+
+                        <p class="starta-desc mb-3">
+                            <strong>Пользовательское соглашение:</strong>
+                            <a href="/user-agreement" target="_blank">открыть документ</a>
+                        </p>
+
+                        <p class="starta-desc mb-0">
+                            По запросу можем предоставить дополнительную информацию о порядке работы и оформлении заявок.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="starta-service py-5">
+        <div class="container">
+            <h2 class="starta-heading mx-auto">Где мы работаем</h2>
+            <h1 class="starta-h1 text-center mb-5">Наши города</h1>
+
+            <div class="plan p-4">
+                <div class="row">
+                    @foreach (var pc in footerCities)
+                    {
+                        var cityName = pc.City?.Name ?? "Город";
+
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <p class="starta-desc mb-0">@cityName</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="starta-footer pt-5">
+        <div class="container py-5">
+            <div class="row">
+                <div class="col-md-5 border-end">
+                    <h1 class="starta-h1">Ecobay.by</h1>
+                    <p class="starta-desc">
+                        Контактная и юридическая информация сервиса по вывозу и утилизации техники.
+                    </p>
+                </div>
+
+                <div class="col-md-4 mt-sm-4">
+                    <div class="row mx-auto">
+                        <div class="col-md-6 col-sm-6">
+                            <h4 class="starta-h4 mb-4">Навигация</h4>
+                            <ul class="footer-list list-unstyled">
+                                <li>
+                                    <a class="menu-animation" href="@(string.IsNullOrWhiteSpace(slug) ? "/#top" : $"/{slug}#top")">Главная</a>
+                                </li>
+                                <li>
+                                    <a class="menu-animation" href="@(string.IsNullOrWhiteSpace(slug) ? "/contacts#top" : $"/{slug}/contacts#top")">Контакты</a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="col-md-6 col-sm-6">
+                            <h4 class="starta-h4 mb-4">Документы</h4>
+                            <ul class="footer-list list-unstyled">
+                                <li>
+                                    <a class="menu-animation" href="/user-agreement">Пользовательское соглашение</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 mt-sm-4">
+                    <h4 class="starta-h4 mb-4">Связь</h4>
+                    <p class="mb-1 starta-desc">
+                        <a href="tel:@phone">@phone</a>
+                    </p>
+                    <p class="mb-1 starta-desc">
+                        <a href="mailto:belyavskiy2909@gmail.com">belyavskiy2909@gmail.com</a>
+                    </p>
+                    <p class="mb-0 starta-desc">09:00–20:00</p>
+                </div>
+            </div>
+
+            <div class="copyright pt-5 pb-5">
+                Ecobay.by © 2018–@thisYear. 491508819 Artbavial Software
+            </div>
+        </div>
+    </footer>
+</div>
+
+@code {
+    [Parameter]
+    public string? slug { get; set; }
+
+    private PageCity? pageCity;
+    private City? currentCity;
+    private List<PageCity> footerCities = new();
+
+    private string phone = "+375 29 991-06-66";
+    private string thisYear = DateTime.Now.Year.ToString();
+    private string Title = "Контакты | Ecobay.by";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await EnsureSeedDataAsync();
+
+        footerCities = await Db.PageCities
+            .Include(p => p.City)
+            .OrderBy(p => p.City!.Name)
+            .ToListAsync();
+
+        if (!string.IsNullOrWhiteSpace(slug))
+        {
+            pageCity = await Db.PageCities
+                .Include(p => p.City)
+                .FirstOrDefaultAsync(p => p.City!.Slug == slug);
+
+            currentCity = pageCity?.City;
+        }
+        else
+        {
+            pageCity = null;
+            currentCity = null;
+        }
+
+        if (pageCity is not null && currentCity is not null)
+        {
+            phone = pageCity.PhoneCity ?? currentCity.DefaultPhone ?? phone;
+            Title = $"Контакты в {currentCity.NameIn} | Ecobay.by";
+        }
+        else
+        {
+            phone = "+375 29 991-06-66";
+            Title = "Контакты | Ecobay.by";
+        }
+    }
+
+    private async Task EnsureSeedDataAsync()
+    {
+        if (await Db.Cities.AnyAsync())
+            return;
+
+        const decimal basePrice = 0.20m;
+        const string basePhone = "+375 29 991-06-66";
+
+        var cities = new List<City>
+        {
+            new() { Name = "Гомель", NameIn = "Гомеле", Slug = "gomel", DefaultPhone = basePhone, DefaultPrice = basePrice },
+            new() { Name = "Рогачёв", NameIn = "Рогачёве", Slug = "rogachev", DefaultPhone = basePhone, DefaultPrice = basePrice },
+            new() { Name = "Бобруйск", NameIn = "Бобруйске", Slug = "bobruisk", DefaultPhone = basePhone, DefaultPrice = basePrice },
+            new() { Name = "Жлобин", NameIn = "Жлобине", Slug = "zhlobin", DefaultPhone = basePhone, DefaultPrice = basePrice },
+            new() { Name = "Светлогорск", NameIn = "Светлогорске", Slug = "svetlogorsk", DefaultPhone = basePhone, DefaultPrice = basePrice }
+        };
+
+        Db.Cities.AddRange(cities);
+        await Db.SaveChangesAsync();
+
+        var pages = cities.Select(c => new PageCity
+        {
+            CityId = c.Id,
+            Title = c.NameIn,
+            Description = $"{c.NameIn}. Контакты и реквизиты Ecobay.by.",
+            KeyWords = $"{c.Name}, контакты, реквизиты, Ecobay",
+            Price = basePrice,
+            PhoneCity = basePhone,
+            IsShowPromo = false
+        }).ToList();
+
+        Db.PageCities.AddRange(pages);
+        await Db.SaveChangesAsync();
+    }
+}

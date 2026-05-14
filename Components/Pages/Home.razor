@@ -19,8 +19,6 @@
     <meta name="keywords" content="@(pageCity?.KeyWords ?? "утилизация, техника, переработка, приём техники, утилизация электроники")" />
 </HeadContent>
 
-<!-- preloader -->
-@* <div class="loader"><span>Loading</span></div> *@
 
 <div id="scroll-content">
     <!-- hero -->
@@ -102,23 +100,20 @@
                             }
                         </h1>
 
-                        <!-- КОРОТКИЙ ТЕКСТ С ЦЕНОЙ (Только мобиле) -->
+                        <!-- КОРОТКИЙ ТЕКСТ С ЦЕНОЙ (Только на мобиле) -->
                         <p class="heroDesc d-block d-md-none heroDesc-mobile">
-                            Быстро заберём технику на утилизацию и заплатим за каждый килограмм.
-                            Оставьте заявку — перезвоним и согласуем удобное время выезда.
+                            Заберём технику в любом состоянии по вашему адресу, сами вынесем и погрузим.
                         </p>
                         <p class="heroPrice-mobile d-block d-md-none">
-                            <strong>Платим от @price.ToString("0.##") копеек за килограмм</strong>
+                            <strong>Оплатим на месте - <br />@heroPriceText за килограмм</strong>
                         </p>
 
                         <!-- ДЛИННЫЙ ТЕКСТ (Только на десктопе) -->
-                        <p class="heroDesc d-none d-md-block">
-                            С нами всё просто: оставляете заявку или звоните — мы сами приезжаем по вашему адресу.
-                            Наши специалисты аккуратно вынесут и погрузят технику, а расчёт произведём прямо на месте.
-                            За каждый килограмм техники платим <strong>мы</strong>, а итоговая сумма зависит от её веса.
-                            Вы получаете честную оплату и удобный сервис без лишних хлопот — от
-                            <span class="heroPrice-desktop"><strong>@price.ToString("0.##") копеек за кг.</strong></span>
-                            Вся техника отправляется на переработку — ваше решение помогает экологии нашей планеты.
+                        <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
+                            Мы сами приедем по вашему адресу, вынесем и погрузим технику в любом состоянии.
+                            Сразу рассчитаем вес и оплатим на месте —
+                            <span class="heroPrice-desktop"><strong>@heroPriceText за килограмм.</strong></span>
+                            Без хлопот для вас и с пользой для экологии.
                         </p>
 
                         <!-- Иконки (ТОЛЬКО на десктопе) -->
@@ -444,127 +439,6 @@
         </div>
     </section>
 
-
-    <!-- Starta Service -->
-    @* <section id="services" class="starta-service">
-        <div class="container">
-            <h1 class="starta-heading mx-auto">Ecobay.by сервис вывоза</h1>
-            <h1 class="starta-h1 text-center mb-md-5">
-                Какую технику принимаем
-            </h1>
-            <div class="row">
-                <div class="col-md-4 col-sm-6">
-                    <div class="service">
-                        <div class="serviceImg">
-                            <div class="imgOverlay">
-                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
-                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
-                                   target="_blank">
-                                    <i class="ytLink fa-solid fa-play"></i>
-                                </a>
-                            </div>
-                            <img src="images/main/services/1.jpg" alt="Service" />
-                        </div>
-                        <article class="serviceContent">
-                            <span>Easy Chating UI</span>
-                            <h4 class="starta-h4">Video Meeting</h4>
-                        </article>
-                    </div>
-                </div>
-                <div class="col-md-4 col-sm-6">
-                    <div class="service">
-                        <div class="serviceImg">
-                            <div class="imgOverlay">
-                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
-                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
-                                   target="_blank">
-                                    <i class="ytLink fa-solid fa-play"></i>
-                                </a>
-                            </div>
-                            <img src="images/main/services/2.jpg" alt="Service" />
-                        </div>
-                        <article class="serviceContent">
-                            <span>Easy Chating UI</span>
-                            <h4 class="starta-h4">Video Meeting</h4>
-                        </article>
-                    </div>
-                </div>
-                <div class="col-md-4 col-sm-6">
-                    <div class="service">
-                        <div class="serviceImg">
-                            <div class="imgOverlay">
-                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
-                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
-                                   target="_blank">
-                                    <i class="ytLink fa-solid fa-play"></i>
-                                </a>
-                            </div>
-                            <img src="images/main/services/3.jpg" alt="Service" />
-                        </div>
-                        <article class="serviceContent">
-                            <span>Easy Chating UI</span>
-                            <h4 class="starta-h4">Video Meeting</h4>
-                        </article>
-                    </div>
-                </div>
-                <div class="col-md-4 col-sm-6">
-                    <div class="service">
-                        <div class="serviceImg">
-                            <div class="imgOverlay">
-                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
-                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
-                                   target="_blank">
-                                    <i class="ytLink fa-solid fa-play"></i>
-                                </a>
-                            </div>
-                            <img src="images/main/services/4.jpg" alt="Service" />
-                        </div>
-                        <article class="serviceContent">
-                            <span>Easy Chating UI</span>
-                            <h4 class="starta-h4">Video Meeting</h4>
-                        </article>
-                    </div>
-                </div>
-                <div class="col-md-4 col-sm-6">
-                    <div class="service">
-                        <div class="serviceImg">
-                            <div class="imgOverlay">
-                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
-                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
-                                   target="_blank">
-                                    <i class="ytLink fa-solid fa-play"></i>
-                                </a>
-                            </div>
-                            <img src="images/main/services/5.jpg" alt="Service" />
-                        </div>
-                        <article class="serviceContent">
-                            <span>Easy Chating UI</span>
-                            <h4 class="starta-h4">Video Meeting</h4>
-                        </article>
-                    </div>
-                </div>
-                <div class="col-md-4 col-sm-6">
-                    <div class="service">
-                        <div class="serviceImg">
-                            <div class="imgOverlay">
-                                <i class="servicePlay fa-solid fa-link"><span>Copy?</span></i>
-                                <a href="https://www.youtube.com/watch?v=O5O3yK8DJCc&t=12s"
-                                   target="_blank">
-                                    <i class="ytLink fa-solid fa-play"></i>
-                                </a>
-                            </div>
-                            <img src="images/main/services/6.jpg" alt="Service" />
-                        </div>
-                        <article class="serviceContent">
-                            <span>Easy Chating UI</span>
-                            <h4 class="starta-h4">Video Meeting</h4>
-                        </article>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section> *@
-
     <section class="starta-plans" id="plan">
         <div class="container">
             <h1 class="starta-heading mx-auto">Цены за бытовую технику</h1>
@@ -583,7 +457,7 @@
                             <div class="col-md-7 p-md-0 col-sm-9 col-7">
                                 <article class="plan-heading">
                                     <h3 class="starta-h2">Калькулятор цены</h3>
-                                    <p class="starta-h2"><span>@price</span> коп./кг</p>
+                                    <p class="starta-h2">От <span>@price</span> коп./кг</p>
                                 </article>
                             </div>
 
@@ -727,54 +601,6 @@
                         <!-- clients  -->
                         <div class="clients">
                             <div class="row">
-@*                                 <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c1.png"
-                                             alt="Client" />
-                                    </div>
-                                </div> *@
-@*                                 <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c2.png"
-                                             alt="Client" />
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c3.png"
-                                             alt="Client" />
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c4.png"
-                                             alt="Client" />
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c5.png"
-                                             alt="Client" />
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c6.png"
-                                             alt="Client" />
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c7.png"
-                                             alt="Client" />
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-3 col-3">
-                                    <div class="client">
-                                        <img src="images/main/about/clients/c1.png"
-                                             alt="Client" />
-                                    </div>
-                                </div> *@
                                 <button class="starta-button w-auto mx-auto starta-button-2"
                                         type="button"
                                         onclick="window.open('/user-agreement', '_blank');">
@@ -1184,7 +1010,7 @@
                                     var slug = pc.City?.Slug ?? "gomel";
 
                                     <li>
-                                        <a class="menu-animation" href=@($"/{slug}")>
+                                        <a class="menu-animation" href="@($"/{slug}#top")">
                                             Сдать бытовую технику в @cityNameIn
                                         </a>
                                     </li>
@@ -1199,7 +1025,7 @@
                                     <a class="menu-animation" href="#">Правила сайта и защита персональных данных</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Контакты</a>
+                                    <a class="menu-animation" href="@(string.IsNullOrWhiteSpace(slug) ? "/contacts#top" : $"/{slug}/contacts#top")">Контакты</a>
                                 </li>
                                 <li>
                                     <a class="menu-animation" href="#">Жалобы и предложения</a>
@@ -1256,6 +1082,9 @@
     private PromoMessage? promo;   // промо из БД
     private Goal? goal;            // цели по году
 
+    private int? priceToKopeks;
+    private string heroPriceText = "";
+
     #endregion
 
     #region Константы и текстовые данные
@@ -1272,25 +1101,37 @@
 
     #region Калькулятор выплаты
 
-    private decimal price = 0.20m;   // цена за 1 кг (дефолт)
-    private decimal weight = 500;    // начальный вес
+    private decimal price = 20m;   // цена ОТ в копейках за 1 кг (дефолт)
+    private decimal weight = 500;  // начальный вес
     private decimal total;
     private string resultMessage = "";
 
-    private void Calculate()
+private void Calculate()
+{
+    if (weight <= 0)
     {
-        if (weight > 0)
-        {
-            var thisPrice = currentCity != null ? currentCity.DefaultPrice.Value : price;
-            total = weight * thisPrice / 100;
-            resultMessage =
-                $"Вы получите <strong>~{total:F2} BYN</strong> за {weight} кг техники.*";
-        }
-        else
-        {
-            resultMessage = "Введите корректный вес.";
-        }
+        resultMessage = "Введите корректный вес.";
+        return;
     }
+
+    var fromPriceKopeks = pageCity?.Price ?? currentCity?.DefaultPrice ?? price;
+    var toPriceKopeks = pageCity?.PriceToKopeks ?? priceToKopeks;
+
+    var minTotal = weight * fromPriceKopeks / 100m;
+
+    if (toPriceKopeks.HasValue && toPriceKopeks.Value > fromPriceKopeks)
+    {
+        var maxTotal = weight * toPriceKopeks.Value / 100m;
+
+        resultMessage =
+            $"Вы получите <strong>от {minTotal:F2} до {maxTotal:F2} рублей</strong> за {weight} кг техники.*";
+    }
+    else
+    {
+        resultMessage =
+            $"Вы получите <strong>от {minTotal:F2} рублей</strong> за {weight} кг техники.*";
+    }
+}
 
     #endregion
 
@@ -1313,6 +1154,12 @@
             .OrderBy(p => p.City.Name)
             .ToListAsync();
 
+        // На всякий случай сбрасываем состояние
+        pageCity = null;
+        currentCity = null;
+        promo = null;
+        priceToKopeks = null;
+
         // 1. Город / список городов
         if (!string.IsNullOrWhiteSpace(slug))
         {
@@ -1326,38 +1173,36 @@
         else
         {
             // режим по умолчанию — вся Беларусь
-            pageCity = null;
-            currentCity = null;
-
             allCities = await Db.Cities
                 .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 
-        // 2. Настройка заголовков/цены/телефона
+        // 2. Настройка заголовков / цены / телефона / верхней границы цены
         if (pageCity != null && currentCity != null)
         {
             Title = pageCity.Title;
             phone = pageCity.PhoneCity ?? currentCity.DefaultPhone ?? phone;
-            price = pageCity.Price ?? currentCity.DefaultPrice ?? price;
+            price = pageCity.Price ?? currentCity.DefaultPrice ?? 20m;
+            priceToKopeks = pageCity.PriceToKopeks;
         }
         else
         {
             Title = "Вывоз бытовой техники по всей Беларуси";
             phone = "+375 (29) 991-06-66";
             price = 20m;
+            priceToKopeks = null;
         }
 
-        // 3. Промо-сообщение
+        heroPriceText = BuildHeroPriceText(price, priceToKopeks);
 
+        // 3. Промо-сообщение
         if (currentCity != null)
         {
-            // 1) сначала пробуем промо для конкретного города
             promo = await Db.PromoMessages
                 .Where(p => p.IsActive && p.CityId == currentCity.Id)
                 .FirstOrDefaultAsync();
 
-            // 2) если нет городского промо — берём общее
             if (promo == null)
             {
                 promo = await Db.PromoMessages
@@ -1367,7 +1212,6 @@
         }
         else
         {
-            // главная / вся Беларусь — только общее промо
             promo = await Db.PromoMessages
                 .Where(p => p.IsActive && p.CityId == null)
                 .FirstOrDefaultAsync();
@@ -1657,7 +1501,7 @@
         if (await Db.Cities.AnyAsync())
             return;
 
-        const decimal basePrice = 0.20m;
+        const decimal basePrice = 20m;
         const string basePhone = "+375 (29) 991-06-66";
 
         var cities = new List<City>
@@ -1711,7 +1555,7 @@
         {
             CityId = c.Id,
             Title = $"Вывоз бытовой техники в {c.NameIn}",
-            Description = $"Быстрый и выгодный вывоз бытовой техники в {c.NameIn}. Цена от {basePrice:0.00} BYN за кг.",
+            Description = $"Быстрый и выгодный вывоз бытовой техники в {c.NameIn}. Цена от {basePrice:0.00} рублей за кг.",
             KeyWords = $"вывоз техники {c.Name}, утилизация техники {c.Name}, приём техники {c.Name}",
             Price = basePrice,
             PhoneCity = basePhone,
@@ -1720,6 +1564,16 @@
 
         Db.PageCities.AddRange(pages);
         await Db.SaveChangesAsync();
+    }
+
+    private static string BuildHeroPriceText(decimal fromPrice, int? toKopeks)
+    {
+        var fromKopeks = (int)fromPrice;
+
+        if (toKopeks.HasValue && toKopeks.Value > fromKopeks)
+            return $"от {fromKopeks} до {toKopeks.Value} копеек";
+
+        return $"от {fromKopeks} копеек";
     }
 }
 
