@@ -26,17 +26,19 @@
         <!-- Desktop Menu -->
         <nav class="starta-nav">
             <div class="container d-flex justify-content-between align-items-center">
-                <div class="logo">
+                <a class="logo text-decoration-none" href="@SectionUrl("top")">
                     <img src="images/hero/icon.png" alt="Icon" />Ecobay<span>.by</span>
-                </div>
+                </a>
+
                 <ul class="list-unstyled starta-menu">
-                    <li><a class="menu-animation active" href="#top">Начало</a></li>
-                    <li><a class="menu-animation" href="#about">О нас</a></li>
-                    <li><a class="menu-animation" href="#services">Что принимаем</a></li>
-                    <li><a class="menu-animation" href="#plan">Цены</a></li>
-                    <li><a class="menu-animation" href="#team">Наша работа</a></li>
-                    <li><a class="menu-animation" href="#faqs">Частые вопросы</a></li>
+                    <li><a class="menu-animation active" href="@SectionUrl("top")">Начало</a></li>
+                    <li><a class="menu-animation" href="@SectionUrl("about")">О нас</a></li>
+                    <li><a class="menu-animation" href="@SectionUrl("services")">Что принимаем</a></li>
+                    <li><a class="menu-animation" href="@SectionUrl("plan")">Цены</a></li>
+                    <li><a class="menu-animation" href="@SectionUrl("team")">Наша работа</a></li>
+                    <li><a class="menu-animation" href="@SectionUrl("faqs")">Частые вопросы</a></li>
                 </ul>
+
                 <a href="tel:@phone" class="starta-helpline">
                     <i class="fa-solid fa-phone-volume"></i>
                     <article>
@@ -57,12 +59,12 @@
         <!-- Mobile Menu -->
         <nav class="starta-mobile-nav mobile-menu--hidden">
             <ul class="list-unstyled starta-menu">
-                <li><a class="menu-animation active" href="#top">Начало</a></li>
-                <li><a class="menu-animation" href="#about">О нас</a></li>
-                <li><a class="menu-animation" href="#services">Что принимаем</a></li>
-                <li><a class="menu-animation" href="#plan">Цены</a></li>
-                <li><a class="menu-animation" href="#team">Наша работа</a></li>
-                <li><a class="menu-animation" href="#faqs">Частые вопросы</a></li>
+                <li><a class="menu-animation active" href="@SectionUrl("top")">Начало</a></li>
+                <li><a class="menu-animation" href="@SectionUrl("about")">О нас</a></li>
+                <li><a class="menu-animation" href="@SectionUrl("services")">Что принимаем</a></li>
+                <li><a class="menu-animation" href="@SectionUrl("plan")">Цены</a></li>
+                <li><a class="menu-animation" href="@SectionUrl("team")">Наша работа</a></li>
+                <li><a class="menu-animation" href="@SectionUrl("faqs")">Частые вопросы</a></li>
             </ul>
         </nav>
 
@@ -100,21 +102,73 @@
                             }
                         </h1>
 
-                        <!-- КОРОТКИЙ ТЕКСТ С ЦЕНОЙ (Только на мобиле) -->
-                        <p class="heroDesc d-block d-md-none heroDesc-mobile">
-                            Заберём технику в любом состоянии по вашему адресу, сами вынесем и погрузим.
-                        </p>
-                        <p class="heroPrice-mobile d-block d-md-none">
-                            <strong>Оплатим на месте - <br />@heroPriceText за килограмм</strong>
-                        </p>
+                        @if (IsDeliveryPriceModeActive)
+                        {
+                            <div class="heroPriceCompact d-block d-md-none">
+                                <div class="heroPriceCompact-row">
+                                    <div class="heroPriceCompact-value heroPriceCompact-value-from">
+                                        <span class="heroPriceCompact-prefix">от</span>
+                                        <span class="heroPriceCompact-number">@((int)price)</span>
+                                        <span class="heroPriceCompact-unit">коп./кг</span>
+                                    </div>
+                                    <div class="heroPriceCompact-content">
+                                        <div class="heroPriceCompact-title">МЫ ПЛАТИМ</div>
+                                        <div class="heroPriceCompact-text">
+                                            если сами приедем, вынесем и вывезем технику.
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <!-- ДЛИННЫЙ ТЕКСТ (Только на десктопе) -->
-                        <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
-                            Мы сами приедем по вашему адресу, вынесем и погрузим технику в любом состоянии.
-                            Сразу рассчитаем вес и оплатим на месте —
-                            <span class="heroPrice-desktop"><strong>@heroPriceText за килограмм.</strong></span>
-                            Без хлопот для вас и с пользой для экологии.
-                        </p>
+                                <div class="heroPriceCompact-divider"></div>
+
+                                <div class="heroPriceCompact-row">
+                                    <div class="heroPriceCompact-value">
+                                        <span class="heroPriceCompact-number">@priceToKopeks</span>
+                                        <span class="heroPriceCompact-unit">коп./кг</span>
+                                    </div>
+                                    <div class="heroPriceCompact-content">
+                                        <div class="heroPriceCompact-title">МЫ ПЛАТИМ БОЛЬШЕ</div>
+                                        <div class="heroPriceCompact-text">
+                                            если вы сами привезёте технику в передвижной пункт приёма.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="heroPriceCards heroPriceCards-desktop d-none d-md-grid">
+                                <div class="heroPriceCard">
+                                    <div class="heroPriceCard-price">от @((int)price) коп./кг</div>
+                                    <div class="heroPriceCard-title">МЫ платим</div>
+                                    <div class="heroPriceCard-text">
+                                        если сами приедем, отключим, вынесем и вывезем технику.
+                                    </div>
+                                </div>
+
+                                <div class="heroPriceCard heroPriceCard-accent">
+                                    <div class="heroPriceCard-price">@priceToKopeks коп./кг</div>
+                                    <div class="heroPriceCard-title">МЫ платим больше</div>
+                                    <div class="heroPriceCard-text">
+                                        если вы сами привезёте технику в наш передвижной пункт приёма.
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="heroDesc d-block d-md-none heroDesc-mobile">
+                                Заберём технику в любом состоянии по вашему адресу, сами вынесем и погрузим.
+                            </p>
+                            <p class="heroPrice-mobile d-block d-md-none">
+                                <strong>МЫ платим на месте — <br />@heroPriceText за килограмм</strong>
+                            </p>
+
+                            <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
+                                Мы сами приедем по вашему адресу, вынесем и погрузим технику в любом состоянии.
+                                Сразу рассчитаем вес и оплатим на месте —
+                                <span class="heroPrice-desktop"><strong>МЫ платим @heroPriceText за килограмм.</strong></span>
+                                Без хлопот для вас и с пользой для экологии.
+                            </p>
+                        }
 
                         <!-- Иконки (ТОЛЬКО на десктопе) -->
                         <div class="col-md-8 mt-5 d-none d-md-block">
@@ -448,22 +502,45 @@
 
             <div class="row justify-content-center">
                 <!-- Калькулятор -->
-                <div class="col-md-4 lap-sm-50 tab-100">
+                <div class="col-md-5 lap-sm-50 tab-100">
                     <div class="plan best">
                         <div class="row align-items-center">
                             <div class="col-md-5 col-sm-3 col-5">
                                 <i class="starta-icon featureIcon fa-solid fa-scale-balanced"></i>
                             </div>
+
                             <div class="col-md-7 p-md-0 col-sm-9 col-7">
                                 <article class="plan-heading">
                                     <h3 class="starta-h2">Калькулятор цены</h3>
-                                    <p class="starta-h2">От <span>@price</span> коп./кг</p>
+
+                                    @if (IsDeliveryPriceModeActive)
+                                    {
+                                        <p class="starta-desc mb-0 calculator-subtitle">
+                                            <strong>МЫ платим:</strong><br />
+                                            при выезде — <strong>@((int)price) коп./кг</strong><br />
+                                            при самопривозе — <strong>@priceToKopeks коп./кг</strong>
+                                        </p>
+                                    }
+                                    else if (priceToKopeks.HasValue && priceToKopeks.Value > (int)price)
+                                    {
+                                        <p class="starta-desc mb-0 calculator-subtitle">
+                                            <strong>МЫ выкупаем и платим</strong><br />
+                                            от <strong>@((int)price)</strong> до <strong>@priceToKopeks</strong> коп./кг
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <p class="starta-desc mb-0 calculator-subtitle">
+                                            <strong>МЫ выкупаем и платим</strong><br />
+                                            от <strong>@((int)price)</strong> коп./кг
+                                        </p>
+                                    }
                                 </article>
                             </div>
 
                             <div class="my-4">
                                 <input type="number"
-                                       class="form-control"
+                                       class="form-control calculator-weight-input"
                                        placeholder="Введите вес (кг)"
                                        @bind="weight"
                                        min="0"
@@ -476,12 +553,41 @@
                                 <span class="starta-button-hover"></span>
                             </button>
 
-                            <p class="starta-desc fw-medium mt-3" style="min-height: 40px;">
-                                @((MarkupString)resultMessage)
-                            </p>
+                            <div class="calculator-result starta-desc fw-medium mt-4">
+                                @if (weight <= 0)
+                                {
+                                    <p style="min-height: 40px;">
+                                        Введите корректный вес.
+                                    </p>
+                                }
+                                else if (IsDeliveryPriceModeActive)
+                                {
+                                    <div class="calculator-result-item mb-3">
+                                        <div class="calculator-result-label">
+                                            <strong>МЫ платим вам @DeliveryTotal.ToString("0.00") руб.</strong>,
+                                            если сами приедем, отключим, вынесем и вывезем технику.
+                                        </div>
+                                    </div>
+
+                                    <div class="calculator-result-item">
+                                        <div class="calculator-result-label">
+                                            <strong>МЫ платим вам до @SelfDeliveryTotal.ToString("0.00") руб.</strong>,
+                                            если вы сами привезёте технику в наш передвижной пункт приёма.
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p style="min-height: 40px;">
+                                        @((MarkupString)resultMessage)
+                                    </p>
+                                }
+                            </div>
                         </div>
 
-                        <span class="discount">* Конечную цену уточняйте у менеджера</span>
+                        <span class="discount">
+                            * Конечную цену уточняйте у менеджера
+                        </span>
                     </div>
                 </div>
 
@@ -1079,8 +1185,8 @@
 
     private List<City> allCities = new();
 
-    private PromoMessage? promo;   // промо из БД
-    private Goal? goal;            // цели по году
+    private PromoMessage? promo;
+    private Goal? goal;
 
     private int? priceToKopeks;
     private string heroPriceText = "";
@@ -1091,47 +1197,81 @@
 
     private string? formErrorMessage;
     private List<PageCity> footerCities = new();
-    string phone = "+375 (29) 991-06-66"; // дефолтный телефон
-    string thisYear = DateTime.Now.Year.ToString();
-    int ProgresPercent = 0;
-    int year = DateTime.Now.Year;
-    string Title = "Вывоз бытовой техники по всей Беларуси";
+    private string phone = "+375 (29) 991-06-66";
+    private string thisYear = DateTime.Now.Year.ToString();
+    private int ProgresPercent = 0;
+    private int year = DateTime.Now.Year;
+    private string Title = "Вывоз бытовой техники по всей Беларуси";
 
     #endregion
 
     #region Калькулятор выплаты
 
-    private decimal price = 20m;   // цена ОТ в копейках за 1 кг (дефолт)
-    private decimal weight = 500;  // начальный вес
+    private decimal price = 20m;
+    private decimal weight = 500m;
     private decimal total;
     private string resultMessage = "";
 
-private void Calculate()
-{
-    if (weight <= 0)
+    private bool IsDeliveryPriceModeActive =>
+        pageCity?.IsDeliveryPriceMode == true &&
+        priceToKopeks.HasValue &&
+        priceToKopeks.Value > (int)price;
+
+    private decimal CurrentFromPriceKopeks =>
+        pageCity?.Price ?? currentCity?.DefaultPrice ?? price;
+
+    private int? CurrentToPriceKopeks =>
+        pageCity?.PriceToKopeks ?? priceToKopeks;
+
+    private decimal DeliveryTotal =>
+        weight > 0 ? weight * CurrentFromPriceKopeks / 100m : 0m;
+
+    private decimal SelfDeliveryTotal =>
+        weight > 0 && CurrentToPriceKopeks.HasValue
+            ? weight * CurrentToPriceKopeks.Value / 100m
+            : 0m;
+
+
+    private string PageBaseUrl => string.IsNullOrWhiteSpace(slug) ? "/" : $"/{slug}";
+    private string SectionUrl(string sectionId)
     {
-        resultMessage = "Введите корректный вес.";
-        return;
+        var baseUrl = string.IsNullOrWhiteSpace(slug) ? "/" : $"/{slug}";
+        return $"{baseUrl}#{sectionId}";
     }
 
-    var fromPriceKopeks = pageCity?.Price ?? currentCity?.DefaultPrice ?? price;
-    var toPriceKopeks = pageCity?.PriceToKopeks ?? priceToKopeks;
-
-    var minTotal = weight * fromPriceKopeks / 100m;
-
-    if (toPriceKopeks.HasValue && toPriceKopeks.Value > fromPriceKopeks)
+    private void Calculate()
     {
-        var maxTotal = weight * toPriceKopeks.Value / 100m;
+        if (weight <= 0)
+        {
+            resultMessage = "Введите корректный вес.";
+            total = 0;
+            return;
+        }
 
-        resultMessage =
-            $"Вы получите <strong>от {minTotal:F2} до {maxTotal:F2} рублей</strong> за {weight} кг техники.*";
+        var fromPriceKopeks = CurrentFromPriceKopeks;
+        var toPriceKopeksLocal = CurrentToPriceKopeks;
+
+        var minTotal = weight * fromPriceKopeks / 100m;
+        total = minTotal;
+
+        if (IsDeliveryPriceModeActive)
+        {
+            resultMessage = string.Empty;
+            return;
+        }
+
+        if (toPriceKopeksLocal.HasValue && toPriceKopeksLocal.Value > fromPriceKopeks)
+        {
+            var maxTotal = weight * toPriceKopeksLocal.Value / 100m;
+            resultMessage =
+                $"Вы получите <strong>от {minTotal:F2} до {maxTotal:F2} рублей</strong> за {weight:F1} кг техники.*";
+        }
+        else
+        {
+            resultMessage =
+                $"Вы получите <strong>от {minTotal:F2} рублей</strong> за {weight:F1} кг техники.*";
+        }
     }
-    else
-    {
-        resultMessage =
-            $"Вы получите <strong>от {minTotal:F2} рублей</strong> за {weight} кг техники.*";
-    }
-}
 
     #endregion
 
@@ -1154,16 +1294,14 @@ private void Calculate()
             .OrderBy(p => p.City.Name)
             .ToListAsync();
 
-        // На всякий случай сбрасываем состояние
         pageCity = null;
         currentCity = null;
         promo = null;
         priceToKopeks = null;
+        allCities = new();
 
-        // 1. Город / список городов
         if (!string.IsNullOrWhiteSpace(slug))
         {
-            // режим конкретного города
             pageCity = await Db.PageCities
                 .Include(p => p.City)
                 .FirstOrDefaultAsync(p => p.City.Slug == slug);
@@ -1172,17 +1310,18 @@ private void Calculate()
         }
         else
         {
-            // режим по умолчанию — вся Беларусь
             allCities = await Db.Cities
                 .OrderBy(c => c.Name)
                 .ToListAsync();
         }
 
-        // 2. Настройка заголовков / цены / телефона / верхней границы цены
         if (pageCity != null && currentCity != null)
         {
-            Title = pageCity.Title;
-            phone = pageCity.PhoneCity ?? currentCity.DefaultPhone ?? phone;
+            Title = !string.IsNullOrWhiteSpace(pageCity.Title)
+                ? pageCity.Title
+                : $"Вывоз бытовой техники в {currentCity.NameIn}";
+
+            phone = pageCity.PhoneCity ?? currentCity.DefaultPhone ?? "+375 (29) 991-06-66";
             price = pageCity.Price ?? currentCity.DefaultPrice ?? 20m;
             priceToKopeks = pageCity.PriceToKopeks;
         }
@@ -1194,9 +1333,8 @@ private void Calculate()
             priceToKopeks = null;
         }
 
-        heroPriceText = BuildHeroPriceText(price, priceToKopeks);
+        heroPriceText = BuildHeroPriceText(price, priceToKopeks, pageCity?.IsDeliveryPriceMode == true);
 
-        // 3. Промо-сообщение
         if (currentCity != null)
         {
             promo = await Db.PromoMessages
@@ -1219,10 +1357,7 @@ private void Calculate()
 
         isPromoVisible = promo != null;
 
-        // 4. Цели и прогресс
         await LoadGoalsAsync();
-
-        // 5. Калькулятор и видео
         Calculate();
     }
 
@@ -1248,15 +1383,14 @@ private void Calculate()
                 StartDate = new DateTime(currentYear, 1, 5),
                 IsActive = true
             };
+
             Db.Goals.Add(goal);
             await Db.SaveChangesAsync();
         }
 
-        // цели, которые показываем в блоке
         totalClientsDisplay = goal.TargetClients;
         totalItemsDisplay = goal.TargetItems;
 
-        // прогресс по формуле (ActualClients + InactiveRequests) / TargetClients
         var clientsProgress = goal.ActualClients + goal.InactiveRequests;
 
         if (goal.TargetClients > 0)
@@ -1295,7 +1429,7 @@ private void Calculate()
 
     #endregion
 
-    #region Инициализация JS (меню, анимации и др.)
+    #region Инициализация JS
 
     private bool _menuInitCalled;
 
@@ -1312,7 +1446,6 @@ private void Calculate()
                 await JS.InvokeVoidAsync("initCircleText");
                 await JS.InvokeVoidAsync("initGsapAnimations");
                 await JS.InvokeVoidAsync("initSwiper");
-                // await JS.InvokeVoidAsync("initMobileMenu");
             }
             catch (Exception ex)
             {
@@ -1323,7 +1456,7 @@ private void Calculate()
 
     #endregion
 
-    #region Отправка заявки (форма -> Client + Request)
+    #region Отправка заявки
 
     private RequestFormModel form = new();
     private bool isSending;
@@ -1340,10 +1473,8 @@ private void Calculate()
 
         try
         {
-            // нормализуем телефон
             form.Phone = NormalizePhone(form.Phone ?? string.Empty);
 
-            // достаём только цифры для проверки длины
             var digits = new string((form.Phone ?? string.Empty)
                 .Where(char.IsDigit)
                 .ToArray());
@@ -1387,6 +1518,7 @@ private void Calculate()
             {
                 if (!string.IsNullOrWhiteSpace(form.Name))
                     client.Name = form.Name;
+
                 if (!string.IsNullOrWhiteSpace(form.Comment))
                     client.Comment = form.Comment;
 
@@ -1399,7 +1531,7 @@ private void Calculate()
                 PageCityId = pageCity?.Id,
                 DateCreate = DateTime.Now,
                 Message = form.Comment,
-                Source = slug is null ? "/" : $"/city/{slug}"
+                Source = slug is null ? "/" : $"/{slug}"
             };
 
             Db.Requests.Add(request);
@@ -1462,6 +1594,7 @@ private void Calculate()
         var digits = new string(input.Where(char.IsDigit).ToArray());
         if (digits.Length <= 9)
             return digits;
+
         return digits[^9..];
     }
 
@@ -1488,6 +1621,8 @@ private void Calculate()
 
     #endregion
 
+    #region Вспомогательные методы
+
     private void OnPhoneFocus()
     {
         if (string.IsNullOrWhiteSpace(form.Phone))
@@ -1502,6 +1637,7 @@ private void Calculate()
             return;
 
         const decimal basePrice = 20m;
+        const int basePriceToKopeks = 35;
         const string basePhone = "+375 (29) 991-06-66";
 
         var cities = new List<City>
@@ -1555,27 +1691,31 @@ private void Calculate()
         {
             CityId = c.Id,
             Title = $"Вывоз бытовой техники в {c.NameIn}",
-            Description = $"Быстрый и выгодный вывоз бытовой техники в {c.NameIn}. Цена от {basePrice:0.00} рублей за кг.",
+            Description = $"Быстрый и выгодный вывоз бытовой техники в {c.NameIn}.",
             KeyWords = $"вывоз техники {c.Name}, утилизация техники {c.Name}, приём техники {c.Name}",
             Price = basePrice,
+            PriceToKopeks = basePriceToKopeks,
             PhoneCity = basePhone,
-            IsShowPromo = false
+            IsShowPromo = false,
+            IsDeliveryPriceMode = false
         }).ToList();
 
         Db.PageCities.AddRange(pages);
         await Db.SaveChangesAsync();
     }
 
-    private static string BuildHeroPriceText(decimal fromPrice, int? toKopeks)
+    private static string BuildHeroPriceText(decimal fromPrice, int? toKopeks, bool isDeliveryPriceMode)
     {
         var fromKopeks = (int)fromPrice;
+
+        if (isDeliveryPriceMode && toKopeks.HasValue && toKopeks.Value > fromKopeks)
+            return $"{fromKopeks}–{toKopeks.Value} копеек";
 
         if (toKopeks.HasValue && toKopeks.Value > fromKopeks)
             return $"от {fromKopeks} до {toKopeks.Value} копеек";
 
         return $"от {fromKopeks} копеек";
     }
+
+    #endregion
 }
-
-
-

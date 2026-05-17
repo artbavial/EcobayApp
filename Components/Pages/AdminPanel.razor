@@ -11,7 +11,6 @@
 
 <div class="container my-4">
 
-    <!-- TAB-и -->
     <ul class="nav nav-tabs mb-3">
         <li class="nav-item">
             <button class="nav-link @(activeTab == AdminTab.Dashboard ? "active" : "")"
@@ -150,7 +149,7 @@
                                         <td>
                                             @if (!string.IsNullOrWhiteSpace(r.Client?.Phone))
                                             {
-                                                <a href=@($"tel:{r.Client.Phone}")>@r.Client.Phone</a>
+                                                <a href="@($"tel:{r.Client.Phone}")">@r.Client.Phone</a>
                                             }
                                         </td>
                                         <td style="max-width: 300px;">
@@ -230,7 +229,6 @@
     private List<City> cities = new();
     private City? editCity;
     private PageCity? editPage;
-
     private PromoMessage? editPromo;
 
     private bool saving;
@@ -245,7 +243,6 @@
         <h1 class="starta-h1 text-center mb-4">Города и страницы</h1>
 
         <div class="row gy-4">
-            <!-- Список городов -->
             <div class="col-md-3">
                 <div class="plan">
                     <h3 class="starta-h2 mb-3">Города</h3>
@@ -268,7 +265,6 @@
                 </div>
             </div>
 
-            <!-- Редактирование города -->
             <div class="col-md-3">
                 <div class="plan">
                     <h3 class="starta-h2 mb-3">Город</h3>
@@ -300,9 +296,10 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="starta-desc">Цена по умолчанию (BYN/кг)</label>
-                            <input class="form-control" type="number" step="0.01"
-                                   @bind="editCity.DefaultPrice" />
+                            <label class="starta-desc">Цена по умолчанию (в копейках за кг)</label>
+                            <InputNumber class="form-control"
+                                         TValue="decimal?"
+                                         @bind-Value="editCity.DefaultPrice" />
                         </div>
 
                         <button class="starta-button-admin" @onclick="SaveCityAsync" disabled="@saving">
@@ -322,7 +319,6 @@
                 </div>
             </div>
 
-            <!-- Посадочная страница -->
             <div class="col-md-3">
                 <div class="plan">
                     <h3 class="starta-h2 mb-3">Страница города</h3>
@@ -361,21 +357,36 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="starta-desc">Цена для страницы (BYN/кг)</label>
-                            <input class="form-control" type="number" step="0.01"
-                                   @bind="editPage.Price" />
+                            <label class="starta-desc">Цена ОТ (в копейках за кг)</label>
+                            <InputNumber class="form-control"
+                                         TValue="decimal?"
+                                         @bind-Value="editPage.Price" />
                             <small class="starta-desc">
-                                Если пусто — используется цена города (@editCity?.DefaultPrice).
+                                Если пусто — используется цена города (@(editCity?.DefaultPrice?.ToString() ?? "не указана")).
                             </small>
                         </div>
 
                         <div class="mb-3">
-                            <label class="starta-desc">Цена до (в копейках)</label>
+                            <label class="starta-desc">Цена ДО (в копейках за кг)</label>
                             <InputNumber class="form-control"
                                          TValue="int?"
                                          @bind-Value="editPage.PriceToKopeks" />
                             <small class="starta-desc">
-                                Если пусто — будет показано только "от X копеек", без слова "до".
+                                Если пусто — на сайте будет показана только цена "от".
+                            </small>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="deliveryPriceModeCheck"
+                                   @bind="editPage.IsDeliveryPriceMode" />
+                            <label class="form-check-label starta-desc" for="deliveryPriceModeCheck">
+                                Использовать режим: цена зависит от способа вывоза
+                            </label>
+                            <small class="starta-desc d-block mt-1">
+                                Цена "от" — если мы сами приезжаем и вывозим технику.
+                                Цена "до" — если клиент сам привозит технику в передвижной пункт.
                             </small>
                         </div>
 
@@ -396,7 +407,6 @@
                 </div>
             </div>
 
-            <!-- Промо-сообщение -->
             <div class="col-md-3">
                 <div class="plan">
                     <h3 class="starta-h2 mb-3">Промо для города</h3>
@@ -473,18 +483,19 @@
                 StartDate = new DateTime(currentYear, 1, 5),
                 IsActive = true
             };
+
             Db.Goals.Add(goal);
             await Db.SaveChangesAsync();
         }
 
         var clientsProgress = goal.ActualClients + goal.InactiveRequests;
-        if (goal.TargetClients > 0)
-            progressPercentDisplay = (int)Math.Round(100.0 * clientsProgress / goal.TargetClients);
-        else
-            progressPercentDisplay = 0;
+        progressPercentDisplay = goal.TargetClients > 0
+            ? (int)Math.Round(100.0 * clientsProgress / goal.TargetClients)
+            : 0;
 
         requests = await Db.Requests
             .Include(r => r.Client)
+                .ThenInclude(c => c.City)
             .Include(r => r.PageCity)
                 .ThenInclude(pc => pc.City)
             .OrderByDescending(r => r.DateCreate)
@@ -499,8 +510,6 @@
             .ToListAsync();
     }
 
-    // --- Города / страница города / промо ---
-
     private void CreateNewCity()
     {
         editCity = new City
@@ -509,10 +518,12 @@
             NameIn = "",
             Slug = "",
             DefaultPhone = "",
-            DefaultPrice = 0.20m
+            DefaultPrice = 20m
         };
+
         editPage = null;
         editPromo = null;
+
         saveOk = false;
         savePageOk = false;
         savePromoOk = false;
@@ -545,8 +556,9 @@
                 Title = $"Вывоз бытовой техники в {editCity.NameIn}",
                 Description = $"Быстрый и выгодный вывоз бытовой техники в {editCity.NameIn}.",
                 KeyWords = $"вывоз техники {editCity.Name}, утилизация техники {editCity.Name}",
-                Price = editCity.DefaultPrice,
+                Price = editCity.DefaultPrice ?? 20m,
                 PriceToKopeks = null,
+                IsDeliveryPriceMode = false,
                 PhoneCity = editCity.DefaultPhone,
                 IsShowPromo = false
             };
@@ -578,13 +590,9 @@
         try
         {
             if (editCity.Id == 0)
-            {
                 Db.Cities.Add(editCity);
-            }
             else
-            {
                 Db.Cities.Update(editCity);
-            }
 
             await Db.SaveChangesAsync();
 
@@ -622,13 +630,9 @@
             editPage.CityId = editCity.Id;
 
             if (editPage.Id == 0)
-            {
                 Db.PageCities.Add(editPage);
-            }
             else
-            {
                 Db.PageCities.Update(editPage);
-            }
 
             await Db.SaveChangesAsync();
 
@@ -659,13 +663,9 @@
             editPromo.CityId = editCity.Id;
 
             if (editPromo.Id == 0)
-            {
                 Db.PromoMessages.Add(editPromo);
-            }
             else
-            {
                 Db.PromoMessages.Update(editPromo);
-            }
 
             await Db.SaveChangesAsync();
 
@@ -695,7 +695,7 @@
         var request = await Db.Requests
             .FirstOrDefaultAsync(r => r.Id == requestId);
 
-        if (request == null)
+        if (request is null)
             return;
 
         Db.Requests.Remove(request);
@@ -705,8 +705,8 @@
         if (original != null)
             requests.Remove(original);
 
-        ApplyFilter();
         totalRequests = requests.Count;
+        ApplyFilter();
         StateHasChanged();
     }
 }

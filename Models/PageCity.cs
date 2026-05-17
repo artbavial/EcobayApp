@@ -21,6 +21,13 @@ namespace EcobayApp.Models
 		public long CityId { get; set; }
 		public City City { get; set; } = null!;
 
+		/// <summary>
+		/// Если true, диапазон цены трактуется как:
+		/// ОТ — мы сами приезжаем и вывозим,
+		/// ДО — клиент сам привозит технику в передвижной пункт.
+		/// </summary>
+		public bool IsDeliveryPriceMode { get; set; } = false;
+
 		public decimal? Price { get; set; }
 
 		public int? PriceToKopeks { get; set; }
