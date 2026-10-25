@@ -1,543 +1,397 @@
-﻿@page "/adminpanel"
+@page "/adminpanel"
+@page "/admin"
+@attribute [Authorize]
 @rendermode InteractiveServer
 
+@using System.Security.Claims
+@using System.Text.RegularExpressions
 @using EcobayApp.Contex
 @using EcobayApp.Models
+@using EcobayApp.Services
 @using Microsoft.EntityFrameworkCore
-@inject AppDBContext Db
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject AdminAuthService Auth
+@inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<h1 class="starta-heading mx-auto">Админ‑панель</h1>
+<PageTitle>Панель управления | Ecobay.by</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex, nofollow" />
+</HeadContent>
 
-<div class="container my-4">
+<div class="admin-shell">
+    <header class="admin-topbar">
+        <div class="container d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <a class="admin-brand text-decoration-none" href="/adminpanel">
+                <img src="images/hero/icon.png" alt="" />Ecobay<span>.by</span>
+                <small>панель управления</small>
+            </a>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <a class="admin-link" href="/?all=1" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть сайт</a>
+                <span class="admin-user"><i class="fa-solid fa-user-shield"></i> @currentUserDisplay</span>
+                <form method="post" action="/admin/logout" class="m-0">
+                    <AntiforgeryToken />
+                    <button type="submit" class="admin-btn admin-btn-ghost">Выйти</button>
+                </form>
+            </div>
+        </div>
+    </header>
 
-    <ul class="nav nav-tabs mb-3">
-        <li class="nav-item">
-            <button class="nav-link @(activeTab == AdminTab.Dashboard ? "active" : "")"
-                    @onclick="() => SetTab(AdminTab.Dashboard)">
-                Dashboard
-            </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link @(activeTab == AdminTab.Cities ? "active" : "")"
-                    @onclick="() => SetTab(AdminTab.Cities)">
-                Города
-            </button>
-        </li>
-    </ul>
+    <div class="container my-4">
+        @if (mustChangePassword)
+        {
+            <div class="admin-alert admin-alert-warn mb-3">
+                <strong>Смените пароль.</strong> Вы вошли с паролем из файла конфигурации. Задайте свой пароль во вкладке «Пользователи».
+            </div>
+        }
 
-    @if (activeTab == AdminTab.Dashboard)
-    {
-        @DashboardTab()
-    }
-    else if (activeTab == AdminTab.Cities)
-    {
-        @CitiesTab()
-    }
+        <ul class="admin-tabs">
+            <li><button class="@(activeTab == AdminTab.Dashboard ? "active" : "")" @onclick="() => SetTab(AdminTab.Dashboard)"><i class="fa-solid fa-chart-line"></i> Дашборд</button></li>
+            <li><button class="@(activeTab == AdminTab.Requests ? "active" : "")" @onclick="() => OpenRequests(false)"><i class="fa-solid fa-inbox"></i> Заявки</button></li>
+            <li><button class="@(activeTab == AdminTab.Goals ? "active" : "")" @onclick="() => SetTab(AdminTab.Goals)"><i class="fa-solid fa-bullseye"></i> Цели</button></li>
+            <li><button class="@(activeTab == AdminTab.Cities ? "active" : "")" @onclick="() => SetTab(AdminTab.Cities)"><i class="fa-solid fa-city"></i> Города</button></li>
+            <li><button class="@(activeTab == AdminTab.MainPage ? "active" : "")" @onclick="() => SetTab(AdminTab.MainPage)"><i class="fa-solid fa-flag"></i> Главная сайта</button></li>
+            <li><button class="@(activeTab == AdminTab.Users ? "active" : "")" @onclick="() => SetTab(AdminTab.Users)"><i class="fa-solid fa-users-gear"></i> Пользователи</button></li>
+        </ul>
+
+        @switch (activeTab)
+        {
+            case AdminTab.Dashboard:
+                <AdminDashboard OnRequests="() => OpenRequests(true)" OnGoals="() => SetTab(AdminTab.Goals)" />
+                break;
+            case AdminTab.Requests:
+                <AdminRequests TodayOnly="requestsTodayOnly" />
+                break;
+            case AdminTab.Goals:
+                <AdminGoals />
+                break;
+            case AdminTab.Cities:
+                @CitiesTab()
+                break;
+            case AdminTab.MainPage:
+                @MainPageTab()
+                break;
+            case AdminTab.Users:
+                @UsersTab()
+                break;
+        }
+    </div>
 </div>
 
 @code {
-    private enum AdminTab
-    {
-        Dashboard,
-        Cities
-    }
+    private enum AdminTab { Dashboard, Requests, Goals, Cities, MainPage, Users }
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private AdminTab activeTab = AdminTab.Dashboard;
+    private long currentUserId;
+    private string currentUserDisplay = "";
+    private bool mustChangePassword;
+    private bool requestsTodayOnly;
 
-    private void SetTab(AdminTab tab)
+    private static readonly Regex SlugRegex = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.Compiled);
+
+    /// <summary>Адреса, которые заняты страницами сайта и не могут быть slug города.</summary>
+    private static readonly HashSet<string> ReservedSlugs = new(StringComparer.OrdinalIgnoreCase)
     {
-        activeTab = tab;
-    }
-
-    // ---------- DASHBOARD ----------
-
-    private Goal? goal;
-    private int progressPercentDisplay;
-    private int totalRequests;
-
-    private List<Request> requests = new();
-    private List<Request> filteredRequests = new();
-
-    private string? filterName;
-    private string? filterPhone;
-    private string? filterCity;
-
-    private RenderFragment DashboardTab() => __builder =>
-    {
-        <h1 class="starta-h1 text-center mb-4">Dashboard</h1>
-
-        <div class="row gy-4 mb-4">
-            <div class="col-md-3 col-6">
-                <div class="plan info">
-                    <h3 class="starta-h2 text-center">Цель клиентов</h3>
-                    <p class="starta-desc text-center display-6 fw-bold mb-0">
-                        @goal?.TargetClients
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="plan info">
-                    <h3 class="starta-h2 text-center">Цель техники</h3>
-                    <p class="starta-desc text-center display-6 fw-bold mb-0">
-                        @goal?.TargetItems
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="plan info">
-                    <h3 class="starta-h2 text-center">Заявок всего</h3>
-                    <p class="starta-desc text-center display-6 fw-bold mb-0">
-                        @totalRequests
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-3 col-6">
-                <div class="plan info">
-                    <h3 class="starta-h2 text-center">Прогресс, %</h3>
-                    <p class="starta-desc text-center display-6 fw-bold mb-0">
-                        @progressPercentDisplay
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-12">
-                <div class="plan">
-                    <h3 class="starta-h2 mb-3">Заявки</h3>
-
-                    <div class="row mb-3">
-                        <div class="col-md-3 mb-2">
-                            <input class="form-control"
-                                   placeholder="Фильтр по имени"
-                                   @bind="FilterName"
-                                   @bind:event="oninput" />
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <input class="form-control"
-                                   placeholder="Фильтр по телефону"
-                                   @bind="FilterPhone"
-                                   @bind:event="oninput" />
-                        </div>
-                        <div class="col-md-3 mb-2">
-                            <input class="form-control"
-                                   placeholder="Фильтр по городу"
-                                   @bind="FilterCity"
-                                   @bind:event="oninput" />
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Дата</th>
-                                    <th>Клиент</th>
-                                    <th>Телефон</th>
-                                    <th>Сообщение</th>
-                                    <th>Город</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var r in filteredRequests)
-                                {
-                                    <tr>
-                                        <td>@r.DateCreate.ToString("dd.MM.yyyy HH:mm")</td>
-                                        <td>@r.Client?.Name</td>
-                                        <td>
-                                            @if (!string.IsNullOrWhiteSpace(r.Client?.Phone))
-                                            {
-                                                <a href="@($"tel:{r.Client.Phone}")">@r.Client.Phone</a>
-                                            }
-                                        </td>
-                                        <td style="max-width: 300px;">
-                                            @r.Message
-                                        </td>
-                                        <td>
-                                            @(r.PageCity?.City?.Name ?? r.Client?.City?.Name ?? "—")
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-danger"
-                                                    @onclick="() => ConfirmDeleteRequestAsync(r.Id, r.Client?.Name)">
-                                                Удалить
-                                            </button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <p class="starta-desc mt-2">
-                        Показано @filteredRequests.Count из @totalRequests заявок.
-                    </p>
-                </div>
-            </div>
-        </div>
+        "admin", "adminpanel", "contacts", "user-agreement", "error", "login", "logout",
+        "css", "js", "images", "font", "bootstrap", "_framework", "_blazor"
     };
 
-    private string? FilterName
+    private void SetTab(AdminTab tab) => activeTab = tab;
+
+    private void OpenRequests(bool todayOnly)
     {
-        get => filterName;
-        set { filterName = value; ApplyFilter(); }
+        requestsTodayOnly = todayOnly;
+        activeTab = AdminTab.Requests;
     }
 
-    private string? FilterPhone
+    protected override async Task OnInitializedAsync()
     {
-        get => filterPhone;
-        set { filterPhone = value; ApplyFilter(); }
-    }
-
-    private string? FilterCity
-    {
-        get => filterCity;
-        set { filterCity = value; ApplyFilter(); }
-    }
-
-    private void ApplyFilter()
-    {
-        IEnumerable<Request> query = requests;
-
-        if (!string.IsNullOrWhiteSpace(filterName))
+        if (AuthState is not null)
         {
-            query = query.Where(r =>
-                !string.IsNullOrWhiteSpace(r.Client?.Name) &&
-                r.Client.Name.Contains(filterName, StringComparison.OrdinalIgnoreCase));
+            var user = (await AuthState).User;
+            long.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out currentUserId);
+            currentUserDisplay = user.FindFirstValue("ecobay:display") ?? user.Identity?.Name ?? "";
         }
 
-        if (!string.IsNullOrWhiteSpace(filterPhone))
-        {
-            query = query.Where(r =>
-                !string.IsNullOrWhiteSpace(r.Client?.Phone) &&
-                r.Client.Phone.Contains(filterPhone, StringComparison.OrdinalIgnoreCase));
-        }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var me = await db.AdminUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
+        mustChangePassword = me?.MustChangePassword == true;
+        if (mustChangePassword)
+            activeTab = AdminTab.Users;
 
-        if (!string.IsNullOrWhiteSpace(filterCity))
-        {
-            query = query.Where(r =>
-                (r.PageCity?.City?.Name ?? r.Client?.City?.Name ?? string.Empty)
-                    .Contains(filterCity, StringComparison.OrdinalIgnoreCase));
-        }
-
-        filteredRequests = query.ToList();
+        await LoadCitiesAsync(db);
+        await LoadMainPageAsync(db);
+        await LoadUsersAsync(db);
     }
 
-    // ---------- CITIES TAB ----------
+    // =====================================================================
+    // CITIES
+    // =====================================================================
 
-    private List<City> cities = new();
+    private List<CityRow> cities = new();
     private City? editCity;
     private PageCity? editPage;
     private PromoMessage? editPromo;
 
+    private string? cityMessage; private bool cityError;
+    private string? pageMessage; private bool pageError;
+    private string? promoMessage; private bool promoError;
     private bool saving;
-    private bool saveOk;
-    private bool savingPage;
-    private bool savePageOk;
-    private bool savingPromo;
-    private bool savePromoOk;
+
+    private sealed record CityRow(long Id, string Name, string Slug, bool IsActive, int SortOrder, bool HasPage);
+
+    private async Task LoadCitiesAsync(AppDBContext db)
+    {
+        cities = await db.Cities.AsNoTracking()
+            .OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
+            .Select(c => new CityRow(c.Id, c.Name, c.Slug, c.IsActive, c.SortOrder, c.Pages.Any()))
+            .ToListAsync();
+    }
+
+    private int ActiveCitiesOnSite => cities.Count(c => c.IsActive && c.HasPage);
 
     private RenderFragment CitiesTab() => __builder =>
     {
-        <h1 class="starta-h1 text-center mb-4">Города и страницы</h1>
+        <div class="admin-hint mb-3">
+            <i class="fa-solid fa-circle-info"></i>
+            В окне выбора города на сайте показываются только <strong>активные</strong> города с сохранённой страницей.
+            Сейчас на сайте: <strong>@ActiveCitiesOnSite</strong> из @cities.Count.
+            Неактивный город скрыт со всего сайта, его адрес перенаправляет на страницу «Вся Беларусь».
+        </div>
 
-        <div class="row gy-4">
-            <div class="col-md-3">
-                <div class="plan">
-                    <h3 class="starta-h2 mb-3">Города</h3>
-
-                    <button class="starta-button-admin" @onclick="CreateNewCity">
-                        <span class="position-relative">Добавить город</span>
-                        <span class="starta-button-hover"></span>
-                    </button>
-
-                    <ul class="starta-desc">
+        <div class="row g-3">
+            <div class="col-lg-3">
+                <div class="admin-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="admin-card-title mb-0">Города</h2>
+                        <button class="admin-btn admin-btn-primary admin-btn-sm" @onclick="CreateNewCity"><i class="fa-solid fa-plus"></i> Добавить</button>
+                    </div>
+                    <ul class="admin-city-list">
                         @foreach (var c in cities)
                         {
-                            <li>
-                                <a href="javascript:void(0);" @onclick="() => SelectCity(c.Id)">
-                                    <strong>@c.Name</strong> (@c.Slug)
-                                </a>
+                            <li class="@(editCity?.Id == c.Id && c.Id != 0 ? "selected" : "")" @onclick="() => SelectCityAsync(c.Id)">
+                                <div>
+                                    <strong>@c.Name</strong>
+                                    <small>/@c.Slug</small>
+                                </div>
+                                @if (!c.IsActive)
+                                {
+                                    <span class="admin-badge admin-badge-off">выключен</span>
+                                }
+                                else if (!c.HasPage)
+                                {
+                                    <span class="admin-badge admin-badge-warn">нет страницы</span>
+                                }
+                                else
+                                {
+                                    <span class="admin-badge admin-badge-on">на сайте</span>
+                                }
                             </li>
                         }
                     </ul>
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="plan">
-                    <h3 class="starta-h2 mb-3">Город</h3>
-
+            <div class="col-lg-3">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">Город</h2>
                     @if (editCity is null)
                     {
-                        <p class="starta-desc">Выберите город или создайте новый.</p>
+                        <p class="admin-muted">Выберите город слева или создайте новый.</p>
                     }
                     else
                     {
-                        <div class="mb-3">
-                            <label class="starta-desc">Название (И.п.)</label>
-                            <input class="form-control" @bind="editCity.Name" />
+                        <div class="form-check form-switch mb-3 admin-switch">
+                            <input class="form-check-input" type="checkbox" id="cityActive" @bind="editCity.IsActive" />
+                            <label class="form-check-label" for="cityActive">Город активен (виден на сайте)</label>
                         </div>
-
                         <div class="mb-3">
-                            <label class="starta-desc">Название (в Гомеле)</label>
-                            <input class="form-control" @bind="editCity.NameIn" />
+                            <label class="admin-label">Название (именительный падеж)</label>
+                            <input class="form-control" @bind="editCity.Name" placeholder="Гомель" />
                         </div>
-
                         <div class="mb-3">
-                            <label class="starta-desc">Slug (для URL)</label>
-                            <input class="form-control" @bind="editCity.Slug" />
+                            <label class="admin-label">Название в предложном падеже</label>
+                            <input class="form-control" @bind="editCity.NameIn" placeholder="Гомеле" />
+                            <small class="admin-muted">Используется во фразах «в Гомеле».</small>
                         </div>
-
                         <div class="mb-3">
-                            <label class="starta-desc">Телефон по умолчанию</label>
+                            <label class="admin-label">Slug (адрес страницы)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">ecobay.by/</span>
+                                <input class="form-control" @bind="editCity.Slug" placeholder="gomel" />
+                            </div>
+                            <small class="admin-muted">Латиница в нижнем регистре, цифры и дефис.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="admin-label">Порядок в списке</label>
+                            <input class="form-control" type="number" @bind="editCity.SortOrder" />
+                            <small class="admin-muted">Меньше — выше. При равенстве — по алфавиту.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="admin-label">Телефон по умолчанию</label>
                             <input class="form-control" @bind="editCity.DefaultPhone" />
                         </div>
-
                         <div class="mb-3">
-                            <label class="starta-desc">Цена по умолчанию (в копейках за кг)</label>
-                            <InputNumber class="form-control"
-                                         TValue="decimal?"
-                                         @bind-Value="editCity.DefaultPrice" />
+                            <label class="admin-label">Цена по умолчанию (коп./кг)</label>
+                            <InputNumber class="form-control" TValue="decimal?" @bind-Value="editCity.DefaultPrice" />
                         </div>
 
-                        <button class="starta-button-admin" @onclick="SaveCityAsync" disabled="@saving">
-                            <span class="position-relative">
-                                @(saving ? "Сохранение..." : "Сохранить город")
-                            </span>
-                            <span class="starta-button-hover"></span>
+                        <button class="admin-btn admin-btn-primary w-100" @onclick="SaveCityAsync" disabled="@saving">
+                            @(saving ? "Сохранение..." : "Сохранить город")
                         </button>
-
-                        @if (saveOk)
+                        @StatusMessage(cityMessage, cityError)
+                        @if (editCity.Id != 0 && editCity.IsActive)
                         {
-                            <p class="starta-desc mt-2" style="color:#28a745;">
-                                Город сохранён.
-                            </p>
+                            <a class="admin-link d-block mt-3" href="@($"/{editCity.Slug}")" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть страницу города</a>
                         }
                     }
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="plan">
-                    <h3 class="starta-h2 mb-3">Страница города</h3>
-
+            <div class="col-lg-3">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">Страница города</h2>
                     @if (editPage is null)
                     {
-                        <p class="starta-desc">
-                            Выберите город — страница создастся автоматически, если её ещё нет.
-                        </p>
+                        <p class="admin-muted">Сначала сохраните город — страница создастся автоматически.</p>
                     }
                     else
                     {
-                        <div class="mb-3">
-                            <label class="starta-desc">Title страницы</label>
-                            <input class="form-control" @bind="editPage.Title" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="starta-desc">Описание (meta description)</label>
-                            <textarea class="form-control" rows="3"
-                                      @bind="editPage.Description"></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="starta-desc">Ключевые слова (meta keywords)</label>
-                            <textarea class="form-control" rows="2"
-                                      @bind="editPage.KeyWords"></textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="starta-desc">Телефон для страницы</label>
-                            <input class="form-control" @bind="editPage.PhoneCity" />
-                            <small class="starta-desc">
-                                Если пусто — используется телефон города (@editCity?.DefaultPhone).
-                            </small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="starta-desc">Цена ОТ (в копейках за кг)</label>
-                            <InputNumber class="form-control"
-                                         TValue="decimal?"
-                                         @bind-Value="editPage.Price" />
-                            <small class="starta-desc">
-                                Если пусто — используется цена города (@(editCity?.DefaultPrice?.ToString() ?? "не указана")).
-                            </small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="starta-desc">Цена ДО (в копейках за кг)</label>
-                            <InputNumber class="form-control"
-                                         TValue="int?"
-                                         @bind-Value="editPage.PriceToKopeks" />
-                            <small class="starta-desc">
-                                Если пусто — на сайте будет показана только цена "от".
-                            </small>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            <input class="form-check-input"
-                                   type="checkbox"
-                                   id="deliveryPriceModeCheck"
-                                   @bind="editPage.IsDeliveryPriceMode" />
-                            <label class="form-check-label starta-desc" for="deliveryPriceModeCheck">
-                                Использовать режим: цена зависит от способа вывоза
-                            </label>
-                            <small class="starta-desc d-block mt-1">
-                                Цена "от" — если мы сами приезжаем и вывозим технику.
-                                Цена "до" — если клиент сам привозит технику в передвижной пункт.
-                            </small>
-                        </div>
-
-                        <button class="starta-button-admin" @onclick="SavePageAsync" disabled="@savingPage">
-                            <span class="position-relative">
-                                @(savingPage ? "Сохранение..." : "Сохранить страницу")
-                            </span>
-                            <span class="starta-button-hover"></span>
+                        @PageFields()
+                        <button class="admin-btn admin-btn-primary w-100" @onclick="SavePageAsync" disabled="@saving">
+                            @(saving ? "Сохранение..." : "Сохранить страницу")
                         </button>
-
-                        @if (savePageOk)
-                        {
-                            <p class="starta-desc mt-2" style="color:#28a745;">
-                                Страница сохранена.
-                            </p>
-                        }
+                        @StatusMessage(pageMessage, pageError)
                     }
                 </div>
             </div>
 
-            <div class="col-md-3">
-                <div class="plan">
-                    <h3 class="starta-h2 mb-3">Промо для города</h3>
-
+            <div class="col-lg-3">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">Промо для города</h2>
                     @if (editPromo is null)
                     {
-                        <p class="starta-desc">
-                            Выберите город — можно будет настроить промо‑сообщение.
-                        </p>
+                        <p class="admin-muted">Выберите сохранённый город — можно будет настроить всплывающее сообщение.</p>
                     }
                     else
                     {
-                        <div class="form-check mb-3">
-                            <input class="form-check-input"
-                                   type="checkbox"
-                                   id="promoActiveCheck"
-                                   @bind="editPromo.IsActive" />
-                            <label class="form-check-label starta-desc" for="promoActiveCheck">
-                                Активно
-                            </label>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="starta-desc">Заголовок промо</label>
-                            <input class="form-control" @bind="editPromo.Title" />
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="starta-desc">Текст промо</label>
-                            <textarea class="form-control" rows="3"
-                                      @bind="editPromo.Text"></textarea>
-                        </div>
-
-                        <button class="starta-button-admin"
-                                @onclick="SavePromoAsync"
-                                disabled="@savingPromo">
-                            <span class="position-relative">
-                                @(savingPromo ? "Сохранение..." : "Сохранить промо")
-                            </span>
-                            <span class="starta-button-hover"></span>
+                        @PromoFields(editPromo, "cityPromo")
+                        <button class="admin-btn admin-btn-primary w-100" @onclick="SavePromoAsync" disabled="@saving">
+                            @(saving ? "Сохранение..." : "Сохранить промо")
                         </button>
-
-                        @if (savePromoOk)
-                        {
-                            <p class="starta-desc mt-2" style="color:#28a745;">
-                                Промо сохранено.
-                            </p>
-                        }
+                        @StatusMessage(promoMessage, promoError)
                     }
                 </div>
             </div>
         </div>
     };
 
-    protected override async Task OnInitializedAsync()
+    private RenderFragment PageFields() => __builder =>
     {
-        var currentYear = DateTime.Now.Year;
+        <div class="mb-3">
+            <label class="admin-label">Title страницы</label>
+            <input class="form-control" @bind="editPage!.Title" />
+        </div>
+        <div class="mb-3">
+            <label class="admin-label">Описание (meta description)</label>
+            <textarea class="form-control" rows="3" @bind="editPage!.Description"></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="admin-label">Ключевые слова (meta keywords)</label>
+            <textarea class="form-control" rows="2" @bind="editPage!.KeyWords"></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="admin-label">Телефон для страницы</label>
+            <input class="form-control" @bind="editPage!.PhoneCity" />
+            <small class="admin-muted">Если пусто — телефон города (@(string.IsNullOrWhiteSpace(editCity?.DefaultPhone) ? "не указан" : editCity!.DefaultPhone)).</small>
+        </div>
+        <details class="admin-local-editor mb-3">
+            <summary>Уникальное содержание города</summary>
+            <p class="admin-muted mt-2">Пишите реальные местные условия, а не тот же текст с заменой города. Пустые блоки на сайте не выводятся.</p>
+            <label class="admin-label">Заголовок первого экрана</label>
+            <input class="form-control mb-3" maxlength="200" @bind="editPage!.HeroTitle" placeholder="Свой H1 для города (необязательно)" />
+            <label class="admin-label">О работе в этом городе</label>
+            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.LocalIntro"
+                      placeholder="Что полезно знать местному клиенту, какие заявки вывозите, особенности работы."></textarea>
+            <label class="admin-label">Город и его район: зона обслуживания</label>
+            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.CoverageText"
+                      placeholder="Конкретные населённые пункты района, которые вы действительно обслуживаете."></textarea>
+            <label class="admin-label">Условия и порядок вывоза</label>
+            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.PickupDetails"
+                      placeholder="Как согласовать выезд в район, что подготовить, реальный график и условия самопривоза."></textarea>
+        </details>
+        <div class="mb-3">
+            <label class="admin-label">Цена ОТ (коп./кг)</label>
+            <InputNumber class="form-control" TValue="decimal?" @bind-Value="editPage!.Price" />
+            <small class="admin-muted">Если пусто — цена города (@(editCity?.DefaultPrice?.ToString() ?? "не указана")).</small>
+        </div>
+        <div class="mb-3">
+            <label class="admin-label">Цена ДО (коп./кг)</label>
+            <InputNumber class="form-control" TValue="int?" @bind-Value="editPage!.PriceToKopeks" />
+            <small class="admin-muted">Если пусто — показывается только цена «от».</small>
+        </div>
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="deliveryPriceModeCheck" @bind="editPage!.IsDeliveryPriceMode" />
+            <label class="form-check-label" for="deliveryPriceModeCheck">Цена зависит от способа вывоза</label>
+            <small class="admin-muted d-block mt-1">«От» — мы приезжаем и вывозим. «До» — клиент сам привозит в передвижной пункт.</small>
+        </div>
+    };
 
-        goal = await Db.Goals
-            .Where(g => g.IsActive && g.Year == currentYear)
-            .OrderByDescending(g => g.StartDate)
-            .FirstOrDefaultAsync();
+    private RenderFragment PromoFields(PromoMessage promo, string idPrefix) => __builder =>
+    {
+        <div class="form-check form-switch mb-3 admin-switch">
+            <input class="form-check-input" type="checkbox" id="@(idPrefix + "Active")" @bind="promo.IsActive" />
+            <label class="form-check-label" for="@(idPrefix + "Active")">Показывать промо</label>
+        </div>
+        <div class="mb-3">
+            <label class="admin-label">Заголовок</label>
+            <input class="form-control" @bind="promo.Title" maxlength="160" />
+        </div>
+        <div class="mb-3">
+            <label class="admin-label">Текст</label>
+            <textarea class="form-control" rows="4" @bind="promo.Text" maxlength="500"></textarea>
+        </div>
+    };
 
-        if (goal == null)
+    private static RenderFragment StatusMessage(string? message, bool isError) => __builder =>
+    {
+        if (!string.IsNullOrEmpty(message))
         {
-            goal = new Goal
-            {
-                Year = currentYear,
-                TargetClients = 5000,
-                TargetItems = 12000,
-                ActualClients = 0,
-                ActualItems = 0,
-                InactiveRequests = 0,
-                StartDate = new DateTime(currentYear, 1, 5),
-                IsActive = true
-            };
-
-            Db.Goals.Add(goal);
-            await Db.SaveChangesAsync();
+            <p class="@(isError ? "admin-status-error" : "admin-status-ok") mt-2 mb-0">@message</p>
         }
+    };
 
-        var clientsProgress = goal.ActualClients + goal.InactiveRequests;
-        progressPercentDisplay = goal.TargetClients > 0
-            ? (int)Math.Round(100.0 * clientsProgress / goal.TargetClients)
-            : 0;
-
-        requests = await Db.Requests
-            .Include(r => r.Client)
-                .ThenInclude(c => c.City)
-            .Include(r => r.PageCity)
-                .ThenInclude(pc => pc.City)
-            .OrderByDescending(r => r.DateCreate)
-            .Take(50)
-            .ToListAsync();
-
-        totalRequests = requests.Count;
-        ApplyFilter();
-
-        cities = await Db.Cities
-            .OrderBy(c => c.Name)
-            .ToListAsync();
+    private void ResetCityMessages()
+    {
+        cityMessage = pageMessage = promoMessage = null;
+        cityError = pageError = promoError = false;
     }
 
     private void CreateNewCity()
     {
+        ResetCityMessages();
         editCity = new City
         {
             Name = "",
             NameIn = "",
             Slug = "",
-            DefaultPhone = "",
-            DefaultPrice = 20m
+            DefaultPhone = DbSeeder.DefaultPhone,
+            DefaultPrice = 20m,
+            IsActive = true,
+            SortOrder = cities.Count == 0 ? 0 : cities.Max(c => c.SortOrder)
         };
-
         editPage = null;
         editPromo = null;
-
-        saveOk = false;
-        savePageOk = false;
-        savePromoOk = false;
     }
 
-    private async Task SelectCity(long cityId)
+    private async Task SelectCityAsync(long cityId)
     {
-        saveOk = false;
-        savePageOk = false;
-        savePromoOk = false;
+        ResetCityMessages();
 
-        editCity = await Db.Cities
-            .FirstOrDefaultAsync(c => c.Id == cityId);
-
+        await using var db = await DbFactory.CreateDbContextAsync();
+        editCity = await db.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cityId);
         if (editCity is null)
         {
             editPage = null;
@@ -545,65 +399,77 @@
             return;
         }
 
-        editPage = await Db.PageCities
-            .FirstOrDefaultAsync(p => p.CityId == cityId);
+        editPage = await db.PageCities.AsNoTracking().FirstOrDefaultAsync(p => p.CityId == cityId)
+                   ?? NewPageFor(editCity);
 
-        if (editPage is null)
-        {
-            editPage = new PageCity
-            {
-                CityId = editCity.Id,
-                Title = $"Вывоз бытовой техники в {editCity.NameIn}",
-                Description = $"Быстрый и выгодный вывоз бытовой техники в {editCity.NameIn}.",
-                KeyWords = $"вывоз техники {editCity.Name}, утилизация техники {editCity.Name}",
-                Price = editCity.DefaultPrice ?? 20m,
-                PriceToKopeks = null,
-                IsDeliveryPriceMode = false,
-                PhoneCity = editCity.DefaultPhone,
-                IsShowPromo = false
-            };
-        }
+        editPromo = await db.PromoMessages.AsNoTracking().FirstOrDefaultAsync(p => p.CityId == cityId)
+                    ?? new PromoMessage { CityId = editCity.Id, Title = $"Акция в {editCity.NameIn}", Text = "", IsActive = false };
+    }
 
-        editPromo = await Db.PromoMessages
-            .FirstOrDefaultAsync(p => p.CityId == cityId);
+    private static PageCity NewPageFor(City city) => new()
+    {
+        CityId = city.Id,
+        Title = $"Вывоз бытовой техники в {city.NameIn}",
+        Description = $"Быстрый и выгодный вывоз бытовой техники в {city.NameIn}.",
+        KeyWords = $"вывоз техники {city.Name}, утилизация техники {city.Name}, приём техники {city.Name}",
+        Price = city.DefaultPrice ?? 20m,
+        PhoneCity = city.DefaultPhone
+    };
 
-        if (editPromo is null)
-        {
-            editPromo = new PromoMessage
-            {
-                CityId = editCity.Id,
-                Title = $"Акция в {editCity.NameIn}",
-                Text = "",
-                IsActive = false
-            };
-        }
+    private async Task<string?> ValidateCityAsync(AppDBContext db, City city)
+    {
+        city.Name = city.Name?.Trim() ?? "";
+        city.NameIn = city.NameIn?.Trim() ?? "";
+        city.Slug = (city.Slug ?? "").Trim().ToLowerInvariant();
+        city.DefaultPhone = string.IsNullOrWhiteSpace(city.DefaultPhone) ? null : city.DefaultPhone.Trim();
+
+        if (city.Name.Length == 0) return "Укажите название города.";
+        if (city.NameIn.Length == 0) return "Укажите название в предложном падеже (например, «Гомеле»).";
+        if (city.Slug.Length == 0) return "Укажите slug.";
+        if (!SlugRegex.IsMatch(city.Slug)) return "Slug: только латиница a–z, цифры и дефис (например, «gomel» или «novaya-guta»).";
+        if (ReservedSlugs.Contains(city.Slug)) return $"Адрес «{city.Slug}» зарезервирован сайтом, выберите другой.";
+        if (await db.Cities.AnyAsync(c => c.Slug == city.Slug && c.Id != city.Id)) return $"Город с адресом «{city.Slug}» уже существует.";
+        if (city.DefaultPrice is < 0) return "Цена не может быть отрицательной.";
+        return null;
     }
 
     private async Task SaveCityAsync()
     {
-        if (editCity is null)
-            return;
-
+        if (editCity is null) return;
+        ResetCityMessages();
         saving = true;
-        saveOk = false;
 
         try
         {
-            if (editCity.Id == 0)
-                Db.Cities.Add(editCity);
-            else
-                Db.Cities.Update(editCity);
+            await using var db = await DbFactory.CreateDbContextAsync();
 
-            await Db.SaveChangesAsync();
+            var error = await ValidateCityAsync(db, editCity);
+            if (error is not null)
+            {
+                cityMessage = error; cityError = true;
+                return;
+            }
 
-            cities = await Db.Cities
-                .OrderBy(c => c.Name)
-                .ToListAsync();
+            var isNew = editCity.Id == 0;
+            if (isNew) db.Cities.Add(editCity);
+            else db.Cities.Update(editCity);
+            await db.SaveChangesAsync();
 
-            editCity = await Db.Cities
-                .FirstOrDefaultAsync(c => c.Id == editCity.Id);
+            // Для нового города сразу создаём страницу — иначе он не появится в окне выбора города.
+            if (!await db.PageCities.AnyAsync(p => p.CityId == editCity.Id))
+            {
+                db.PageCities.Add(NewPageFor(editCity));
+                await db.SaveChangesAsync();
+            }
 
-            saveOk = true;
+            var id = editCity.Id;
+            await LoadCitiesAsync(db);
+            await SelectCityAsync(id);
+            cityMessage = isNew ? "Город создан, страница города добавлена." : "Город сохранён.";
+        }
+        catch (Exception ex)
+        {
+            cityMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; cityError = true;
         }
         finally
         {
@@ -613,100 +479,490 @@
 
     private async Task SavePageAsync()
     {
-        if (editCity is null || editPage is null)
-            return;
+        if (editCity is null || editCity.Id == 0 || editPage is null) return;
+        ResetCityMessages();
 
-        savingPage = true;
-        savePageOk = false;
+        if (string.IsNullOrWhiteSpace(editPage.Title)) { pageMessage = "Укажите Title страницы."; pageError = true; return; }
+        if (editPage.HeroTitle?.Length > 200 || editPage.LocalIntro?.Length > 1500 ||
+            editPage.CoverageText?.Length > 1500 || editPage.PickupDetails?.Length > 1500)
+        { pageMessage = "Превышена длина местного текста: H1 до 200, каждый блок до 1500 символов."; pageError = true; return; }
+        if (editPage.Price is < 0 || editPage.PriceToKopeks is < 0) { pageMessage = "Цена не может быть отрицательной."; pageError = true; return; }
 
+        saving = true;
         try
         {
-            if (editCity.Id == 0)
-            {
-                Db.Cities.Add(editCity);
-                await Db.SaveChangesAsync();
-            }
-
+            await using var db = await DbFactory.CreateDbContextAsync();
             editPage.CityId = editCity.Id;
-
-            if (editPage.Id == 0)
-                Db.PageCities.Add(editPage);
-            else
-                Db.PageCities.Update(editPage);
-
-            await Db.SaveChangesAsync();
-
-            savePageOk = true;
+            editPage.PhoneCity = string.IsNullOrWhiteSpace(editPage.PhoneCity) ? null : editPage.PhoneCity.Trim();
+            if (editPage.Id == 0) db.PageCities.Add(editPage);
+            else db.PageCities.Update(editPage);
+            await db.SaveChangesAsync();
+            await LoadCitiesAsync(db);
+            pageMessage = "Страница сохранена.";
+        }
+        catch (Exception ex)
+        {
+            pageMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; pageError = true;
         }
         finally
         {
-            savingPage = false;
+            saving = false;
         }
     }
 
     private async Task SavePromoAsync()
     {
-        if (editCity is null || editPromo is null)
+        if (editCity is null || editCity.Id == 0 || editPromo is null) return;
+        ResetCityMessages();
+
+        if (editPromo.IsActive && (string.IsNullOrWhiteSpace(editPromo.Title) || string.IsNullOrWhiteSpace(editPromo.Text)))
+        {
+            promoMessage = "Для активного промо заполните заголовок и текст."; promoError = true;
             return;
+        }
 
-        savingPromo = true;
-        savePromoOk = false;
-
+        saving = true;
         try
         {
-            if (editCity.Id == 0)
-            {
-                Db.Cities.Add(editCity);
-                await Db.SaveChangesAsync();
-            }
-
+            await using var db = await DbFactory.CreateDbContextAsync();
             editPromo.CityId = editCity.Id;
-
-            if (editPromo.Id == 0)
-                Db.PromoMessages.Add(editPromo);
-            else
-                Db.PromoMessages.Update(editPromo);
-
-            await Db.SaveChangesAsync();
-
-            savePromoOk = true;
+            editPromo.Title = string.IsNullOrWhiteSpace(editPromo.Title) ? $"Акция в {editCity.NameIn}" : editPromo.Title.Trim();
+            editPromo.Text ??= "";
+            if (editPromo.Id == 0) db.PromoMessages.Add(editPromo);
+            else db.PromoMessages.Update(editPromo);
+            await db.SaveChangesAsync();
+            promoMessage = "Промо сохранено.";
+        }
+        catch (Exception ex)
+        {
+            promoMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; promoError = true;
         }
         finally
         {
-            savingPromo = false;
+            saving = false;
         }
     }
 
-    private async Task ConfirmDeleteRequestAsync(long requestId, string? clientName)
+    // =====================================================================
+    // MAIN PAGE — «Вся Беларусь»
+    // =====================================================================
+
+    private MainPageSettings mainPage = DbSeeder.CreateDefaultMainPage();
+    private PromoMessage globalPromo = new() { Title = "Внимание!", Text = "", IsActive = false };
+    private string? mainMessage; private bool mainError;
+    private string? globalPromoMessage; private bool globalPromoError;
+
+    private async Task LoadMainPageAsync(AppDBContext db)
     {
-        var confirmText = string.IsNullOrWhiteSpace(clientName)
-            ? "Вы уверены, что хотите удалить эту заявку?"
-            : $"Вы уверены, что хотите удалить заявку клиента \"{clientName}\"?";
+        mainPage = await db.MainPageSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync()
+                   ?? DbSeeder.CreateDefaultMainPage();
 
-        var confirmed = await JS.InvokeAsync<bool>("confirm", confirmText);
-        if (!confirmed)
-            return;
-
-        await DeleteRequestAsync(requestId);
+        globalPromo = await db.PromoMessages.AsNoTracking().Where(p => p.CityId == null).OrderBy(p => p.Id).FirstOrDefaultAsync()
+                      ?? new PromoMessage { Title = "Внимание!", Text = "", IsActive = false };
     }
 
-    private async Task DeleteRequestAsync(long requestId)
+    private RenderFragment MainPageTab() => __builder =>
     {
-        var request = await Db.Requests
-            .FirstOrDefaultAsync(r => r.Id == requestId);
+        <div class="admin-hint mb-3">
+            <i class="fa-solid fa-circle-info"></i>
+            Общая страница открывается по адресу <a href="/?all=1" target="_blank">ecobay.by/</a>, если посетитель не выбрал город.
+            Здесь настраивается окно выбора города. Работаем только в активных городах и их районах, а не по всей Беларуси.
+        </div>
 
-        if (request is null)
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">SEO</h2>
+                    <div class="mb-3">
+                        <label class="admin-label">Title страницы</label>
+                        <input class="form-control" @bind="mainPage.Title" maxlength="160" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Описание (meta description)</label>
+                        <textarea class="form-control" rows="3" @bind="mainPage.Description" maxlength="300"></textarea>
+                        <small class="admin-muted">Если пусто — сформируется автоматически по списку активных городов.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Ключевые слова</label>
+                        <textarea class="form-control" rows="2" @bind="mainPage.KeyWords" maxlength="300"></textarea>
+                    </div>
+
+                    <h2 class="admin-card-title mt-4">Первый экран</h2>
+                    <div class="mb-3">
+                        <label class="admin-label">Заголовок (H1)</label>
+                        <input class="form-control" @bind="mainPage.HeroTitle" maxlength="200" placeholder="Вывоз техники в наших городах и их районах" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Текст под заголовком</label>
+                        <textarea class="form-control" rows="3" @bind="mainPage.HeroText" maxlength="600"
+                                  placeholder="Если пусто — стандартный текст о выезде и оплате на месте."></textarea>
+                    </div>
+                    <div class="form-check form-switch admin-switch">
+                        <input class="form-check-input" type="checkbox" id="mainCityList" @bind="mainPage.IsCityListShown" />
+                        <label class="form-check-label" for="mainCityList">Показывать города кнопками (иначе списком)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">Контакты и цены</h2>
+                    <div class="mb-3">
+                        <label class="admin-label">Телефон</label>
+                        <input class="form-control" @bind="mainPage.Phone" maxlength="50" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Цена ОТ (коп./кг)</label>
+                        <InputNumber class="form-control" TValue="decimal?" @bind-Value="mainPage.Price" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Цена ДО (коп./кг)</label>
+                        <InputNumber class="form-control" TValue="int?" @bind-Value="mainPage.PriceToKopeks" />
+                        <small class="admin-muted">Если пусто — показывается только цена «от».</small>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="mainDelivery" @bind="mainPage.IsDeliveryPriceMode" />
+                        <label class="form-check-label" for="mainDelivery">Цена зависит от способа вывоза</label>
+                    </div>
+
+                    <h2 class="admin-card-title mt-4">Окно выбора города</h2>
+                    <div class="form-check form-switch mb-2 admin-switch">
+                        <input class="form-check-input" type="checkbox" id="mainSelector" @bind="mainPage.IsCitySelectorEnabled" />
+                        <label class="form-check-label" for="mainSelector">Показывать при открытии сайта</label>
+                    </div>
+                    <div class="form-check form-switch mb-3 admin-switch">
+                        <input class="form-check-input" type="checkbox" id="mainRemember" @bind="mainPage.IsRememberCityEnabled" />
+                        <label class="form-check-label" for="mainRemember">Запоминать выбор: при повторном визите сразу открывать город</label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Заголовок окна</label>
+                        <input class="form-control" @bind="mainPage.CitySelectorTitle" maxlength="160" placeholder="Выберите ваш город" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Текст окна</label>
+                        <textarea class="form-control" rows="2" @bind="mainPage.CitySelectorText" maxlength="400"></textarea>
+                    </div>
+
+                    <button class="admin-btn admin-btn-primary w-100" @onclick="SaveMainPageAsync" disabled="@saving">
+                        @(saving ? "Сохранение..." : "Сохранить главную страницу")
+                    </button>
+                    @StatusMessage(mainMessage, mainError)
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">Общее промо</h2>
+                    <p class="admin-muted">Всплывающее сообщение для общей страницы сайта.</p>
+                    @PromoFields(globalPromo, "globalPromo")
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="globalOnCities" @bind="mainPage.IsGlobalPromoShownOnCityPages" />
+                        <label class="form-check-label" for="globalOnCities">Показывать и на страницах городов, у которых нет своего промо</label>
+                    </div>
+                    <button class="admin-btn admin-btn-primary w-100" @onclick="SaveGlobalPromoAsync" disabled="@saving">
+                        @(saving ? "Сохранение..." : "Сохранить промо")
+                    </button>
+                    @StatusMessage(globalPromoMessage, globalPromoError)
+                </div>
+            </div>
+        </div>
+    };
+
+    private async Task SaveMainPageAsync()
+    {
+        mainMessage = null; mainError = false;
+        if (string.IsNullOrWhiteSpace(mainPage.Title)) { mainMessage = "Укажите Title страницы."; mainError = true; return; }
+        if (mainPage.Price is < 0 || mainPage.PriceToKopeks is < 0) { mainMessage = "Цена не может быть отрицательной."; mainError = true; return; }
+
+        saving = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            mainPage.UpdatedAt = DateTime.Now;
+            if (mainPage.Id == 0) db.MainPageSettings.Add(mainPage);
+            else db.MainPageSettings.Update(mainPage);
+            await db.SaveChangesAsync();
+            mainMessage = "Сохранено.";
+        }
+        catch (Exception ex)
+        {
+            mainMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; mainError = true;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task SaveGlobalPromoAsync()
+    {
+        globalPromoMessage = null; globalPromoError = false;
+        if (globalPromo.IsActive && (string.IsNullOrWhiteSpace(globalPromo.Title) || string.IsNullOrWhiteSpace(globalPromo.Text)))
+        {
+            globalPromoMessage = "Для активного промо заполните заголовок и текст."; globalPromoError = true;
             return;
+        }
 
-        Db.Requests.Remove(request);
-        await Db.SaveChangesAsync();
+        saving = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            globalPromo.CityId = null;
+            globalPromo.Title = string.IsNullOrWhiteSpace(globalPromo.Title) ? "Внимание!" : globalPromo.Title.Trim();
+            globalPromo.Text ??= "";
+            if (globalPromo.Id == 0) db.PromoMessages.Add(globalPromo);
+            else db.PromoMessages.Update(globalPromo);
 
-        var original = requests.FirstOrDefault(r => r.Id == requestId);
-        if (original != null)
-            requests.Remove(original);
+            // Галочка «показывать на страницах городов» хранится в настройках страницы — сохраняем только её.
+            var settings = await db.MainPageSettings.OrderBy(m => m.Id).FirstOrDefaultAsync();
+            if (settings is not null)
+            {
+                settings.IsGlobalPromoShownOnCityPages = mainPage.IsGlobalPromoShownOnCityPages;
+                settings.UpdatedAt = DateTime.Now;
+            }
 
-        totalRequests = requests.Count;
-        ApplyFilter();
-        StateHasChanged();
+            await db.SaveChangesAsync();
+            globalPromoMessage = "Промо сохранено.";
+        }
+        catch (Exception ex)
+        {
+            globalPromoMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; globalPromoError = true;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    // =====================================================================
+    // USERS
+    // =====================================================================
+
+    private List<AdminUser> users = new();
+
+    private string? pwdCurrent, pwdNew, pwdConfirm;
+    private string? pwdMessage; private bool pwdError;
+
+    private string? newLogin, newDisplayName, newPassword;
+    private string? newUserMessage; private bool newUserError;
+
+    private long resetUserId;
+    private string? resetPassword;
+    private string? usersMessage; private bool usersError;
+
+    private async Task LoadUsersAsync(AppDBContext db)
+    {
+        users = await db.AdminUsers.AsNoTracking().OrderBy(u => u.Login).ToListAsync();
+    }
+
+    private RenderFragment UsersTab() => __builder =>
+    {
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="admin-card">
+                    <h2 class="admin-card-title">Сменить мой пароль</h2>
+                    <div class="mb-3">
+                        <label class="admin-label">Текущий пароль</label>
+                        <input class="form-control" type="password" autocomplete="current-password" @bind="pwdCurrent" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Новый пароль</label>
+                        <input class="form-control" type="password" autocomplete="new-password" @bind="pwdNew" />
+                        <small class="admin-muted">Не короче @AdminAuthService.MinPasswordLength символов, буквы и цифры.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="admin-label">Повторите новый пароль</label>
+                        <input class="form-control" type="password" autocomplete="new-password" @bind="pwdConfirm" />
+                    </div>
+                    <button class="admin-btn admin-btn-primary w-100" @onclick="ChangeOwnPasswordAsync" disabled="@saving">Сменить пароль</button>
+                    @StatusMessage(pwdMessage, pwdError)
+                    <small class="admin-muted d-block mt-2">После смены пароля все сессии (в том числе на других устройствах) будут завершены — войдите заново.</small>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="admin-card mb-3">
+                    <h2 class="admin-card-title">Пользователи панели</h2>
+                    <div class="table-responsive">
+                        <table class="table align-middle admin-table mb-0">
+                            <thead><tr><th>Логин</th><th>Имя</th><th>Последний вход</th><th>Статус</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var u in users)
+                                {
+                                    var isMe = u.Id == currentUserId;
+                                    <tr>
+                                        <td><strong>@u.Login</strong> @if (isMe) { <span class="admin-badge admin-badge-on">это вы</span> }</td>
+                                        <td>@u.DisplayName</td>
+                                        <td class="text-nowrap">@(u.LastLoginAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
+                                        <td>
+                                            @if (!u.IsActive) { <span class="admin-badge admin-badge-off">отключён</span> }
+                                            else if (u.LockoutUntil > DateTime.Now) { <span class="admin-badge admin-badge-warn">заблокирован до @u.LockoutUntil?.ToString("HH:mm")</span> }
+                                            else { <span class="admin-badge admin-badge-on">активен</span> }
+                                        </td>
+                                        <td class="text-end text-nowrap">
+                                            @if (!isMe)
+                                            {
+                                                <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => { resetUserId = u.Id; resetPassword = null; usersMessage = null; }">Новый пароль</button>
+                                                <button class="btn btn-sm @(u.IsActive ? "btn-outline-danger" : "btn-outline-success")" @onclick="() => ToggleUserActiveAsync(u.Id)">
+                                                    @(u.IsActive ? "Отключить" : "Включить")
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                    @if (resetUserId == u.Id)
+                                    {
+                                        <tr class="admin-row-edit">
+                                            <td colspan="5">
+                                                <div class="d-flex gap-2 flex-wrap align-items-center">
+                                                    <span>Новый пароль для <strong>@u.Login</strong>:</span>
+                                                    <input class="form-control w-auto" type="password" autocomplete="new-password" @bind="resetPassword" />
+                                                    <button class="btn btn-sm btn-success" @onclick="ResetUserPasswordAsync">Сохранить</button>
+                                                    <button class="btn btn-sm btn-link" @onclick="() => resetUserId = 0">Отмена</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    @StatusMessage(usersMessage, usersError)
+                </div>
+
+                <div class="admin-card">
+                    <h2 class="admin-card-title">Добавить пользователя</h2>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="admin-label">Логин</label>
+                            <input class="form-control" autocomplete="off" @bind="newLogin" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="admin-label">Имя</label>
+                            <input class="form-control" autocomplete="off" @bind="newDisplayName" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="admin-label">Пароль</label>
+                            <input class="form-control" type="password" autocomplete="new-password" @bind="newPassword" />
+                        </div>
+                    </div>
+                    <button class="admin-btn admin-btn-primary mt-3" @onclick="CreateUserAsync" disabled="@saving"><i class="fa-solid fa-user-plus"></i> Добавить</button>
+                    @StatusMessage(newUserMessage, newUserError)
+                </div>
+            </div>
+        </div>
+    };
+
+    private async Task ChangeOwnPasswordAsync()
+    {
+        pwdMessage = null; pwdError = false;
+
+        if (pwdNew != pwdConfirm) { pwdMessage = "Новые пароли не совпадают."; pwdError = true; return; }
+        var weak = AdminAuthService.ValidatePasswordStrength(pwdNew);
+        if (weak is not null) { pwdMessage = weak; pwdError = true; return; }
+
+        saving = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var me = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == currentUserId);
+            if (me is null) { pwdMessage = "Пользователь не найден."; pwdError = true; return; }
+            if (string.IsNullOrEmpty(pwdCurrent) || !Auth.VerifyPassword(me, pwdCurrent)) { pwdMessage = "Текущий пароль указан неверно."; pwdError = true; return; }
+            if (pwdCurrent == pwdNew) { pwdMessage = "Новый пароль должен отличаться от текущего."; pwdError = true; return; }
+
+            me.PasswordHash = Auth.HashPassword(me, pwdNew!);
+            me.SecurityStamp = Guid.NewGuid().ToString("N");
+            me.MustChangePassword = false;
+            await db.SaveChangesAsync();
+        }
+        finally
+        {
+            saving = false;
+            pwdCurrent = pwdNew = pwdConfirm = null;
+        }
+
+        // Метка безопасности сменилась — текущая cookie больше недействительна, нужен повторный вход.
+        Nav.NavigateTo("/admin/login?returnUrl=%2Fadminpanel", forceLoad: true);
+    }
+
+    private async Task CreateUserAsync()
+    {
+        newUserMessage = null; newUserError = false;
+        var login = AdminAuthService.NormalizeLogin(newLogin);
+
+        if (!Regex.IsMatch(login, "^[a-z0-9._-]{3,64}$")) { newUserMessage = "Логин: 3–64 символа, латиница, цифры, точка, дефис, подчёркивание."; newUserError = true; return; }
+        var weak = AdminAuthService.ValidatePasswordStrength(newPassword);
+        if (weak is not null) { newUserMessage = weak; newUserError = true; return; }
+
+        saving = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            if (await db.AdminUsers.AnyAsync(u => u.Login == login)) { newUserMessage = "Такой логин уже есть."; newUserError = true; return; }
+
+            var user = new AdminUser
+            {
+                Login = login,
+                DisplayName = string.IsNullOrWhiteSpace(newDisplayName) ? null : newDisplayName.Trim(),
+                IsActive = true,
+                PasswordHash = ""
+            };
+            user.PasswordHash = Auth.HashPassword(user, newPassword!);
+            db.AdminUsers.Add(user);
+            await db.SaveChangesAsync();
+            await LoadUsersAsync(db);
+
+            newLogin = newDisplayName = newPassword = null;
+            newUserMessage = $"Пользователь «{login}» добавлен.";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task ToggleUserActiveAsync(long userId)
+    {
+        usersMessage = null; usersError = false;
+        if (userId == currentUserId) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null) return;
+
+        if (user.IsActive && await db.AdminUsers.CountAsync(u => u.IsActive) <= 1)
+        {
+            usersMessage = "Нельзя отключить последнего активного пользователя."; usersError = true;
+            return;
+        }
+
+        user.IsActive = !user.IsActive;
+        user.SecurityStamp = Guid.NewGuid().ToString("N"); // завершаем его активные сессии
+        if (user.IsActive) { user.LockoutUntil = null; user.FailedLoginCount = 0; }
+        await db.SaveChangesAsync();
+        await LoadUsersAsync(db);
+        usersMessage = user.IsActive ? $"«{user.Login}» включён." : $"«{user.Login}» отключён, его сессии завершены.";
+    }
+
+    private async Task ResetUserPasswordAsync()
+    {
+        usersMessage = null; usersError = false;
+        var weak = AdminAuthService.ValidatePasswordStrength(resetPassword);
+        if (weak is not null) { usersMessage = weak; usersError = true; return; }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == resetUserId);
+        if (user is null || user.Id == currentUserId) return;
+
+        user.PasswordHash = Auth.HashPassword(user, resetPassword!);
+        user.SecurityStamp = Guid.NewGuid().ToString("N");
+        user.MustChangePassword = true;
+        user.LockoutUntil = null;
+        user.FailedLoginCount = 0;
+        await db.SaveChangesAsync();
+        await LoadUsersAsync(db);
+
+        usersMessage = $"Пароль для «{user.Login}» изменён. При входе ему будет предложено сменить пароль.";
+        resetUserId = 0;
+        resetPassword = null;
     }
 }

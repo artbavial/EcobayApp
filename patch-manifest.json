@@ -1,0 +1,132 @@
+{
+  "base": "Ecobay_updated.zip (previous version in this conversation)",
+  "files": [
+    {
+      "path": "CITY_PAGES.md",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "39e9d315baa42aa8517bda21bf344ec27d10b72979e62589d44d063d0a2941a6"
+    },
+    {
+      "path": "Components/App.razor",
+      "action": "replace",
+      "base_sha256": "77247f6f49e5f4ac46433a4cf415363575946ff414e984cac30d01b6428aabc9",
+      "new_sha256": "8da746b1dc15cc955c0c5316a1fb60d662b569f1bbef80ea9ee3362eb978f318"
+    },
+    {
+      "path": "Components/Pages/AdminPanel.razor",
+      "action": "replace",
+      "base_sha256": "b3e8f45e9473ad87c662f4325c1f52da3b6eeb58bf732a4d5e5d1d9031795948",
+      "new_sha256": "10f6aab37ef18ee684d0324a8c0b2b37f9caf130d2d6b1fea80b7234f85069ac"
+    },
+    {
+      "path": "Components/Pages/Contacts.razor",
+      "action": "replace",
+      "base_sha256": "348f7b6924ed319be60b4a2b499f455bf34803c747b224143fa274d866cb320e",
+      "new_sha256": "e0afb4da8b844ca5d0aeb3132fbbb24a1912515cf22d65796a8deb4c9f843102"
+    },
+    {
+      "path": "Components/Pages/Home.razor",
+      "action": "replace",
+      "base_sha256": "712b0b2b3ebd8c2541c7a0b937fe3d6842bcb476fe42bf8f2d3863a73e6878b5",
+      "new_sha256": "d3ffba7b293d969ead45d41fba34f15f62a9bead2e65a6724b4d2af3b4e79329"
+    },
+    {
+      "path": "Components/Shared/AdminDashboard.razor",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "4a55b8bee1d01e7b6f12f71483285f964bc49b5d3e23fd840e7f4c41a1a150da"
+    },
+    {
+      "path": "Components/Shared/AdminGoals.razor",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "3e0eb289b326433c54b72977f6f95324bf8f9312112aa463d1096b8381cff7fb"
+    },
+    {
+      "path": "Components/Shared/AdminRequestTable.razor",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "e56fe811e23b33cc6c2d867ac91542a2d09ed9aff147992612225d37a9ccbaaa"
+    },
+    {
+      "path": "Components/Shared/AdminRequests.razor",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "5a30b3d170468ec066993de2001457ad4eb4d51a053ed6e6dc6e5f5eedb81249"
+    },
+    {
+      "path": "Contex/AppDBContext.cs",
+      "action": "replace",
+      "base_sha256": "f0d57f69c7d5b97abef76b2da7bdfb8d8f3da0081dee0fa0f545c6ff9e14a565",
+      "new_sha256": "197f776083cce107c3f189ca40122ed06e618af2726ff6261323aaef064bceef"
+    },
+    {
+      "path": "Migrations/20261025092536_AddCityLocalContentAndRequestIndex.Designer.cs",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "419b87581b801ca3b61e0ba18475ead7d199606c0367db51f84fc89cb01d2ddf"
+    },
+    {
+      "path": "Migrations/20261025092536_AddCityLocalContentAndRequestIndex.cs",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "34e3ad6dcd15bcda8ec563fb3f1e4f5b7d50729baaecf002adf85f55e1a5bf50"
+    },
+    {
+      "path": "Migrations/AppDBContextModelSnapshot.cs",
+      "action": "replace",
+      "base_sha256": "cf56ad853655856f5d64a96f419d81861a892db97064840e13632d11f253fd37",
+      "new_sha256": "bdbdc53afc611ed3ab24ca1225260594ac6065aedb079efc6de2873f7996ce1f"
+    },
+    {
+      "path": "Models/MainPageSettings.cs",
+      "action": "replace",
+      "base_sha256": "f9acba50ed166ad426903116f5145bd7359bbb3e97894601304d7a30a9977fb1",
+      "new_sha256": "6911929cc94a47854992fedd00f3bf602b224f0f10b5248962eac57872500fc6"
+    },
+    {
+      "path": "Models/PageCity.cs",
+      "action": "replace",
+      "base_sha256": "9780d4fa7fcc3a71c394c1c7e3690fc37b5ce225e684c7ee3eb2c9d5467be0e6",
+      "new_sha256": "62c66e66471921dea2f939acf8f99a9768e1e302d6667b3a99dc641020286de3"
+    },
+    {
+      "path": "README_PATCH_V2.md",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "90bfb5c0f2148d0a2790135c36e7e0739203061579e254d0c5260fdc98d134db"
+    },
+    {
+      "path": "Services/AdminReporting.cs",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "64ee3506c1b2accaab783e8edd499e3a79985633c0ebcbd6945622a83b74c119"
+    },
+    {
+      "path": "Services/DbSeeder.cs",
+      "action": "replace",
+      "base_sha256": "1ebe7a3d9e3525c8f7645428acb3b4d4e139765bef46561db683bba4acf6f609",
+      "new_sha256": "1c0f054d66a61bba52750909abe88f747eb5f3fca296a12741bb4e094a6e3c6d"
+    },
+    {
+      "path": "Sql/2026-10-25_PatchV2.sql",
+      "action": "add",
+      "base_sha256": null,
+      "new_sha256": "f445c83247299098018e8dd49cc2abf3b6ecd0d713ce3302c5806caa23eac4dc"
+    },
+    {
+      "path": "wwwroot/css/custom/ecobay.css",
+      "action": "replace",
+      "base_sha256": "f3167093cef0c55855143b8fe0f73ad9f7bab5595751588935a33bed7274e14e",
+      "new_sha256": "4d44e9db0305d32d2a56c2d572cdfa74c41de2b3cd22bde635bb39c0d349ae6c"
+    },
+    {
+      "path": "wwwroot/js/custom/custom.js",
+      "action": "replace",
+      "base_sha256": "340c09c05678f52db639961fecfe4b6f3cd61746f779f3eef8ddb48ed4b5f2ad",
+      "new_sha256": "869d1de96e99f59d2057ed92fa22d0af9449de56872d73833bd94e1b8249d1e3"
+    }
+  ],
+  "deleted_files": []
+}

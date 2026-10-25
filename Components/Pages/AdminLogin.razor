@@ -1,0 +1,143 @@
+@page "/admin/login"
+@* Страница входа рендерится на сервере без SignalR: cookie можно выставить только в обычном HTTP-ответе. *@
+@using System.ComponentModel.DataAnnotations
+@using EcobayApp.Services
+@using Microsoft.AspNetCore.Authentication
+@inject AdminAuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Вход в панель управления | Ecobay.by</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex, nofollow" />
+</HeadContent>
+
+<div class="admin-login">
+    <div class="admin-login-card">
+        <a class="admin-login-logo text-decoration-none" href="/">
+            <img src="images/hero/icon.png" alt="Ecobay" />Ecobay<span>.by</span>
+        </a>
+        <h1 class="admin-login-title">Панель управления</h1>
+        <p class="admin-login-sub">Войдите, чтобы продолжить</p>
+
+        @if (IsLogout)
+        {
+            <div class="admin-alert admin-alert-ok">Вы вышли из панели управления.</div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="admin-alert admin-alert-error" role="alert">@errorMessage</div>
+        }
+
+        <EditForm Model="Input" FormName="admin-login" OnValidSubmit="LoginAsync" method="post">
+            <DataAnnotationsValidator />
+
+            <label class="admin-label" for="login">Логин</label>
+            <InputText id="login" class="form-control admin-input" @bind-Value="Input.Login"
+                       autocomplete="username" autofocus />
+            <ValidationMessage For="() => Input.Login" />
+
+            <label class="admin-label mt-3" for="password">Пароль</label>
+            <InputText id="password" type="password" class="form-control admin-input" @bind-Value="Input.Password"
+                       autocomplete="current-password" />
+            <ValidationMessage For="() => Input.Password" />
+
+            <div class="form-check mt-3">
+                <InputCheckbox id="remember" class="form-check-input" @bind-Value="Input.RememberMe" />
+                <label class="form-check-label" for="remember">Запомнить меня на 14 дней</label>
+            </div>
+
+            <input type="hidden" name="Input.ReturnUrl" value="@SafeReturnUrl" />
+
+            <button type="submit" class="admin-btn admin-btn-primary w-100 mt-4">Войти</button>
+        </EditForm>
+
+        <a class="admin-login-back" href="/">← Вернуться на сайт</a>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm] private LoginInput Input { get; set; } = new();
+
+    [SupplyParameterFromQuery(Name = "returnUrl")] private string? ReturnUrlQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "logout")] private string? LogoutQuery { get; set; }
+
+    private string? errorMessage;
+
+    private bool IsLogout => LogoutQuery == "1" && HttpMethods.IsGet(HttpContext.Request.Method);
+
+    /// <summary>Только локальные адреса — защита от перенаправления на чужие сайты.</summary>
+    private string SafeReturnUrl
+    {
+        get
+        {
+            var url = Input.ReturnUrl ?? ReturnUrlQuery;
+            if (string.IsNullOrWhiteSpace(url) || !url.StartsWith('/') || url.StartsWith("//") || url.StartsWith("/\\")
+                || url.StartsWith("/admin/login", StringComparison.OrdinalIgnoreCase))
+                return "/adminpanel";
+            return url;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Уже вошли — сразу в панель.
+        if (HttpMethods.IsGet(HttpContext.Request.Method) && HttpContext.User.Identity?.IsAuthenticated == true
+            && await Auth.IsPrincipalValidAsync(HttpContext.User))
+        {
+            Nav.NavigateTo(SafeReturnUrl);
+        }
+    }
+
+    private async Task LoginAsync()
+    {
+        var result = await Auth.ValidateCredentialsAsync(Input.Login, Input.Password);
+
+        switch (result.Status)
+        {
+            case AdminLoginStatus.Success:
+                var props = new AuthenticationProperties
+                {
+                    IsPersistent = Input.RememberMe,
+                    ExpiresUtc = Input.RememberMe ? DateTimeOffset.UtcNow.AddDays(14) : null,
+                    AllowRefresh = true
+                };
+                await HttpContext.SignInAsync(AdminAuthService.Scheme, Auth.CreatePrincipal(result.User!), props);
+                Nav.NavigateTo(SafeReturnUrl);
+                return;
+
+            case AdminLoginStatus.LockedOut:
+                var minutes = result.LockoutUntil.HasValue
+                    ? Math.Max(1, (int)Math.Ceiling((result.LockoutUntil.Value - DateTime.Now).TotalMinutes))
+                    : (int)AdminAuthService.LockoutDuration.TotalMinutes;
+                errorMessage = $"Слишком много неудачных попыток. Вход заблокирован на {minutes} мин.";
+                break;
+
+            case AdminLoginStatus.Disabled:
+            case AdminLoginStatus.InvalidCredentials:
+            default:
+                // Одинаковое сообщение — не подсказываем, существует ли такой логин.
+                errorMessage = "Неверный логин или пароль.";
+                break;
+        }
+
+        Input.Password = string.Empty;
+    }
+
+    private sealed class LoginInput
+    {
+        [Required(ErrorMessage = "Введите логин")]
+        [MaxLength(64)]
+        public string? Login { get; set; }
+
+        [Required(ErrorMessage = "Введите пароль")]
+        [MaxLength(200)]
+        public string? Password { get; set; }
+
+        public bool RememberMe { get; set; }
+
+        public string? ReturnUrl { get; set; }
+    }
+}

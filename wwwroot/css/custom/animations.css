@@ -1,90 +1,55 @@
-.loader span {
-  animation: 3s forwards cubic-bezier(0.445, 0.05, 0.55, 0.95) loading;
-}
-@keyframes loading {
-  0% {
-    width: 0;
-  }
+/* =====================================================================
+   Анимации Ecobay.by
+   Изменения:
+   • удалены .loader (элемента нет в разметке) и menuActive (меню теперь
+     открывается/закрывается плавным transition, а не только открывается);
+   • добавлены появление липкого меню, модальных окон и мягкое «дыхание» кнопки звонка;
+   • при prefers-reduced-motion все анимации отключаются.
+   ===================================================================== */
 
-  100% {
-    width: 100%;
-  }
-}
-.menu-active {
-  animation: menuActive 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  display: block;
-  transform: translateX(100%);
-}
-@keyframes menuActive {
-  1% {
-    display: block;
-  }
-  2% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(0);
-  }
-}
 #circle-text {
-  animation: 8s infinite linear spinningText;
+  animation: 12s infinite linear spinningText;
+  transform-origin: center;
 }
 @keyframes spinningText {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform-origin: center;
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .explode-circle {
   animation: explode 0.5s forwards;
 }
-
 .desplode-circle {
   animation: desplode 0.5s forwards;
 }
-
 @keyframes explode {
   0% {
-    width: 0px;
-    height: 0px;
-    margin-left: 0px;
-    margin-top: 0px;
+    width: 0px; height: 0px; margin-left: 0px; margin-top: 0px;
     background-color: rgba(42, 53, 80, 0.2);
   }
   100% {
-    width: 400px;
-    height: 400px;
-    margin-left: -200px;
-    margin-top: -200px;
+    width: 400px; height: 400px; margin-left: -200px; margin-top: -200px;
     background-color: rgba(20, 180, 87, 0.8);
   }
 }
-
 @keyframes desplode {
   0% {
-    width: 400px;
-    height: 400px;
-    margin-left: -200px;
-    margin-top: -200px;
+    width: 400px; height: 400px; margin-left: -200px; margin-top: -200px;
     background-color: rgba(20, 180, 87, 0.8);
   }
   100% {
-    width: 0px;
-    height: 0px;
-    margin-left: 0px;
-    margin-top: 0px;
+    width: 0px; height: 0px; margin-left: 0px; margin-top: 0px;
     background-color: rgba(129, 80, 108, 0.6);
   }
 }
+
 .glow:after,
 .glow:before {
   animation: glow 2s infinite cubic-bezier(0.55, 0.055, 0.675, 0.19);
 }
-
+.glow:before {
+  animation-delay: 400ms;
+}
 @keyframes glow {
   0% {
     transform: scale(0.6);
@@ -98,6 +63,44 @@
     box-shadow: none;
   }
 }
-.glow:before {
-  animation-delay: 400ms;
+
+/* Липкое меню выезжает сверху */
+@keyframes navDrop {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+/* Модальные окна */
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Пульсация иконки телефона */
+@keyframes phonePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.55); }
+  70%  { box-shadow: 0 0 0 14px rgba(76, 175, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+/* Мягкое «парение» фигур первого экрана (на обёртке, чтобы не конфликтовать с параллаксом GSAP) */
+@keyframes shapesFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+.shapes {
+  animation: shapesFloat 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

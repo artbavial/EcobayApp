@@ -1,10 +1,25 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+
+    <!-- Повторный визит: если пользователь уже выбирал город, сразу открываем его страницу
+         (до загрузки остального, чтобы не было «мигания» общей страницы). -->
+    <script>
+        (function () {
+            try {
+                if (location.pathname !== "/" || /[?&](choose-city|all)=/.test(location.search)) return;
+                var saved = localStorage.getItem("ecobay.city");
+                var remember = localStorage.getItem("ecobay.city.remember") !== "0";
+                if (remember && saved && saved !== "all" && /^[a-z0-9-]{1,50}$/.test(saved)) {
+                    location.replace("/" + saved + location.hash);
+                }
+            } catch (e) { }
+        })();
+    </script>
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18194460094"></script>
@@ -27,8 +42,6 @@
     <!-- Swiper Slide -->
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
-    <link rel="stylesheet"
-          href="/css/lib/swiperSlider/effect-material.min.css" />
 
     <!-- Theme Files -->
     <link rel="stylesheet" href="/font/font.css" />
@@ -36,49 +49,34 @@
     <link rel="stylesheet" href="/css/custom/theme.css" />
     <link rel="stylesheet" href="/css/custom/responsive.css" />
     <link rel="stylesheet" href="/css/custom/animations.css" />
+    <link rel="stylesheet" href="/css/custom/ecobay.css?v=2" />
+
+    <HeadOutlet />
 </head>
 
-<body>
+<body data-enhance-nav="false">
 
     <Routes />
-
-    <script src="/_framework/blazor.web.js"></script>
 
     <!-- Bootstrap 5.3.3 -->
     <script src="/js/framework/bootstrap.min.js"></script>
 
     <!-- Swiper Slider -->
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <script src="/js/lib/swiper slider/effect-material.min.js"></script>
 
-    <script src="/js/lib/jquery-3.7.1.min.js"></script>
+    <!-- jQuery больше не нужен: custom.js переписан на чистом JS (−90 КБ) -->
     <script src="/js/lib/circletype.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollToPlugin.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/smooth-scrollbar/8.8.4/smooth-scrollbar.min.js"></script>
-    <script src="/js/mobile-menu.js"></script>
 
     <!-- Theme Files -->
-    <script src="/js/custom/custom.js"></script>
+    <script src="/js/custom/custom.js?v=2"></script>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-        if (window.reinitAllAnimations) {
-        window.reinitAllAnimations();
-        }
-        });
+    <!-- Blazor подключаем последним: к моменту запуска интерактивных компонентов все функции custom.js уже определены -->
+    <script src="/_framework/blazor.web.js"></script>
 
-        if (window.Blazor) {
-        window.Blazor.addEventListener("enhancedload", () => {
-        if (window.reinitAllAnimations) {
-        window.reinitAllAnimations();
-        }
-        });
-        }
-    </script>
-
-    <!-- Yandex.Metrika counter -->
+<!-- Yandex.Metrika counter -->
     <script type="text/javascript">
         (function(m,e,t,r,i,k,a){
         m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};

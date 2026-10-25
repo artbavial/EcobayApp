@@ -28,16 +28,22 @@ public class EmailSender : IEmailSender
 		email.To.Add(MailboxAddress.Parse(_settings.To));
 		email.Subject = $"Новая заявка Ecobay: {client.Phone}";
 
-		var cityName = city?.Name ?? pageCity?.City?.Name ?? "Не указан";
-		var source = request.Source ?? "-";
+		// Всё, что ввёл посетитель, экранируем: иначе в письмо можно внедрить HTML/ссылки (фишинг).
+		static string E(string? v) => System.Net.WebUtility.HtmlEncode(v ?? string.Empty);
+
+		var cityName = E(city?.Name ?? pageCity?.City?.Name ?? "Вся Беларусь");
+		var source = E(request.Source ?? "-");
+		var name = E(client.Name);
+		var phone = E(client.Phone);
+		var message = E(request.Message).Replace("\n", "<br/>");
 
 		var html = $@"
 			<h2>Новая заявка Ecobay.by</h2>
 			<p><strong>Дата:</strong> {request.DateCreate:dd.MM.yyyy HH:mm}</p>
-			<p><strong>Имя:</strong> {client.Name}</p>
-			<p><strong>Телефон:</strong> <a href=""tel:{client.Phone}"">{client.Phone}</a></p>
+			<p><strong>Имя:</strong> {name}</p>
+			<p><strong>Телефон:</strong> <a href=""tel:{phone}"">{phone}</a></p>
 			<p><strong>Город:</strong> {cityName}</p>
-			<p><strong>Сообщение:</strong> {request.Message}</p>
+			<p><strong>Сообщение:</strong> {message}</p>
 			<p><strong>Источник:</strong> {source}</p>
 			<br/>
 			<strong>Сервис представлен ArtBavial Software</strong>";

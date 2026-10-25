@@ -1,0 +1,39 @@
+@using EcobayApp.Services
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle admin-table">
+        <thead>
+            <tr><th>Дата</th><th>Клиент</th><th>Телефон</th><th>Сообщение</th><th>Город</th>
+                @if (AllowDelete) { <th><span class="visually-hidden">Действия</span></th> }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows)
+            {
+                <tr @key="row.Id">
+                    <td class="text-nowrap">@row.Date.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>@row.Name</td>
+                    <td class="text-nowrap"><a href="@($"tel:{row.Phone}")">@row.Phone</a></td>
+                    <td class="admin-request-message">@row.Message</td>
+                    <td>@row.City</td>
+                    @if (AllowDelete)
+                    {
+                        <td><button type="button" class="btn btn-sm btn-outline-danger"
+                                    disabled="@Busy" @onclick="() => OnDelete.InvokeAsync(row.Id)">Удалить</button></td>
+                    }
+                </tr>
+            }
+            @if (Rows.Count == 0)
+            {
+                <tr><td colspan="@(AllowDelete ? 6 : 5)" class="text-center py-4 admin-muted">Заявок за выбранный период нет.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<AdminRequestRow> Rows { get; set; } = Array.Empty<AdminRequestRow>();
+    [Parameter] public bool AllowDelete { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<long> OnDelete { get; set; }
+}

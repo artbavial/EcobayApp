@@ -1,0 +1,156 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject IJSRuntime JS
+@inject ILogger<AdminRequests> Logger
+
+<div class="admin-card">
+    <h2 class="admin-card-title">Заявки</h2>
+    <p class="admin-muted">Период до 30 дней включительно. Фильтры применяются ко всей базе, а не только к открытой странице.</p>
+    <div class="row g-3 mb-3">
+        <div class="col-sm-6 col-lg-2">
+            <label class="admin-label" for="requestsFrom">С даты</label>
+            <input id="requestsFrom" class="form-control" type="date" @bind="from" disabled="@busy" />
+        </div>
+        <div class="col-sm-6 col-lg-2">
+            <label class="admin-label" for="requestsTo">По дату включительно</label>
+            <input id="requestsTo" class="form-control" type="date" @bind="to" disabled="@busy" />
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <label class="admin-label" for="requestsSearch">Имя или телефон</label>
+            <input id="requestsSearch" class="form-control" @bind="search" maxlength="100" disabled="@busy" />
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <label class="admin-label" for="requestsCity">Город</label>
+            <select id="requestsCity" class="form-select" @bind="cityId" disabled="@busy">
+                <option value="">Все города</option>
+                <option value="0">Город не указан</option>
+                @foreach (var city in cities) { <option value="@city.Id">@city.Name</option> }
+            </select>
+        </div>
+        <div class="col-sm-6 col-lg-2">
+            <label class="admin-label" for="requestsSize">На странице</label>
+            <select id="requestsSize" class="form-select" @bind="pageSize" disabled="@busy">
+                <option value="20">20 заявок</option><option value="30">30 заявок</option><option value="50">50 заявок</option>
+            </select>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="ApplyAsync">Применить</button>
+        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(1)">Сегодня</button>
+        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(7)">7 дней</button>
+        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(30)">30 дней</button>
+    </div>
+    @if (error is not null) { <div class="admin-alert admin-alert-error mb-3" role="alert">@error</div> }
+    @if (hasResult)
+    {
+        <p class="admin-muted">Период: @appliedFrom.ToString("dd.MM.yyyy") — @appliedTo.ToString("dd.MM.yyyy"). Найдено: @total.</p>
+        <AdminRequestTable Rows="rows" AllowDelete="true" Busy="busy" OnDelete="DeleteAsync" />
+        <div class="admin-pagination">
+            <span>Показано @(total == 0 ? 0 : (page - 1) * appliedSize + 1)–@Math.Min(page * appliedSize, total) из @total</span>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-secondary" disabled="@(busy || page <= 1)" @onclick="() => MoveAsync(page - 1)">Назад</button>
+                <span>Страница @(page) из @Pages</span>
+                <button class="btn btn-outline-secondary" disabled="@(busy || page >= Pages)" @onclick="() => MoveAsync(page + 1)">Далее</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool TodayOnly { get; set; }
+    private DateTime from = DateTime.Today.AddDays(-29), to = DateTime.Today;
+    private string? search, error;
+    private long? cityId;
+    private int pageSize = 20, appliedSize = 20, page = 1, total;
+    private DateTime appliedFrom, appliedTo;
+    private string? appliedSearch;
+    private long? appliedCityId;
+    private bool busy, hasResult;
+    private int Pages => Math.Max(1, (int)Math.Ceiling((double)total / appliedSize));
+    private List<City> cities = new();
+    private List<AdminRequestRow> rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TodayOnly) from = to = DateTime.Today;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        cities = await db.Cities.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
+        await ApplyAsync();
+    }
+
+    private async Task PresetAsync(int days)
+    {
+        to = DateTime.Today;
+        from = to.AddDays(1 - days);
+        await ApplyAsync();
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (busy) return;
+        error = AdminReporting.ValidateRange(from, to);
+        if (error is not null) return; // Leave the previously applied rows and their period untouched.
+        appliedFrom = from.Date;
+        appliedTo = to.Date;
+        appliedSearch = search?.Trim();
+        appliedCityId = cityId;
+        appliedSize = pageSize is 20 or 30 or 50 ? pageSize : 20;
+        await LoadAsync(1);
+    }
+
+    private Task MoveAsync(int target) => LoadAsync(Math.Clamp(target, 1, Pages));
+
+    private async Task LoadAsync(int target)
+    {
+        if (busy) return;
+        busy = true;
+        error = null;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var endExclusive = appliedTo.AddDays(1);
+            var query = AdminReporting.Rows(db.Requests.AsNoTracking()
+                .Where(r => r.DateCreate >= appliedFrom && r.DateCreate < endExclusive));
+            if (!string.IsNullOrEmpty(appliedSearch))
+                query = query.Where(r => r.Name.Contains(appliedSearch) || r.Phone.Contains(appliedSearch));
+            if (appliedCityId == 0) query = query.Where(r => r.CityId == null);
+            else if (appliedCityId.HasValue) query = query.Where(r => r.CityId == appliedCityId.Value);
+
+            total = await query.CountAsync();
+            page = Math.Clamp(target, 1, Pages);
+            rows = await query.OrderByDescending(r => r.Date).ThenByDescending(r => r.Id)
+                .Skip((page - 1) * appliedSize).Take(appliedSize).ToListAsync();
+            hasResult = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot load requests");
+            error = "Не удалось загрузить заявки. Повторите попытку.";
+            hasResult = false;
+        }
+        finally { busy = false; }
+    }
+
+    private async Task DeleteAsync(long id)
+    {
+        if (busy || !await JS.InvokeAsync<bool>("confirm", "Удалить заявку? Счётчики целей автоматически не изменятся.")) return;
+        busy = true;
+        var success = false;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            await db.Requests.Where(r => r.Id == id).ExecuteDeleteAsync();
+            success = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot delete request {RequestId}", id);
+            error = "Не удалось удалить заявку.";
+        }
+        finally { busy = false; }
+        if (success) await LoadAsync(page);
+    }
+}

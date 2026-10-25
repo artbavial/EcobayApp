@@ -4,8 +4,10 @@
 @inject AppDBContext Db
 @inject IEmailSender EmailSender
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 @using EcobayApp.Contex
 @using EcobayApp.Models
+@using EcobayApp.Services
 @using System.Net
 @using System.Net.Mail
 @using Microsoft.EntityFrameworkCore
@@ -15,12 +17,13 @@
 
 <PageTitle>@Title</PageTitle>
 <HeadContent>
-    <meta name="description" content="@(pageCity?.Description ?? "Вывоз и утилизация бытовой техники в Гомеле, Бобруйске, Жлобине, Рогачеве")" />
-    <meta name="keywords" content="@(pageCity?.KeyWords ?? "утилизация, техника, переработка, приём техники, утилизация электроники")" />
+    <meta name="description" content="@MetaDescription" />
+    <meta name="keywords" content="@MetaKeywords" />
+    <link rel="canonical" href="@CanonicalUrl" />
 </HeadContent>
 
 
-<div id="scroll-content">
+<div id="scroll-content" data-interactive-page>
     <!-- hero -->
     <header id="top" class="d-flex flex-column">
         <!-- Desktop Menu -->
@@ -50,14 +53,14 @@
         </nav>
 
         <!-- Mobile Menu Icon -->
-        <li class="menuIcon" id="menuBtn">
+        <button type="button" class="menuIcon" id="menuBtn" aria-label="Меню">
             <span></span>
             <span></span>
             <span></span>
-        </li>
+        </button>
 
         <!-- Mobile Menu -->
-        <nav class="starta-mobile-nav mobile-menu--hidden">
+        <nav class="starta-mobile-nav">
             <ul class="list-unstyled starta-menu">
                 <li><a class="menu-animation active" href="@SectionUrl("top")">Начало</a></li>
                 <li><a class="menu-animation" href="@SectionUrl("about")">О нас</a></li>
@@ -65,24 +68,17 @@
                 <li><a class="menu-animation" href="@SectionUrl("plan")">Цены</a></li>
                 <li><a class="menu-animation" href="@SectionUrl("team")">Наша работа</a></li>
                 <li><a class="menu-animation" href="@SectionUrl("faqs")">Частые вопросы</a></li>
+                @if (activeCities.Count > 0)
+                {
+                    <li>
+                        <a class="mobile-city-link" href="/?choose-city=1" @onclick="OpenCitySelector" @onclick:preventDefault="true">
+                            <i class="fa-solid fa-location-dot"></i> @(currentCity?.Name ?? "Города и районы") · сменить
+                        </a>
+                    </li>
+                }
             </ul>
         </nav>
 
-        @if (isPromoVisible)
-        {
-            <div class="promo-overlay" @onclick="ClosePromo">
-                <div class="promo-modal"
-                     @onclick:stopPropagation="true">
-                    <h2 class="starta-h2 mb-3">@promoTitle</h2>
-                    <p class="starta-desc mb-3">@promoText</p>
-
-                    <button class="starta-button w-100" @onclick="ClosePromo">
-                        <span class="position-relative">Понятно</span>
-                        <span class="starta-button-hover"></span>
-                    </button>
-                </div>
-            </div>
-        }
 
 
         <div class="container d-flex flex-column flex-grow-1 position-relative z-index-3">
@@ -91,16 +87,31 @@
                 <div class="row mt-5 pt-4">
                     <!-- ТЕКСТОВАЯ КОЛОНКА ВВЕРХУ (на мобиле и десктопе) -->
                     <div class="col-12 col-md-7 text-md-start text-center">
+                        @if (activeCities.Count > 0)
+                        {
+                            <div class="hero-city-bar">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span class="hero-city-name">@(currentCity?.Name ?? "Города и районы")</span>
+                                <a class="hero-city-change" href="/?choose-city=1" @onclick="OpenCitySelector" @onclick:preventDefault="true">Сменить город</a>
+                            </div>
+                        }
+
                         <h1 class="heroHeading">
                             @if (currentCity is not null)
                             {
-                                @($"Быстрый вывоз техники на утилизацию в {currentCity.NameIn}")
+                                @(string.IsNullOrWhiteSpace(pageCity?.HeroTitle)
+                                    ? $"Вывоз техники в {currentCity.NameIn} и населённых пунктах района"
+                                    : pageCity!.HeroTitle)
                             }
                             else
                             {
-                                @("Быстрый вывоз техники на утилизацию")
+                                @(string.IsNullOrWhiteSpace(mainPage.HeroTitle) ? "Вывоз техники в наших городах и их районах" : mainPage.HeroTitle)
                             }
                         </h1>
+                        @if (isCityMode)
+                        {
+                            <p class="hero-coverage-note">Обслуживаем этот город и его район. Выезд в населённый пункт района согласуем по телефону.</p>
+                        }
 
                         @if (IsDeliveryPriceModeActive)
                         {
@@ -156,18 +167,61 @@
                         else
                         {
                             <p class="heroDesc d-block d-md-none heroDesc-mobile">
-                                Заберём технику в любом состоянии по вашему адресу, сами вынесем и погрузим.
+                                @(HeroTextOverride ?? "Заберём технику в любом состоянии по вашему адресу, сами вынесем и погрузим.")
                             </p>
                             <p class="heroPrice-mobile d-block d-md-none">
                                 <strong>МЫ платим на месте — <br />@heroPriceText за килограмм</strong>
                             </p>
 
-                            <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
-                                Мы сами приедем по вашему адресу, вынесем и погрузим технику в любом состоянии.
-                                Сразу рассчитаем вес и оплатим на месте —
-                                <span class="heroPrice-desktop"><strong>МЫ платим @heroPriceText за килограмм.</strong></span>
-                                Без хлопот для вас и с пользой для экологии.
-                            </p>
+                            @if (HeroTextOverride is not null)
+                            {
+                                <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
+                                    @HeroTextOverride
+                                    <span class="heroPrice-desktop"><strong>МЫ платим @heroPriceText за килограмм.</strong></span>
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
+                                    Мы сами приедем по вашему адресу, вынесем и погрузим технику в любом состоянии.
+                                    Сразу рассчитаем вес и оплатим на месте —
+                                    <span class="heroPrice-desktop"><strong>МЫ платим @heroPriceText за килограмм.</strong></span>
+                                    Без хлопот для вас и с пользой для экологии.
+                                </p>
+                            }
+                        }
+
+                        <div class="hero-primary-contact">
+                            <a href="tel:@phone" class="starta-button call-button">
+                                <span class="position-relative"><i class="fa-solid fa-phone" aria-hidden="true"></i> @phone</span>
+                                <span class="starta-button-hover"></span>
+                            </a>
+                            <span>Позвоните и согласуйте вывоз. Заявки принимаем и в воскресенье.</span>
+                        </div>
+
+                        @if (!isCityMode)
+                        {
+                            <div class="hero-cities">
+                                <span class="hero-cities-label">Работаем ТОЛЬКО в указанных городах и их районах</span>
+                                @if (activeCities.Count == 0)
+                                {
+                                    <p class="hero-cities-note">Список обслуживаемых городов временно недоступен. Уточните возможность вывоза по телефону.</p>
+                                }
+                                else if (mainPage.IsCityListShown)
+                                {
+                                    <div class="hero-cities-list">
+                                        @foreach (var c in activeCities)
+                                        {
+                                            <a class="hero-city-chip" href="@($"/{c.Slug}")" onclick="@($"window.ecobayCity && ecobayCity.set('{c.Slug}')")">@c.Name</a>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="hero-cities-note">@string.Join(", ", activeCities.Select(c => c.Name))</p>
+                                }
+                                <span class="hero-cities-note">Населённые пункты районов этих городов также обслуживаем. В остальных городах и районах вывоз не выполняем.</span>
+                            </div>
                         }
 
                         <!-- Иконки (ТОЛЬКО на десктопе) -->
@@ -188,11 +242,6 @@
                             </div>
                         </div>
 
-                        <!-- Кнопка "Позвонить" -->
-                        <a href="tel:@phone" class="starta-button call-button mt-5">
-                            <span class="position-relative">@phone</span>
-                            <span class="starta-button-hover"></span>
-                        </a>
                     </div>
 
                     <!-- ФОРМА (Вторая колонка на десктопе, внизу на мобиле) -->
@@ -272,6 +321,29 @@
         </div>
     </header>
 
+    @if (isCityMode && pageCity is not null &&
+        (!string.IsNullOrWhiteSpace(pageCity.LocalIntro) || !string.IsNullOrWhiteSpace(pageCity.CoverageText) || !string.IsNullOrWhiteSpace(pageCity.PickupDetails)))
+    {
+        <section class="city-local-section py-5">
+            <div class="container">
+                <h2 class="starta-h2 mb-4">Вывоз техники в @currentCity!.NameIn: местные условия</h2>
+                <div class="row g-4">
+                    @if (!string.IsNullOrWhiteSpace(pageCity.LocalIntro))
+                    {
+                        <div class="col-lg"><article class="city-local-card"><h3>О работе в городе</h3><p>@pageCity.LocalIntro</p></article></div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(pageCity.CoverageText))
+                    {
+                        <div class="col-lg"><article class="city-local-card"><h3>Город и населённые пункты района</h3><p>@pageCity.CoverageText</p></article></div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(pageCity.PickupDetails))
+                    {
+                        <div class="col-lg"><article class="city-local-card"><h3>Как организовать вывоз</h3><p>@pageCity.PickupDetails</p></article></div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
 
     <!-- Starta about -->
     <!-- Features -->
@@ -350,7 +422,7 @@
                                             <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
                                                 @totalClientsDisplay<i class="fa-solid fa-arrow-up"></i>
                                             </h4>
-                                            <p class="starta-descbox">Клиентов</p>
+                                            <p class="starta-descbox">Клиентов из @(goal?.TargetClients ?? 0)</p>
                                         </article>
                                     </div>
                                 </div>
@@ -365,7 +437,7 @@
                                             <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
                                                 @totalItemsDisplay<i class="fa-solid fa-arrow-up"></i>
                                             </h4>
-                                            <p class="starta-descbox">Ед. техники</p>
+                                            <p class="starta-descbox">Ед. техники из @(goal?.TargetItems ?? 0)</p>
                                         </article>
                                     </div>
                                 </div>
@@ -375,7 +447,7 @@
                             Выполнение цели <span>@ProgresPercent%</span>
                         </h5>
                         <div class="bar">
-                            <div class="fill" style="width:@ProgresPercent%;"></div>
+                            <div class="fill" data-progress="@ProgressClamped" style="width:@(ProgressClamped)%;"></div>
                         </div>
                     </div>
 
@@ -441,15 +513,16 @@
                              alt="BG" />
 
                         <!-- PLay Button -->
-                        <div class="playBtn startplay">
+                        <button type="button" class="playBtn startplay" aria-label="Смотреть видео">
                             <i class="fa-solid fa-play"></i>
-                            <span id="circle-text">
-                                &nbsp;. смотреть видео . смотреть видео . смотреть видео 
-                            </span>
-                        </div>
+                            <svg id="circle-text" viewBox="0 0 160 160" aria-hidden="true" focusable="false">
+                                <defs><path id="ecobay-video-ring" d="M80,80 m-61,0 a61,61 0 1,1 122,0 a61,61 0 1,1 -122,0" /></defs>
+                                <text><textPath href="#ecobay-video-ring" textLength="383.27" lengthAdjust="spacing">СМОТРЕТЬ ВИДЕО · СМОТРЕТЬ ВИДЕО · </textPath></text>
+                            </svg>
+                        </button>
 
                         <!-- video frame -->
-                        <iframe src="https://www.youtube.com/embed/e0TblOS6o_s;controls=0"
+                        <iframe data-src="https://www.youtube.com/embed/e0TblOS6o_s?controls=0"
                                 title="Sample Video"
                                 frameborder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -621,7 +694,7 @@
                 <!-- Текстовый блок -->
                 <div class="col-md-6">
                     <h1 class="starta-heading">Наши будние дни</h1>
-                    <h1 class="starta-h1">Мы вывозим технику ежедневно. Выходной — воскресенье.</h1>
+                    <h1 class="starta-h1">Вывозим технику с понедельника по субботу. Заявки принимаем и в воскресенье.</h1>
                     <p class="starta-desc">
                         Начиная с 9 утра и до позднего вечера, наша служба принимает заявки и вывозит технику по согласованному времени.
                     </p>
@@ -684,7 +757,7 @@
                     </h1>
 
 
-                    <iframe src="https://www.youtube.com/embed/heUa5ZOVo3o?controls=0"
+                    <iframe data-src="https://www.youtube.com/embed/heUa5ZOVo3o?controls=0"
                             title="Sample Video"
                             frameborder="0"
                             width="560"
@@ -899,8 +972,8 @@
                                         Да, но заявки принимаем каждый день.
                                     </h3>
                                     <p class="starta-desc">
-                                        Выезды обычно не выполняются по воскресеньям и в праздничные дни.
-                                        В эти дни техника не вывозится, но вы можете спокойно оставить заявку заранее.
+                                        В воскресенье мы принимаем заявки, но технику не собираем и не вывозим.
+                                        Выезд согласуем на рабочий день; график в праздники уточняйте по телефону.
                                     </p>
                                     <p class="starta-desc">
                                         Заявки принимаются ежедневно — по телефону и через сайт.
@@ -973,7 +1046,7 @@
                                         Передайте им большое спасибо, я уже думала нанять кого,
                                         что бы вынесли на мусор ее.
                                     </h2>
-                                    <h4 class="stara-h4">Надежда (Гомель)</h4>
+                                    <h4 class="starta-h4">Надежда (Гомель)</h4>
                                 </div>
                             </div>
                             <div class="testimonialCircle"></div>
@@ -1001,7 +1074,7 @@
                                         Купили старый дом, думали что придется грузовик нанимать что бы всю эту старую технику вывезти.
                                         А тут оказывается еще и денюшку получили. Осталось найти куда так-же избавится от старой мебели.
                                     </h2>
-                                    <h4 class="stara-h4">Дарья (Бобруйск)</h4>
+                                    <h4 class="starta-h4">Дарья (Бобруйск)</h4>
                                 </div>
                             </div>
                             <div class="testimonialCircle"></div>
@@ -1034,7 +1107,7 @@
                     @if (currentCity != null)
                     {
                         <p class="starta-desc mb-2">
-                            Город: @currentCity.NameIn
+                            Город: @currentCity.Name
                         </p>
                     }
 
@@ -1072,8 +1145,8 @@
                     </p>
 
                     <p class="starta-desc">
-                        Приём заявок через сайт — круглосуточно. Мы перезвоним
-                        в рабочее время.
+                        В воскресенье принимаем заявки, но не собираем и не вывозим технику.
+                        Заявку через сайт можно оставить круглосуточно.
                     </p>
                 </div>
             </div>
@@ -1089,8 +1162,7 @@
                 <div class="col-md-5 border-end">
                     <h1 class="starta-h1">Ecobay.by</h1>
                     <p class="starta-desc">
-                        Прием бытовой техники в Гомеле, Бобруйске,
-                        Рогачеве, Жлобине и  в других городах, районах.
+                        @FooterCitiesText
                     </p>
                     <ul class="starta-social list-unstyled">
                         <li>
@@ -1110,17 +1182,19 @@
                         <div class="col-md-6 col-sm-6">
                             <h4 class="starta-h4 mb-4">Где мы работаем</h4>
                             <ul class="footer-list list-unstyled">
-                                @foreach (var pc in footerCities)
+                                @foreach (var c in activeCities)
                                 {
-                                    var cityNameIn = pc.City?.NameIn ?? pc.City?.Name ?? "городе";
-                                    var slug = pc.City?.Slug ?? "gomel";
-
                                     <li>
-                                        <a class="menu-animation" href="@($"/{slug}#top")">
-                                            Сдать бытовую технику в @cityNameIn
+                                        <a class="menu-animation" href="@($"/{c.Slug}")" onclick="@($"window.ecobayCity && ecobayCity.set('{c.Slug}')")">
+                                            Сдать бытовую технику в @c.NameIn
                                         </a>
                                     </li>
                                 }
+                                <li>
+                                    <a class="menu-animation" href="/?all=1" onclick="window.ecobayCity && ecobayCity.set('all')">
+                                        Все наши города и районы
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                         <!-- block 3 -->
@@ -1159,7 +1233,7 @@
                     <div>
                         <p class="mb-1 starta-desc"><strong>Время работы:</strong></p>
                         <p class="mb-0 starta-desc">Пон–Сб: 9:00–20:00</p>
-                        <p class="mb-0 starta-desc">Воскресенье: выходной</p>
+                        <p class="mb-0 starta-desc">Воскресенье: приём заявок, без вывоза</p>
                     </div>
                 </div>
 
@@ -1173,17 +1247,97 @@
     </footer>
 </div>
 
+@* Модальные окна — вне #scroll-content, чтобы position: fixed всегда считалось от окна браузера. *@
+
+@if (isCitySelectorVisible)
+{
+    <div class="city-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cityModalTitle" @onclick="CloseCitySelectorAsync">
+        <div class="city-modal" @onclick:stopPropagation="true">
+            <button type="button" class="city-modal-close" aria-label="Закрыть" @onclick="CloseCitySelectorAsync">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="city-modal-icon"><i class="fa-solid fa-location-dot"></i></div>
+            <h2 id="cityModalTitle" class="city-modal-title">
+                @(string.IsNullOrWhiteSpace(mainPage.CitySelectorTitle) ? "Выберите ваш город" : mainPage.CitySelectorTitle)
+            </h2>
+            @if (!string.IsNullOrWhiteSpace(mainPage.CitySelectorText))
+            {
+                <p class="city-modal-text">@mainPage.CitySelectorText</p>
+            }
+
+            @if (activeCities.Count > 8)
+            {
+                <div class="city-modal-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Поиск города" @bind="citySearch" @bind:event="oninput" />
+                </div>
+            }
+
+            <div class="city-modal-list" role="radiogroup" aria-label="Город">
+                @foreach (var c in FilteredSelectorCities)
+                {
+                    var isSelected = selectedSlug == c.Slug;
+                    <button type="button" role="radio" aria-checked="@(isSelected ? "true" : "false")"
+                            class="city-option @(isSelected ? "selected" : "")"
+                            @onclick="() => selectedSlug = c.Slug"
+                            @ondblclick="() => ConfirmCityAsync(c.Slug)">
+                        <span class="city-option-radio"></span>
+                        <span class="city-option-name">@c.Name</span>
+                    </button>
+                }
+                @if (!FilteredSelectorCities.Any())
+                {
+                    <p class="city-modal-empty">Такого города нет в списке.</p>
+                }
+            </div>
+
+            <button type="button" class="starta-button w-100 city-modal-confirm" disabled="@(selectedSlug is null)"
+                    @onclick="() => ConfirmCityAsync(selectedSlug)">
+                <span class="position-relative">@(selectedSlug is null ? "Выберите город" : $"Подтвердить: {SelectedCityName}")</span>
+                <span class="starta-button-hover"></span>
+            </button>
+
+            <button type="button" class="city-modal-other" @onclick="ChooseAllBelarusAsync">
+                Моего города нет: посмотреть зону обслуживания
+            </button>
+        </div>
+    </div>
+}
+
+@if (isPromoVisible)
+{
+    <div class="promo-overlay" @onclick="ClosePromo">
+        <div class="promo-modal" @onclick:stopPropagation="true">
+            <h2 class="starta-h2 mb-3">@promoTitle</h2>
+            <p class="starta-desc mb-3">@promoText</p>
+
+            <button class="starta-button w-100" @onclick="ClosePromo">
+                <span class="position-relative">Понятно</span>
+                <span class="starta-button-hover"></span>
+            </button>
+        </div>
+    </div>
+}
+
 @code
 {
     #region Параметры маршрута и данные страницы
 
     [Parameter] public string? slug { get; set; }
 
+    [SupplyParameterFromQuery(Name = "choose-city")] public string? ChooseCityQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "all")] public string? AllBelarusQuery { get; set; }
+
     private PageCity? pageCity;
     private City? currentCity;
     private bool isCityMode => pageCity != null;
 
-    private List<City> allCities = new();
+    /// <summary>Активные города с сохранённой страницей — для окна выбора, футера и списка на первом экране.</summary>
+    private List<City> activeCities = new();
+
+    /// <summary>Настройки страницы «Вся Беларусь» (из панели управления).</summary>
+    private MainPageSettings mainPage = DbSeeder.CreateDefaultMainPage();
 
     private PromoMessage? promo;
     private Goal? goal;
@@ -1196,12 +1350,50 @@
     #region Константы и текстовые данные
 
     private string? formErrorMessage;
-    private List<PageCity> footerCities = new();
     private string phone = "+375 (29) 991-06-66";
     private string thisYear = DateTime.Now.Year.ToString();
     private int ProgresPercent = 0;
     private int year = DateTime.Now.Year;
-    private string Title = "Вывоз бытовой техники по всей Беларуси";
+    private string Title = "Вывоз техники в наших городах и их районах";
+    private const string DefaultPhone = DbSeeder.DefaultPhone;
+
+    private string? HeroTextOverride =>
+        !isCityMode && !string.IsNullOrWhiteSpace(mainPage.HeroText) ? mainPage.HeroText : null;
+
+    private int ProgressClamped => Math.Clamp(ProgresPercent, 0, 100);
+
+    private string CitiesInText
+    {
+        get
+        {
+            var names = activeCities.Select(c => c.NameIn).ToList();
+            if (names.Count == 0) return "";
+            if (names.Count == 1) return names[0];
+            return string.Join(", ", names.Take(names.Count - 1)) + " и " + names[^1];
+        }
+    }
+
+    private string FooterCitiesText => activeCities.Count > 0
+        ? $"Приём бытовой техники только в {CitiesInText} и населённых пунктах районов этих городов."
+        : "Зону обслуживания уточняйте по телефону.";
+
+    private string MetaDescription
+    {
+        get
+        {
+            if (isCityMode && !string.IsNullOrWhiteSpace(pageCity!.Description)) return pageCity.Description!;
+            if (!isCityMode && !string.IsNullOrWhiteSpace(mainPage.Description)) return mainPage.Description!;
+            return activeCities.Count > 0
+                ? $"Вывоз и утилизация бытовой техники в {CitiesInText}. Приедем, вынесем и заплатим на месте."
+                : "Вывоз техники в обслуживаемых городах и их районах.";
+        }
+    }
+
+    private string MetaKeywords =>
+        (isCityMode ? pageCity!.KeyWords : mainPage.KeyWords)
+        ?? "утилизация, техника, переработка, приём техники, утилизация электроники";
+
+    private string CanonicalUrl => Nav.BaseUri.TrimEnd('/') + (isCityMode ? $"/{currentCity!.Slug}" : "/");
 
     #endregion
 
@@ -1212,8 +1404,10 @@
     private decimal total;
     private string resultMessage = "";
 
+    private bool isDeliveryMode;
+
     private bool IsDeliveryPriceModeActive =>
-        pageCity?.IsDeliveryPriceMode == true &&
+        isDeliveryMode &&
         priceToKopeks.HasValue &&
         priceToKopeks.Value > (int)price;
 
@@ -1277,7 +1471,7 @@
 
     #region Показатели/цели
 
-    private int totalClientsDisplay;
+    private long totalClientsDisplay;
     private int totalItemsDisplay;
     private int progressPercentDisplay;
 
@@ -1287,32 +1481,34 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        await EnsureSeedDataAsync();
+        mainPage = await Db.MainPageSettings.AsNoTracking().OrderBy(m => m.Id).FirstOrDefaultAsync()
+                   ?? DbSeeder.CreateDefaultMainPage();
 
-        footerCities = await Db.PageCities
-            .Include(p => p.City)
-            .OrderBy(p => p.City.Name)
+        activeCities = await Db.Cities.AsNoTracking()
+            .Where(c => c.IsActive && c.Pages.Any())
+            .OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
             .ToListAsync();
 
         pageCity = null;
         currentCity = null;
         promo = null;
         priceToKopeks = null;
-        allCities = new();
 
         if (!string.IsNullOrWhiteSpace(slug))
         {
-            pageCity = await Db.PageCities
+            var normalizedSlug = slug.Trim().ToLowerInvariant();
+            pageCity = await Db.PageCities.AsNoTracking()
                 .Include(p => p.City)
-                .FirstOrDefaultAsync(p => p.City.Slug == slug);
+                .FirstOrDefaultAsync(p => p.City.Slug == normalizedSlug && p.City.IsActive);
 
-            currentCity = pageCity?.City;
-        }
-        else
-        {
-            allCities = await Db.Cities
-                .OrderBy(c => c.Name)
-                .ToListAsync();
+            if (pageCity is null)
+            {
+                // Неизвестный или выключенный город — на общую страницу с окном выбора города.
+                Nav.NavigateTo("/?choose-city=1", replace: true);
+                return;
+            }
+
+            currentCity = pageCity.City;
         }
 
         if (pageCity != null && currentCity != null)
@@ -1321,41 +1517,45 @@
                 ? pageCity.Title
                 : $"Вывоз бытовой техники в {currentCity.NameIn}";
 
-            phone = pageCity.PhoneCity ?? currentCity.DefaultPhone ?? "+375 (29) 991-06-66";
+            phone = pageCity.PhoneCity ?? currentCity.DefaultPhone ?? DefaultPhone;
             price = pageCity.Price ?? currentCity.DefaultPrice ?? 20m;
             priceToKopeks = pageCity.PriceToKopeks;
+            isDeliveryMode = pageCity.IsDeliveryPriceMode;
         }
         else
         {
-            Title = "Вывоз бытовой техники по всей Беларуси";
-            phone = "+375 (29) 991-06-66";
-            price = 20m;
-            priceToKopeks = null;
+            Title = string.IsNullOrWhiteSpace(mainPage.Title) ? "Вывоз техники в наших городах и их районах" : mainPage.Title;
+            phone = string.IsNullOrWhiteSpace(mainPage.Phone) ? DefaultPhone : mainPage.Phone!;
+            price = mainPage.Price ?? 20m;
+            priceToKopeks = mainPage.PriceToKopeks;
+            isDeliveryMode = mainPage.IsDeliveryPriceMode;
         }
 
-        heroPriceText = BuildHeroPriceText(price, priceToKopeks, pageCity?.IsDeliveryPriceMode == true);
+        heroPriceText = BuildHeroPriceText(price, priceToKopeks, isDeliveryMode);
 
         if (currentCity != null)
         {
-            promo = await Db.PromoMessages
+            promo = await Db.PromoMessages.AsNoTracking()
                 .Where(p => p.IsActive && p.CityId == currentCity.Id)
                 .FirstOrDefaultAsync();
 
-            if (promo == null)
+            if (promo == null && mainPage.IsGlobalPromoShownOnCityPages)
             {
-                promo = await Db.PromoMessages
+                promo = await Db.PromoMessages.AsNoTracking()
                     .Where(p => p.IsActive && p.CityId == null)
                     .FirstOrDefaultAsync();
             }
         }
         else
         {
-            promo = await Db.PromoMessages
+            promo = await Db.PromoMessages.AsNoTracking()
                 .Where(p => p.IsActive && p.CityId == null)
                 .FirstOrDefaultAsync();
         }
 
-        isPromoVisible = promo != null;
+        // На общей странице сначала решаем, нужно ли окно выбора города (это видно только в браузере),
+        // и лишь потом показываем промо — чтобы два окна не появлялись одновременно.
+        isPromoVisible = promo != null && !IsCitySelectorApplicable;
 
         await LoadGoalsAsync();
         Calculate();
@@ -1365,33 +1565,22 @@
     {
         var currentYear = DateTime.Now.Year;
 
-        goal = await Db.Goals
+        goal = await Db.Goals.AsNoTracking()
             .Where(g => g.IsActive && g.Year == currentYear)
             .OrderByDescending(g => g.StartDate)
             .FirstOrDefaultAsync();
 
         if (goal == null)
         {
-            goal = new Goal
-            {
-                Year = currentYear,
-                TargetClients = 5000,
-                TargetItems = 12000,
-                ActualClients = 0,
-                ActualItems = 0,
-                InactiveRequests = 0,
-                StartDate = new DateTime(currentYear, 1, 5),
-                IsActive = true
-            };
-
-            Db.Goals.Add(goal);
-            await Db.SaveChangesAsync();
+            // Goals are now created only by the admin. A page view must not undo deactivation.
+            totalClientsDisplay = totalItemsDisplay = ProgresPercent = 0;
+            return;
         }
 
-        totalClientsDisplay = goal.TargetClients;
-        totalItemsDisplay = goal.TargetItems;
+        totalClientsDisplay = AdminReporting.Completed(goal);
+        totalItemsDisplay = goal.ActualItems;
 
-        var clientsProgress = goal.ActualClients + goal.InactiveRequests;
+        var clientsProgress = AdminReporting.Completed(goal);
 
         if (goal.TargetClients > 0)
             progressPercentDisplay = (int)Math.Round(100.0 * clientsProgress / goal.TargetClients);
@@ -1431,26 +1620,167 @@
 
     #region Инициализация JS
 
-    private bool _menuInitCalled;
+    private bool _jsInitialized;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !_menuInitCalled)
+        if (!firstRender || _jsInitialized)
+            return;
+
+        _jsInitialized = true;
+
+        try
         {
-            _menuInitCalled = true;
-            try
+            // Одна точка инициализации всех анимаций/виджетов страницы (см. wwwroot/js/custom/custom.js).
+            await JS.InvokeVoidAsync("ecobay.initPage");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("JS init error in Home: " + ex.Message);
+        }
+
+        await DecideCitySelectorAsync();
+    }
+
+    #endregion
+
+    #region Окно выбора города
+
+    private bool isCitySelectorVisible;
+    private string? selectedSlug;
+    private string? citySearch;
+
+    private bool IsCitySelectorApplicable =>
+        !isCityMode && mainPage.IsCitySelectorEnabled && activeCities.Count > 0;
+
+    private IEnumerable<City> FilteredSelectorCities =>
+        string.IsNullOrWhiteSpace(citySearch)
+            ? activeCities
+            : activeCities.Where(c => c.Name.Contains(citySearch.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private string? SelectedCityName => activeCities.FirstOrDefault(c => c.Slug == selectedSlug)?.Name;
+
+    private async Task DecideCitySelectorAsync()
+    {
+        if (activeCities.Count == 0)
+            return;
+
+        string? saved = null;
+        try
+        {
+            await JS.InvokeVoidAsync("ecobayCity.setRemember", mainPage.IsRememberCityEnabled);
+            saved = await JS.InvokeAsync<string?>("ecobayCity.get");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("City selector JS error: " + ex.Message);
+        }
+
+        var savedCityValid = saved is not null && activeCities.Any(c => c.Slug == saved);
+        var forceChoose = ChooseCityQuery is not null;
+
+        if (forceChoose && !isCityMode)
+        {
+            // Явный запрос «Сменить город» (или пришли с несуществующего города).
+            if (saved is not null && saved != "all" && !savedCityValid)
+                await SafeJs("ecobayCity.clear");
+            ShowCitySelector(savedCityValid ? saved : null);
+        }
+        else if (IsCitySelectorApplicable && AllBelarusQuery is null)
+        {
+            if (saved == "all")
             {
-                await JS.InvokeVoidAsync("mobileMenu.init");
-                await JS.InvokeVoidAsync("initHoverButtons");
-                await JS.InvokeVoidAsync("initVideoBlock");
-                await JS.InvokeVoidAsync("initCircleText");
-                await JS.InvokeVoidAsync("initGsapAnimations");
-                await JS.InvokeVoidAsync("initSwiper");
+                // Пользователь уже выбрал «Вся Беларусь».
             }
-            catch (Exception ex)
+            else if (savedCityValid && mainPage.IsRememberCityEnabled)
             {
-                Console.WriteLine("JS init error in Home: " + ex);
+                // Подстраховка к скрипту в <head>: сразу открываем запомненный город.
+                Nav.NavigateTo($"/{saved}", forceLoad: true);
+                return;
             }
+            else
+            {
+                ShowCitySelector(null);
+            }
+        }
+
+        if (!isCitySelectorVisible && promo != null && !isPromoVisible && !isCityMode)
+            isPromoVisible = true;
+
+        StateHasChanged();
+    }
+
+    private void ShowCitySelector(string? preselect)
+    {
+        selectedSlug = preselect;
+        citySearch = null;
+        isPromoVisible = false;
+        isCitySelectorVisible = true;
+        _ = SafeJs("ecobay.lockScroll", true);
+    }
+
+    private void OpenCitySelector()
+    {
+        ShowCitySelector(currentCity?.Slug);
+    }
+
+    private async Task ConfirmCityAsync(string? slugToOpen)
+    {
+        if (string.IsNullOrWhiteSpace(slugToOpen) || activeCities.All(c => c.Slug != slugToOpen))
+            return;
+
+        await SafeJs("ecobayCity.set", slugToOpen);
+
+        if (isCityMode && currentCity?.Slug == slugToOpen)
+        {
+            await CloseSelectorUiAsync();
+            return;
+        }
+
+        Nav.NavigateTo($"/{slugToOpen}", forceLoad: true);
+    }
+
+    private async Task ChooseAllBelarusAsync()
+    {
+        await SafeJs("ecobayCity.set", "all");
+
+        if (isCityMode)
+        {
+            Nav.NavigateTo("/?all=1", forceLoad: true);
+            return;
+        }
+
+        await CloseSelectorUiAsync();
+        if (promo != null)
+            isPromoVisible = true;
+    }
+
+    private async Task CloseCitySelectorAsync()
+    {
+        // Закрыли крестиком — не спрашиваем снова до конца сеанса, но выбор не запоминаем.
+        if (!isCityMode)
+            await SafeJs("ecobayCity.dismiss");
+
+        await CloseSelectorUiAsync();
+        if (!isCityMode && promo != null)
+            isPromoVisible = true;
+    }
+
+    private async Task CloseSelectorUiAsync()
+    {
+        isCitySelectorVisible = false;
+        await SafeJs("ecobay.lockScroll", false);
+    }
+
+    private async Task SafeJs(string identifier, params object?[] args)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync(identifier, args);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"JS call {identifier} failed: {ex.Message}");
         }
     }
 
@@ -1535,14 +1865,22 @@
             };
 
             Db.Requests.Add(request);
-
-            if (goal != null)
-            {
-                goal.ActualClients += 1;
-                goal.ActualItems += 1;
-            }
-
             await Db.SaveChangesAsync();
+
+            // Read the current active goal: the admin may have changed it since this page was opened.
+            var goalYear = DateTime.Now.Year;
+            var activeGoalId = await Db.Goals.AsNoTracking()
+                .Where(g => g.IsActive && g.Year == goalYear)
+                .OrderByDescending(g => g.StartDate).ThenByDescending(g => g.Id)
+                .Select(g => (long?)g.Id).FirstOrDefaultAsync();
+            if (activeGoalId.HasValue)
+            {
+                await Db.Goals
+                    .Where(g => g.Id == activeGoalId.Value && g.IsActive)
+                    .ExecuteUpdateAsync(u => u
+                        .SetProperty(g => g.ActualClients, g => g.ActualClients + 1)
+                        .SetProperty(g => g.ActualItems, g => g.ActualItems + 1));
+            }
 
             try
             {
@@ -1629,79 +1967,6 @@
         {
             form.Phone = "+375";
         }
-    }
-
-    private async Task EnsureSeedDataAsync()
-    {
-        if (await Db.Cities.AnyAsync())
-            return;
-
-        const decimal basePrice = 20m;
-        const int basePriceToKopeks = 35;
-        const string basePhone = "+375 (29) 991-06-66";
-
-        var cities = new List<City>
-        {
-            new City
-            {
-                Name = "Гомель",
-                NameIn = "Гомеле",
-                Slug = "gomel",
-                DefaultPhone = basePhone,
-                DefaultPrice = basePrice
-            },
-            new City
-            {
-                Name = "Рогачёв",
-                NameIn = "Рогачёве",
-                Slug = "rogachev",
-                DefaultPhone = basePhone,
-                DefaultPrice = basePrice
-            },
-            new City
-            {
-                Name = "Бобруйск",
-                NameIn = "Бобруйске",
-                Slug = "bobruisk",
-                DefaultPhone = basePhone,
-                DefaultPrice = basePrice
-            },
-            new City
-            {
-                Name = "Жлобин",
-                NameIn = "Жлобине",
-                Slug = "zhlobin",
-                DefaultPhone = basePhone,
-                DefaultPrice = basePrice
-            },
-            new City
-            {
-                Name = "Светлогорск",
-                NameIn = "Светлогорске",
-                Slug = "svetlogorsk",
-                DefaultPhone = basePhone,
-                DefaultPrice = basePrice
-            }
-        };
-
-        Db.Cities.AddRange(cities);
-        await Db.SaveChangesAsync();
-
-        var pages = cities.Select(c => new PageCity
-        {
-            CityId = c.Id,
-            Title = $"Вывоз бытовой техники в {c.NameIn}",
-            Description = $"Быстрый и выгодный вывоз бытовой техники в {c.NameIn}.",
-            KeyWords = $"вывоз техники {c.Name}, утилизация техники {c.Name}, приём техники {c.Name}",
-            Price = basePrice,
-            PriceToKopeks = basePriceToKopeks,
-            PhoneCity = basePhone,
-            IsShowPromo = false,
-            IsDeliveryPriceMode = false
-        }).ToList();
-
-        Db.PageCities.AddRange(pages);
-        await Db.SaveChangesAsync();
     }
 
     private static string BuildHeroPriceText(decimal fromPrice, int? toKopeks, bool isDeliveryPriceMode)

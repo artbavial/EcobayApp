@@ -1,0 +1,148 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject ILogger<AdminGoals> Logger
+
+<div class="admin-card">
+    <h2 class="admin-card-title">Цели и ручная корректировка прогресса</h2>
+    <div class="d-flex gap-2 align-items-end mb-3">
+        <div><label class="admin-label" for="goalsYear">Год</label>
+            <input class="form-control" id="goalsYear" type="number" min="2020" max="2100" @bind="selectedYear" disabled="@busy" /></div>
+        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="LoadAsync">Загрузить</button>
+    </div>
+    @if (error is not null) { <div class="admin-alert admin-alert-error mb-3" role="alert">@error</div> }
+    @if (message is not null) { <div class="admin-alert admin-alert-ok mb-3" role="status">@message</div> }
+    @if (edit is not null)
+    {
+        <h3 class="admin-card-title">@(edit.Id == 0 ? "Новая цель" : "Редактирование цели") на @edit.Year год</h3>
+        <div class="row g-3">
+            <div class="col-lg-7">
+                <div class="row g-3">
+                    <div class="col-sm-6"><label class="admin-label" for="targetClients">Цель: клиентов</label>
+                        <input class="form-control" id="targetClients" type="number" min="1" max="1000000000" @bind="edit.TargetClients" disabled="@busy" /></div>
+                    <div class="col-sm-6"><label class="admin-label" for="targetItems">Цель: единиц техники</label>
+                        <input class="form-control" id="targetItems" type="number" min="1" max="1000000000" @bind="edit.TargetItems" disabled="@busy" /></div>
+                    <div class="col-sm-6"><label class="admin-label" for="actualClients">Фактически: клиентов</label>
+                        <input class="form-control" id="actualClients" type="number" min="0" max="1000000000" @bind="edit.ActualClients" disabled="@busy" /></div>
+                    <div class="col-sm-6"><label class="admin-label" for="actualItems">Фактически: единиц техники</label>
+                        <input class="form-control" id="actualItems" type="number" min="0" max="1000000000" @bind="edit.ActualItems" disabled="@busy" /></div>
+                    <div class="col-sm-6"><label class="admin-label" for="inactiveRequests">Ручная добавка к прогрессу</label>
+                        <input class="form-control" id="inactiveRequests" type="number" min="0" max="1000000000" @bind="edit.InactiveRequests" disabled="@busy" />
+                        <small class="admin-muted">Поле БД InactiveRequests. Это количество, не процент.</small></div>
+                    <div class="col-sm-6"><label class="admin-label" for="goalStart">Дата начала</label>
+                        <input class="form-control" id="goalStart" type="date" @bind="edit.StartDate" disabled="@busy" /></div>
+                </div>
+                <div class="form-check form-switch my-3">
+                    <input class="form-check-input" id="goalActive" type="checkbox" @bind="edit.IsActive" disabled="@busy" />
+                    <label class="form-check-label" for="goalActive">Активная цель этого года</label>
+                </div>
+                <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="SaveAsync">@(busy ? "Сохранение..." : "Сохранить цели и прогресс")</button>
+            </div>
+            <div class="col-lg-5">
+                <div class="admin-hint">
+                    <h3 class="admin-card-title">Предпросмотр</h3>
+                    <p>Клиенты: @edit.ActualClients + @edit.InactiveRequests = <strong>@AdminReporting.Completed(edit)</strong> из @edit.TargetClients.</p>
+                    <p>Выполнение: <strong>@ClientPercent.ToString("0.#")%</strong></p>
+                    <div class="admin-progress"><span style="@Width(ClientPercent)"></span></div>
+                    <p class="mt-3">Техника: @edit.ActualItems из @edit.TargetItems, <strong>@ItemPercent.ToString("0.#")%</strong>.</p>
+                    <div class="admin-progress"><span style="@Width(ItemPercent)"></span></div>
+                    <p class="admin-muted mt-3 mb-0">
+                        После сохранения эти значения увидят дашборд и новые открытия сайта.
+                        Новые заявки по-прежнему автоматически добавляют по 1 к факту клиентов и техники.
+                        Ручная добавка не создаёт заявки и не меняет статистику по городам.
+                    </p>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private int selectedYear = DateTime.Today.Year;
+    private Goal? edit, original;
+    private bool busy;
+    private string? error, message;
+    private decimal ClientPercent => edit is null ? 0 : AdminReporting.Percent(AdminReporting.Completed(edit), edit.TargetClients);
+    private decimal ItemPercent => edit is null ? 0 : AdminReporting.Percent(edit.ActualItems, edit.TargetItems);
+    private static string Width(decimal n) => $"width:{Math.Clamp(n, 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)}%";
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync()
+    {
+        if (busy) return;
+        error = message = null;
+        if (selectedYear is < 2020 or > 2100) { error = "Укажите год от 2020 до 2100."; return; }
+        busy = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            edit = await db.Goals.AsNoTracking().Where(g => g.Year == selectedYear)
+                .OrderByDescending(g => g.IsActive).ThenByDescending(g => g.StartDate).ThenByDescending(g => g.Id)
+                .FirstOrDefaultAsync();
+            original = edit is null ? null : Clone(edit);
+            edit ??= new Goal { Year = selectedYear, StartDate = new DateTime(selectedYear, 1, 1), TargetClients = 5000, TargetItems = 12000 };
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot load goal"); error = "Не удалось загрузить цели."; }
+        finally { busy = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (busy || edit is null) return;
+        error = message = null;
+        if (selectedYear != edit.Year) { error = "Год изменён. Сначала нажмите «Загрузить»."; return; }
+        if (edit.TargetClients is < 1 or > 1000000000 || edit.TargetItems is < 1 or > 1000000000 ||
+            edit.ActualClients is < 0 or > 1000000000 || edit.ActualItems is < 0 or > 1000000000 ||
+            edit.InactiveRequests is < 0 or > 1000000000)
+        { error = "Цели должны быть больше нуля, фактические значения и добавка неотрицательные. Максимум: 1 000 000 000."; return; }
+        if (edit.StartDate.Year != edit.Year) { error = "Дата начала должна относиться к выбранному году."; return; }
+        busy = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+            if (edit.Id == 0)
+            {
+                if (await db.Goals.AnyAsync(g => g.Year == edit.Year))
+                { error = "Цель уже создана в другой сессии. Нажмите «Загрузить»."; return; }
+                db.Goals.Add(edit);
+                await db.SaveChangesAsync();
+            }
+            else
+            {
+                var old = original!;
+                // Optimistic comparison protects increments made by new requests while the editor was open.
+                var count = await db.Goals.Where(g => g.Id == old.Id && g.Year == old.Year &&
+                        g.ActualClients == old.ActualClients && g.ActualItems == old.ActualItems &&
+                        g.InactiveRequests == old.InactiveRequests && g.TargetClients == old.TargetClients &&
+                        g.TargetItems == old.TargetItems && g.IsActive == old.IsActive && g.StartDate == old.StartDate)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(g => g.TargetClients, edit.TargetClients)
+                        .SetProperty(g => g.TargetItems, edit.TargetItems)
+                        .SetProperty(g => g.ActualClients, edit.ActualClients)
+                        .SetProperty(g => g.ActualItems, edit.ActualItems)
+                        .SetProperty(g => g.InactiveRequests, edit.InactiveRequests)
+                        .SetProperty(g => g.StartDate, edit.StartDate)
+                        .SetProperty(g => g.IsActive, edit.IsActive));
+                if (count == 0) { error = "Данные изменились: возможно, пришла новая заявка. Нажмите «Загрузить» и повторите правку."; return; }
+            }
+            if (edit.IsActive)
+                await db.Goals.Where(g => g.Year == edit.Year && g.Id != edit.Id && g.IsActive)
+                    .ExecuteUpdateAsync(s => s.SetProperty(g => g.IsActive, false));
+            await transaction.CommitAsync();
+            original = Clone(edit);
+            message = "Цели и прогресс сохранены.";
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot save goal"); error = "Не удалось сохранить. Обновите данные и повторите попытку."; }
+        finally { busy = false; }
+    }
+
+    private static Goal Clone(Goal g) => new()
+    {
+        Id = g.Id, Year = g.Year, TargetClients = g.TargetClients, TargetItems = g.TargetItems,
+        ActualClients = g.ActualClients, ActualItems = g.ActualItems, InactiveRequests = g.InactiveRequests,
+        StartDate = g.StartDate, IsActive = g.IsActive
+    };
+}

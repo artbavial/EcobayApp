@@ -1,0 +1,187 @@
+@using System.Globalization
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject ILogger<AdminDashboard> Logger
+
+<div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+    <div><h2 class="admin-card-title mb-1">Обзор работы</h2>
+        <span class="admin-muted">На @loadedAt.ToString("dd.MM.yyyy HH:mm"). Периоды включают сегодняшний день.</span>
+    </div>
+    <button class="btn btn-outline-secondary" disabled="@busy" @onclick="LoadAsync">Обновить</button>
+</div>
+@if (error is not null) { <div class="admin-alert admin-alert-error mb-3">@error</div> }
+@if (loaded)
+{
+    <div class="row g-3 mb-3">
+        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
+            <span>Заявок сегодня</span><strong>@todayCount</strong><small class="admin-muted">За @today.ToString("dd.MM.yyyy")</small>
+        </div></div>
+        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
+            <span>За последние 7 дней</span><strong>@weekCount</strong>
+            <small class="@DeltaClass(weekCount, previousWeek)">@AdminReporting.Change(weekCount, previousWeek)</small>
+        </div></div>
+        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
+            <span>За последние 30 дней</span><strong>@monthCount</strong>
+            <small class="@DeltaClass(monthCount, previousMonth)">@AdminReporting.Change(monthCount, previousMonth)</small>
+        </div></div>
+        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
+            <span>Всего заявок в базе</span><strong>@total</strong><small class="admin-muted">Все города и даты</small>
+        </div></div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="admin-card">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                    <h2 class="admin-card-title mb-0">Цели на @today.Year год</h2>
+                    <button class="btn btn-sm btn-outline-success" @onclick="() => OnGoals.InvokeAsync()">Изменить цели</button>
+                </div>
+                @if (goal is null)
+                {
+                    <p class="admin-muted">Активная цель на текущий год не задана. Создайте её во вкладке «Цели».</p>
+                }
+                else
+                {
+                    <div class="admin-goal-summary">
+                        <div><span>Клиентов: факт / цель</span><strong>@goal.ActualClients.ToString("N0") / @goal.TargetClients.ToString("N0")</strong></div>
+                        <div><span>Техники: факт / цель</span><strong>@goal.ActualItems.ToString("N0") / @goal.TargetItems.ToString("N0")</strong></div>
+                    </div>
+                    <p class="mt-3 mb-2">Прогресс клиентов: <strong>@ClientPercent.ToString("0.#")%</strong></p>
+                    <div class="admin-progress" role="progressbar" aria-label="Прогресс клиентов"
+                         aria-valuenow="@Math.Clamp(ClientPercent, 0, 100)" aria-valuemin="0" aria-valuemax="100">
+                        <span style="@Width(ClientPercent)"></span>
+                    </div>
+                    <p class="admin-muted mt-2">
+                        По формуле сайта: @goal.ActualClients + @goal.InactiveRequests = @AdminReporting.Completed(goal) из @goal.TargetClients.
+                        Ручная корректировка хранится в InactiveRequests.
+                    </p>
+                    <p class="mb-2">Прогресс техники: <strong>@ItemPercent.ToString("0.#")%</strong></p>
+                    <div class="admin-progress"><span style="@Width(ItemPercent)"></span></div>
+                }
+                <div class="admin-hint mt-3">
+                    За 7 дней: @weekCount против @previousWeek за предыдущие 7.
+                    За 30 дней: @monthCount против @previousMonth за предыдущие 30.
+                    Текущий день ещё не завершён.
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="admin-card">
+                <h2 class="admin-card-title">Заявки по городам за 30 дней</h2>
+                @if (byCity.Count == 0)
+                {
+                    <p class="admin-muted py-5 text-center">За последние 30 дней заявок нет.</p>
+                }
+                else
+                {
+                    <div class="admin-city-chart">
+                        <div class="admin-donut" style="@DonutStyle" role="img" aria-label="Доли заявок по городам; точные значения в списке рядом">
+                            <div><strong>@monthCount</strong><span>заявок</span></div>
+                        </div>
+                        <ul class="admin-chart-legend">
+                            @for (var i = 0; i < byCity.Count; i++)
+                            {
+                                var item = byCity[i];
+                                <li>
+                                    <span class="admin-chart-dot" style="@($"background:{Color(i)}")"></span>
+                                    <span>@item.City</span>
+                                    <strong>@item.Count</strong>
+                                    <small>@((100m * item.Count / monthCount).ToString("0.#"))%</small>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="admin-card">
+        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+            <h2 class="admin-card-title mb-0">Сегодня: последние @todayRows.Count из @todayCount заявок</h2>
+            <button class="admin-btn admin-btn-primary admin-btn-sm" @onclick="() => OnRequests.InvokeAsync()">Смотреть больше</button>
+        </div>
+        <AdminRequestTable Rows="todayRows" />
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback OnRequests { get; set; }
+    [Parameter] public EventCallback OnGoals { get; set; }
+    private bool busy, loaded;
+    private string? error;
+    private DateTime today, loadedAt;
+    private int todayCount, weekCount, previousWeek, monthCount, previousMonth, total;
+    private Goal? goal;
+    private List<AdminRequestRow> todayRows = new();
+    private List<CityCount> byCity = new();
+    private sealed class CityCount { public string City { get; set; } = ""; public int Count { get; set; } }
+    private static readonly string[] Colors = { "#4caf50", "#267d97", "#e59c37", "#7565a9", "#c46c70", "#648b76" };
+    private static string Color(int index) => index < Colors.Length ? Colors[index] : $"hsl({index * 137.5 % 360:0},45%,45%)";
+    private decimal ClientPercent => goal is null ? 0 : AdminReporting.Percent(AdminReporting.Completed(goal), goal.TargetClients);
+    private decimal ItemPercent => goal is null ? 0 : AdminReporting.Percent(goal.ActualItems, goal.TargetItems);
+    private static string Width(decimal value) => $"width:{Math.Clamp(value, 0, 100).ToString(CultureInfo.InvariantCulture)}%";
+    private static string DeltaClass(int now, int before) => now > before ? "admin-delta-up" : now < before ? "admin-delta-down" : "admin-muted";
+    private string DonutStyle
+    {
+        get
+        {
+            decimal sum = 0;
+            var stops = byCity.Select((item, index) =>
+            {
+                var start = sum;
+                sum += 100m * item.Count / monthCount;
+                return $"{Color(index)} {start.ToString("0.####", CultureInfo.InvariantCulture)}% {sum.ToString("0.####", CultureInfo.InvariantCulture)}%";
+            });
+            return $"background:conic-gradient({string.Join(",", stops)})";
+        }
+    }
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+    private async Task LoadAsync()
+    {
+        if (busy) return;
+        busy = true;
+        error = null;
+        try
+        {
+            today = DateTime.Today;
+            var end = today.AddDays(1);
+            var monthStart = today.AddDays(-29);
+            var weekStart = today.AddDays(-6);
+            var previousWeekStart = weekStart.AddDays(-7);
+            var previousMonthStart = monthStart.AddDays(-30);
+            await using var db = await DbFactory.CreateDbContextAsync();
+            // SQL aggregates over 60 days, not loading the request history into memory.
+            var days = await db.Requests.AsNoTracking()
+                .Where(r => r.DateCreate >= previousMonthStart && r.DateCreate < end)
+                .GroupBy(r => r.DateCreate.Date)
+                .Select(g => new { Day = g.Key, Count = g.Count() }).ToListAsync();
+            todayCount = days.Where(d => d.Day == today).Sum(d => d.Count);
+            weekCount = days.Where(d => d.Day >= weekStart).Sum(d => d.Count);
+            previousWeek = days.Where(d => d.Day >= previousWeekStart && d.Day < weekStart).Sum(d => d.Count);
+            monthCount = days.Where(d => d.Day >= monthStart).Sum(d => d.Count);
+            previousMonth = days.Where(d => d.Day < monthStart).Sum(d => d.Count);
+            total = await db.Requests.CountAsync();
+            goal = await db.Goals.AsNoTracking().Where(g => g.Year == today.Year && g.IsActive)
+                .OrderByDescending(g => g.StartDate).ThenByDescending(g => g.Id).FirstOrDefaultAsync();
+            todayRows = await AdminReporting.Rows(db.Requests.AsNoTracking()
+                    .Where(r => r.DateCreate >= today && r.DateCreate < end))
+                .OrderByDescending(r => r.Date).ThenByDescending(r => r.Id).Take(8).ToListAsync();
+            byCity = await AdminReporting.Rows(db.Requests.AsNoTracking()
+                    .Where(r => r.DateCreate >= monthStart && r.DateCreate < end))
+                .GroupBy(r => new { r.CityId, r.City })
+                .Select(g => new CityCount { City = g.Key.City, Count = g.Count() })
+                .OrderByDescending(c => c.Count).ThenBy(c => c.City).ToListAsync();
+            loadedAt = DateTime.Now;
+            loaded = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot load dashboard");
+            error = "Не удалось загрузить дашборд. Нажмите «Обновить».";
+        }
+        finally { busy = false; }
+    }
+}

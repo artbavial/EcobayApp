@@ -21,6 +21,21 @@ namespace EcobayApp.Models
 		public long CityId { get; set; }
 		public City City { get; set; } = null!;
 
+		/// <summary>Optional city-specific first-screen heading and useful local details. Plain text only.</summary>
+		[MaxLength(200)]
+		public string? HeroTitle { get; set; }
+
+		[MaxLength(1500)]
+		public string? LocalIntro { get; set; }
+
+		/// <summary>Actual covered towns/villages of this city's district; do not list unsupported places.</summary>
+		[MaxLength(1500)]
+		public string? CoverageText { get; set; }
+
+		/// <summary>Real dispatch schedule, pickup conditions, preparation or self-delivery details.</summary>
+		[MaxLength(1500)]
+		public string? PickupDetails { get; set; }
+
 		/// <summary>
 		/// Если true, диапазон цены трактуется как:
 		/// ОТ — мы сами приезжаем и вывозим,

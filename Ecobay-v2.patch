@@ -1,0 +1,2388 @@
+diff --git a/CITY_PAGES.md b/CITY_PAGES.md
+new file mode 100644
+--- /dev/null
++++ b/CITY_PAGES.md
+@@ -0,0 +1,46 @@
++# Страницы городов: как убрать содержательные дубли
++
++Общие услуги, калькулятор, юридический блок и форма могут остаться едиными. Предлагаю различать страницы полезной местной информацией, а не перестановкой слов: что реально нужно знать жителю города или его района перед звонком.
++
++## Что уже реализовано
++
++Панель → «Города» → нужный город → «Страница города» → «Уникальное содержание города».
++
++| Поле | Что заполнить |
++|---|---|
++| Заголовок первого экрана | Свой короткий H1, если стандартный «Вывоз техники в … и населённых пунктах района» не подходит. |
++| О работе в этом городе | 1–2 абзаца о реальной организации работы: какие обращения чаще поступают, что можно передать за один выезд, особенности согласования. |
++| Город и его район | Конкретные обслуживаемые населённые пункты этого района. Как согласовать маршрут в район, нужны ли ориентиры/адрес. |
++| Условия и порядок вывоза | Реальные сроки, что сообщить оператору, условия подъезда/погрузки. Если в городе доступен самопривоз, только подтверждённые адрес и часы. |
++
++SEO Title и description уже редактируются в той же карточке. Каждый из трёх текстовых блоков допускает до 1500 символов; абзацы сохраняются, пустые блоки не показываются.
++
++## Карточка для ручного заполнения
++
++Скопируйте вопросы для каждого активного города и попросите ответить местного ответственного. Не вставляйте в сайт неподтверждённые адреса, графики и обещания «сегодня же».
++
++1. Какие населённые пункты именно этого района обслуживаем? Нет ли исключений по маршрутам?
++2. Как организуются выезды за город: отдельная договорённость, объединение заявок, определённые дни?
++3. Какие сведения об адресе особенно нужны: этаж, лифт, возможность подъезда, вынос из частного дома?
++4. Есть ли реальный пункт самопривоза и какие у него подтверждённые условия?
++5. Какие 2–3 вопроса чаще задают клиенты именно здесь?
++
++Затем напишите три коротких блока по ответам. Если условия у нескольких городов действительно одинаковые, не придумывайте отличия: укажите одинаковые условия, но дайте проверенные местные детали там, где они есть.
++
++## Пример структуры, не готовое утверждение о вашем городе
++
++**H1:** «Вывоз бытовой техники в [городе] и [районе]».
++
++**Местный текст:** «Чтобы согласовать вывоз из [города], сообщите, какую технику нужно забрать, адрес и условия выноса. [Подтверждённая особенность работы здесь]».
++
++**Территория:** «Кроме [города], принимаем технику в населённых пунктах его района: [проверенный список]. [Реальный порядок согласования выезда]».
++
++**Вывоз:** «[Подтверждённые условия и сроки]. В воскресенье заявки принимаем, но технику не собираем и не вывозим».
++
++Фразы в квадратных скобках нужно заменить фактами, а не публиковать как есть.
++
++## Следующий содержательный шаг
++
++После заполнения текстов полезно собрать для каждого города 2–3 собственных фото реальных вывозов, один настоящий отзыв с разрешением на публикацию и 2–3 местных вопроса с ответами. Это можно вынести в панель отдельным следующим патчем: в текущем патче загрузчика фотографий и городских коллекций отзывов/FAQ нет.
++
++Этот подход делает страницы полезнее и менее одинаковыми, но не обещает отсутствие любых совпадений, рост позиций или автоматическое одобрение Google Ads.
+diff --git a/Components/App.razor b/Components/App.razor
+--- a/Components/App.razor
++++ b/Components/App.razor
+@@ -49,7 +49,7 @@
+     <link rel="stylesheet" href="/css/custom/theme.css" />
+     <link rel="stylesheet" href="/css/custom/responsive.css" />
+     <link rel="stylesheet" href="/css/custom/animations.css" />
+-    <link rel="stylesheet" href="/css/custom/ecobay.css" />
++    <link rel="stylesheet" href="/css/custom/ecobay.css?v=2" />
+ 
+     <HeadOutlet />
+ </head>
+@@ -71,7 +71,7 @@
+     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollToPlugin.min.js"></script>
+ 
+     <!-- Theme Files -->
+-    <script src="/js/custom/custom.js"></script>
++    <script src="/js/custom/custom.js?v=2"></script>
+ 
+     <!-- Blazor подключаем последним: к моменту запуска интерактивных компонентов все функции custom.js уже определены -->
+     <script src="/_framework/blazor.web.js"></script>
+@@ -103,4 +103,4 @@
+ 
+ </body>
+ 
+-</html>
+\ No newline at end of file
++</html>
+diff --git a/Components/Pages/AdminPanel.razor b/Components/Pages/AdminPanel.razor
+--- a/Components/Pages/AdminPanel.razor
++++ b/Components/Pages/AdminPanel.razor
+@@ -47,15 +47,23 @@
+ 
+         <ul class="admin-tabs">
+             <li><button class="@(activeTab == AdminTab.Dashboard ? "active" : "")" @onclick="() => SetTab(AdminTab.Dashboard)"><i class="fa-solid fa-chart-line"></i> Дашборд</button></li>
++            <li><button class="@(activeTab == AdminTab.Requests ? "active" : "")" @onclick="() => OpenRequests(false)"><i class="fa-solid fa-inbox"></i> Заявки</button></li>
++            <li><button class="@(activeTab == AdminTab.Goals ? "active" : "")" @onclick="() => SetTab(AdminTab.Goals)"><i class="fa-solid fa-bullseye"></i> Цели</button></li>
+             <li><button class="@(activeTab == AdminTab.Cities ? "active" : "")" @onclick="() => SetTab(AdminTab.Cities)"><i class="fa-solid fa-city"></i> Города</button></li>
+-            <li><button class="@(activeTab == AdminTab.MainPage ? "active" : "")" @onclick="() => SetTab(AdminTab.MainPage)"><i class="fa-solid fa-flag"></i> Вся Беларусь</button></li>
++            <li><button class="@(activeTab == AdminTab.MainPage ? "active" : "")" @onclick="() => SetTab(AdminTab.MainPage)"><i class="fa-solid fa-flag"></i> Главная сайта</button></li>
+             <li><button class="@(activeTab == AdminTab.Users ? "active" : "")" @onclick="() => SetTab(AdminTab.Users)"><i class="fa-solid fa-users-gear"></i> Пользователи</button></li>
+         </ul>
+ 
+         @switch (activeTab)
+         {
+             case AdminTab.Dashboard:
+-                @DashboardTab()
++                <AdminDashboard OnRequests="() => OpenRequests(true)" OnGoals="() => SetTab(AdminTab.Goals)" />
++                break;
++            case AdminTab.Requests:
++                <AdminRequests TodayOnly="requestsTodayOnly" />
++                break;
++            case AdminTab.Goals:
++                <AdminGoals />
+                 break;
+             case AdminTab.Cities:
+                 @CitiesTab()
+@@ -71,7 +79,7 @@
+ </div>
+ 
+ @code {
+-    private enum AdminTab { Dashboard, Cities, MainPage, Users }
++    private enum AdminTab { Dashboard, Requests, Goals, Cities, MainPage, Users }
+ 
+     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+ 
+@@ -79,6 +87,7 @@
+     private long currentUserId;
+     private string currentUserDisplay = "";
+     private bool mustChangePassword;
++    private bool requestsTodayOnly;
+ 
+     private static readonly Regex SlugRegex = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.Compiled);
+ 
+@@ -90,6 +99,12 @@
+     };
+ 
+     private void SetTab(AdminTab tab) => activeTab = tab;
++
++    private void OpenRequests(bool todayOnly)
++    {
++        requestsTodayOnly = todayOnly;
++        activeTab = AdminTab.Requests;
++    }
+ 
+     protected override async Task OnInitializedAsync()
+     {
+@@ -106,142 +121,9 @@
+         if (mustChangePassword)
+             activeTab = AdminTab.Users;
+ 
+-        await LoadDashboardAsync(db);
+         await LoadCitiesAsync(db);
+         await LoadMainPageAsync(db);
+         await LoadUsersAsync(db);
+-    }
+-
+-    // =====================================================================
+-    // DASHBOARD
+-    // =====================================================================
+-
+-    private Goal? goal;
+-    private int progressPercentDisplay;
+-    private int totalRequests;
+-    private const int RequestsPageSize = 100;
+-
+-    private List<Request> requests = new();
+-    private List<Request> filteredRequests = new();
+-
+-    private string? filterName;
+-    private string? filterPhone;
+-    private string? filterCity;
+-
+-    private async Task LoadDashboardAsync(AppDBContext db)
+-    {
+-        var currentYear = DateTime.Now.Year;
+-        goal = await db.Goals.AsNoTracking()
+-            .Where(g => g.IsActive && g.Year == currentYear)
+-            .OrderByDescending(g => g.StartDate)
+-            .FirstOrDefaultAsync();
+-
+-        var clientsProgress = (goal?.ActualClients ?? 0) + (goal?.InactiveRequests ?? 0);
+-        progressPercentDisplay = goal is { TargetClients: > 0 }
+-            ? (int)Math.Round(100.0 * clientsProgress / goal.TargetClients)
+-            : 0;
+-
+-        // Раньше «Заявок всего» считалось по 50 загруженным строкам и никогда не превышало 50.
+-        totalRequests = await db.Requests.CountAsync();
+-
+-        requests = await db.Requests.AsNoTracking()
+-            .Include(r => r.Client).ThenInclude(c => c.City)
+-            .Include(r => r.PageCity).ThenInclude(pc => pc!.City)
+-            .OrderByDescending(r => r.DateCreate)
+-            .Take(RequestsPageSize)
+-            .ToListAsync();
+-
+-        ApplyFilter();
+-    }
+-
+-    private RenderFragment DashboardTab() => __builder =>
+-    {
+-        <div class="row g-3 mb-4">
+-            <div class="col-md-3 col-6"><div class="admin-stat"><span>Цель клиентов</span><strong>@(goal?.TargetClients ?? 0)</strong></div></div>
+-            <div class="col-md-3 col-6"><div class="admin-stat"><span>Цель техники</span><strong>@(goal?.TargetItems ?? 0)</strong></div></div>
+-            <div class="col-md-3 col-6"><div class="admin-stat"><span>Заявок всего</span><strong>@totalRequests</strong></div></div>
+-            <div class="col-md-3 col-6"><div class="admin-stat"><span>Прогресс</span><strong>@progressPercentDisplay%</strong></div></div>
+-        </div>
+-
+-        <div class="admin-card">
+-            <h2 class="admin-card-title">Последние заявки</h2>
+-
+-            <div class="row g-2 mb-3">
+-                <div class="col-md-4"><input class="form-control" placeholder="Фильтр по имени" @bind="FilterName" @bind:event="oninput" /></div>
+-                <div class="col-md-4"><input class="form-control" placeholder="Фильтр по телефону" @bind="FilterPhone" @bind:event="oninput" /></div>
+-                <div class="col-md-4"><input class="form-control" placeholder="Фильтр по городу" @bind="FilterCity" @bind:event="oninput" /></div>
+-            </div>
+-
+-            <div class="table-responsive">
+-                <table class="table table-hover align-middle admin-table">
+-                    <thead>
+-                        <tr><th>Дата</th><th>Клиент</th><th>Телефон</th><th>Сообщение</th><th>Город</th><th></th></tr>
+-                    </thead>
+-                    <tbody>
+-                        @foreach (var r in filteredRequests)
+-                        {
+-                            <tr>
+-                                <td class="text-nowrap">@r.DateCreate.ToString("dd.MM.yyyy HH:mm")</td>
+-                                <td>@r.Client?.Name</td>
+-                                <td class="text-nowrap">
+-                                    @if (!string.IsNullOrWhiteSpace(r.Client?.Phone))
+-                                    {
+-                                        <a href="@($"tel:{r.Client.Phone}")">@r.Client.Phone</a>
+-                                    }
+-                                </td>
+-                                <td style="max-width: 320px;">@r.Message</td>
+-                                <td>@(r.PageCity?.City?.Name ?? r.Client?.City?.Name ?? "Вся Беларусь")</td>
+-                                <td class="text-end">
+-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteRequestAsync(r.Id, r.Client?.Name)">Удалить</button>
+-                                </td>
+-                            </tr>
+-                        }
+-                    </tbody>
+-                </table>
+-            </div>
+-
+-            <p class="admin-muted mb-0">Показано @filteredRequests.Count из @Math.Min(totalRequests, RequestsPageSize) последних (всего в базе: @totalRequests).</p>
+-        </div>
+-    };
+-
+-    private string? FilterName { get => filterName; set { filterName = value; ApplyFilter(); } }
+-    private string? FilterPhone { get => filterPhone; set { filterPhone = value; ApplyFilter(); } }
+-    private string? FilterCity { get => filterCity; set { filterCity = value; ApplyFilter(); } }
+-
+-    private void ApplyFilter()
+-    {
+-        IEnumerable<Request> query = requests;
+-
+-        if (!string.IsNullOrWhiteSpace(filterName))
+-            query = query.Where(r => r.Client?.Name?.Contains(filterName, StringComparison.OrdinalIgnoreCase) == true);
+-
+-        if (!string.IsNullOrWhiteSpace(filterPhone))
+-            query = query.Where(r => r.Client?.Phone?.Contains(filterPhone, StringComparison.OrdinalIgnoreCase) == true);
+-
+-        if (!string.IsNullOrWhiteSpace(filterCity))
+-            query = query.Where(r => (r.PageCity?.City?.Name ?? r.Client?.City?.Name ?? "Вся Беларусь")
+-                .Contains(filterCity, StringComparison.OrdinalIgnoreCase));
+-
+-        filteredRequests = query.ToList();
+-    }
+-
+-    private async Task ConfirmDeleteRequestAsync(long requestId, string? clientName)
+-    {
+-        var confirmText = string.IsNullOrWhiteSpace(clientName)
+-            ? "Вы уверены, что хотите удалить эту заявку?"
+-            : $"Вы уверены, что хотите удалить заявку клиента \"{clientName}\"?";
+-
+-        if (!await JS.InvokeAsync<bool>("confirm", confirmText))
+-            return;
+-
+-        await using var db = await DbFactory.CreateDbContextAsync();
+-        var request = await db.Requests.FirstOrDefaultAsync(r => r.Id == requestId);
+-        if (request is null)
+-            return;
+-
+-        db.Requests.Remove(request);
+-        await db.SaveChangesAsync();
+-        await LoadDashboardAsync(db);
+     }
+ 
+     // =====================================================================
+@@ -425,6 +307,21 @@
+             <input class="form-control" @bind="editPage!.PhoneCity" />
+             <small class="admin-muted">Если пусто — телефон города (@(string.IsNullOrWhiteSpace(editCity?.DefaultPhone) ? "не указан" : editCity!.DefaultPhone)).</small>
+         </div>
++        <details class="admin-local-editor mb-3">
++            <summary>Уникальное содержание города</summary>
++            <p class="admin-muted mt-2">Пишите реальные местные условия, а не тот же текст с заменой города. Пустые блоки на сайте не выводятся.</p>
++            <label class="admin-label">Заголовок первого экрана</label>
++            <input class="form-control mb-3" maxlength="200" @bind="editPage!.HeroTitle" placeholder="Свой H1 для города (необязательно)" />
++            <label class="admin-label">О работе в этом городе</label>
++            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.LocalIntro"
++                      placeholder="Что полезно знать местному клиенту, какие заявки вывозите, особенности работы."></textarea>
++            <label class="admin-label">Город и его район: зона обслуживания</label>
++            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.CoverageText"
++                      placeholder="Конкретные населённые пункты района, которые вы действительно обслуживаете."></textarea>
++            <label class="admin-label">Условия и порядок вывоза</label>
++            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.PickupDetails"
++                      placeholder="Как согласовать выезд в район, что подготовить, реальный график и условия самопривоза."></textarea>
++        </details>
+         <div class="mb-3">
+             <label class="admin-label">Цена ОТ (коп./кг)</label>
+             <InputNumber class="form-control" TValue="decimal?" @bind-Value="editPage!.Price" />
+@@ -586,6 +483,9 @@
+         ResetCityMessages();
+ 
+         if (string.IsNullOrWhiteSpace(editPage.Title)) { pageMessage = "Укажите Title страницы."; pageError = true; return; }
++        if (editPage.HeroTitle?.Length > 200 || editPage.LocalIntro?.Length > 1500 ||
++            editPage.CoverageText?.Length > 1500 || editPage.PickupDetails?.Length > 1500)
++        { pageMessage = "Превышена длина местного текста: H1 до 200, каждый блок до 1500 символов."; pageError = true; return; }
+         if (editPage.Price is < 0 || editPage.PriceToKopeks is < 0) { pageMessage = "Цена не может быть отрицательной."; pageError = true; return; }
+ 
+         saving = true;
+@@ -665,8 +565,8 @@
+     {
+         <div class="admin-hint mb-3">
+             <i class="fa-solid fa-circle-info"></i>
+-            Страница «Вся Беларусь» открывается по адресу <a href="/?all=1" target="_blank">ecobay.by/</a>, если посетитель не выбрал город
+-            или нажал «Моего города нет в списке». Здесь же настраивается окно выбора города.
++            Общая страница открывается по адресу <a href="/?all=1" target="_blank">ecobay.by/</a>, если посетитель не выбрал город.
++            Здесь настраивается окно выбора города. Работаем только в активных городах и их районах, а не по всей Беларуси.
+         </div>
+ 
+         <div class="row g-3">
+@@ -690,7 +590,7 @@
+                     <h2 class="admin-card-title mt-4">Первый экран</h2>
+                     <div class="mb-3">
+                         <label class="admin-label">Заголовок (H1)</label>
+-                        <input class="form-control" @bind="mainPage.HeroTitle" maxlength="200" placeholder="Быстрый вывоз техники на утилизацию по всей Беларуси" />
++                        <input class="form-control" @bind="mainPage.HeroTitle" maxlength="200" placeholder="Вывоз техники в наших городах и их районах" />
+                     </div>
+                     <div class="mb-3">
+                         <label class="admin-label">Текст под заголовком</label>
+@@ -699,7 +599,7 @@
+                     </div>
+                     <div class="form-check form-switch admin-switch">
+                         <input class="form-check-input" type="checkbox" id="mainCityList" @bind="mainPage.IsCityListShown" />
+-                        <label class="form-check-label" for="mainCityList">Показывать на первом экране города, где мы работаем</label>
++                        <label class="form-check-label" for="mainCityList">Показывать города кнопками (иначе списком)</label>
+                     </div>
+                 </div>
+             </div>
+@@ -744,7 +644,7 @@
+                     </div>
+ 
+                     <button class="admin-btn admin-btn-primary w-100" @onclick="SaveMainPageAsync" disabled="@saving">
+-                        @(saving ? "Сохранение..." : "Сохранить страницу «Вся Беларусь»")
++                        @(saving ? "Сохранение..." : "Сохранить главную страницу")
+                     </button>
+                     @StatusMessage(mainMessage, mainError)
+                 </div>
+@@ -753,7 +653,7 @@
+             <div class="col-lg-4">
+                 <div class="admin-card">
+                     <h2 class="admin-card-title">Общее промо</h2>
+-                    <p class="admin-muted">Всплывающее сообщение для страницы «Вся Беларусь».</p>
++                    <p class="admin-muted">Всплывающее сообщение для общей страницы сайта.</p>
+                     @PromoFields(globalPromo, "globalPromo")
+                     <div class="form-check mb-3">
+                         <input class="form-check-input" type="checkbox" id="globalOnCities" @bind="mainPage.IsGlobalPromoShownOnCityPages" />
+diff --git a/Components/Pages/Contacts.razor b/Components/Pages/Contacts.razor
+--- a/Components/Pages/Contacts.razor
++++ b/Components/Pages/Contacts.razor
+@@ -98,7 +98,8 @@
+                         }
+ 
+                         <p class="starta-desc mb-0">
+-                            <strong>Режим работы:</strong> ежедневно с 9:00 до 20:00
++                            <strong>Режим работы:</strong> вывоз с понедельника по субботу, 9:00–20:00.
++                            В воскресенье принимаем заявки, но не собираем технику. Через сайт заявки принимаются круглосуточно.
+                         </p>
+                     </div>
+                 </div>
+@@ -108,7 +109,7 @@
+ 
+                     <div class="plan p-4">
+                         <p class="starta-desc mb-3">
+-                            <strong>Название организации:</strong> ООО «ЭКОБЭЙ»
++                            <strong>Название организации:</strong> ООО «ЭКОТЕХБЕЛК»
+                         </p>
+ 
+                         <p class="starta-desc mb-3">
+@@ -132,7 +133,8 @@
+     <section class="starta-service py-5">
+         <div class="container">
+             <h2 class="starta-heading mx-auto">Где мы работаем</h2>
+-            <h1 class="starta-h1 text-center mb-5">Наши города</h1>
++            <h1 class="starta-h1 text-center mb-3">Только эти города и их районы</h1>
++            <p class="starta-desc text-center mb-4">Обслуживаем также населённые пункты районов указанных городов. За пределами этих территорий вывоз не выполняем.</p>
+ 
+             <div class="plan p-4">
+                 <div class="row">
+diff --git a/Components/Pages/Home.razor b/Components/Pages/Home.razor
+--- a/Components/Pages/Home.razor
++++ b/Components/Pages/Home.razor
+@@ -72,7 +72,7 @@
+                 {
+                     <li>
+                         <a class="mobile-city-link" href="/?choose-city=1" @onclick="OpenCitySelector" @onclick:preventDefault="true">
+-                            <i class="fa-solid fa-location-dot"></i> @(currentCity?.Name ?? "Вся Беларусь") · сменить
++                            <i class="fa-solid fa-location-dot"></i> @(currentCity?.Name ?? "Города и районы") · сменить
+                         </a>
+                     </li>
+                 }
+@@ -91,7 +91,7 @@
+                         {
+                             <div class="hero-city-bar">
+                                 <i class="fa-solid fa-location-dot"></i>
+-                                <span class="hero-city-name">@(currentCity?.Name ?? "Вся Беларусь")</span>
++                                <span class="hero-city-name">@(currentCity?.Name ?? "Города и районы")</span>
+                                 <a class="hero-city-change" href="/?choose-city=1" @onclick="OpenCitySelector" @onclick:preventDefault="true">Сменить город</a>
+                             </div>
+                         }
+@@ -99,13 +99,19 @@
+                         <h1 class="heroHeading">
+                             @if (currentCity is not null)
+                             {
+-                                @($"Быстрый вывоз техники на утилизацию в {currentCity.NameIn}")
++                                @(string.IsNullOrWhiteSpace(pageCity?.HeroTitle)
++                                    ? $"Вывоз техники в {currentCity.NameIn} и населённых пунктах района"
++                                    : pageCity!.HeroTitle)
+                             }
+                             else
+                             {
+-                                @(string.IsNullOrWhiteSpace(mainPage.HeroTitle) ? "Быстрый вывоз техники на утилизацию по всей Беларуси" : mainPage.HeroTitle)
++                                @(string.IsNullOrWhiteSpace(mainPage.HeroTitle) ? "Вывоз техники в наших городах и их районах" : mainPage.HeroTitle)
+                             }
+                         </h1>
++                        @if (isCityMode)
++                        {
++                            <p class="hero-coverage-note">Обслуживаем этот город и его район. Выезд в населённый пункт района согласуем по телефону.</p>
++                        }
+ 
+                         @if (IsDeliveryPriceModeActive)
+                         {
+@@ -185,17 +191,36 @@
+                             }
+                         }
+ 
+-                        @if (!isCityMode && mainPage.IsCityListShown && activeCities.Count > 0)
++                        <div class="hero-primary-contact">
++                            <a href="tel:@phone" class="starta-button call-button">
++                                <span class="position-relative"><i class="fa-solid fa-phone" aria-hidden="true"></i> @phone</span>
++                                <span class="starta-button-hover"></span>
++                            </a>
++                            <span>Позвоните и согласуйте вывоз. Заявки принимаем и в воскресенье.</span>
++                        </div>
++
++                        @if (!isCityMode)
+                         {
+                             <div class="hero-cities">
+-                                <span class="hero-cities-label">Мы работаем в городах:</span>
+-                                <div class="hero-cities-list">
+-                                    @foreach (var c in activeCities)
+-                                    {
+-                                        <a class="hero-city-chip" href="@($"/{c.Slug}")" onclick="@($"window.ecobayCity && ecobayCity.set('{c.Slug}')")">@c.Name</a>
+-                                    }
+-                                </div>
+-                                <span class="hero-cities-note">Нет вашего города? Оставьте заявку — мы работаем и в районах.</span>
++                                <span class="hero-cities-label">Работаем ТОЛЬКО в указанных городах и их районах</span>
++                                @if (activeCities.Count == 0)
++                                {
++                                    <p class="hero-cities-note">Список обслуживаемых городов временно недоступен. Уточните возможность вывоза по телефону.</p>
++                                }
++                                else if (mainPage.IsCityListShown)
++                                {
++                                    <div class="hero-cities-list">
++                                        @foreach (var c in activeCities)
++                                        {
++                                            <a class="hero-city-chip" href="@($"/{c.Slug}")" onclick="@($"window.ecobayCity && ecobayCity.set('{c.Slug}')")">@c.Name</a>
++                                        }
++                                    </div>
++                                }
++                                else
++                                {
++                                    <p class="hero-cities-note">@string.Join(", ", activeCities.Select(c => c.Name))</p>
++                                }
++                                <span class="hero-cities-note">Населённые пункты районов этих городов также обслуживаем. В остальных городах и районах вывоз не выполняем.</span>
+                             </div>
+                         }
+ 
+@@ -217,11 +242,6 @@
+                             </div>
+                         </div>
+ 
+-                        <!-- Кнопка "Позвонить" -->
+-                        <a href="tel:@phone" class="starta-button call-button mt-5">
+-                            <span class="position-relative">@phone</span>
+-                            <span class="starta-button-hover"></span>
+-                        </a>
+                     </div>
+ 
+                     <!-- ФОРМА (Вторая колонка на десктопе, внизу на мобиле) -->
+@@ -301,6 +321,29 @@
+         </div>
+     </header>
+ 
++    @if (isCityMode && pageCity is not null &&
++        (!string.IsNullOrWhiteSpace(pageCity.LocalIntro) || !string.IsNullOrWhiteSpace(pageCity.CoverageText) || !string.IsNullOrWhiteSpace(pageCity.PickupDetails)))
++    {
++        <section class="city-local-section py-5">
++            <div class="container">
++                <h2 class="starta-h2 mb-4">Вывоз техники в @currentCity!.NameIn: местные условия</h2>
++                <div class="row g-4">
++                    @if (!string.IsNullOrWhiteSpace(pageCity.LocalIntro))
++                    {
++                        <div class="col-lg"><article class="city-local-card"><h3>О работе в городе</h3><p>@pageCity.LocalIntro</p></article></div>
++                    }
++                    @if (!string.IsNullOrWhiteSpace(pageCity.CoverageText))
++                    {
++                        <div class="col-lg"><article class="city-local-card"><h3>Город и населённые пункты района</h3><p>@pageCity.CoverageText</p></article></div>
++                    }
++                    @if (!string.IsNullOrWhiteSpace(pageCity.PickupDetails))
++                    {
++                        <div class="col-lg"><article class="city-local-card"><h3>Как организовать вывоз</h3><p>@pageCity.PickupDetails</p></article></div>
++                    }
++                </div>
++            </div>
++        </section>
++    }
+ 
+     <!-- Starta about -->
+     <!-- Features -->
+@@ -379,7 +422,7 @@
+                                             <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
+                                                 @totalClientsDisplay<i class="fa-solid fa-arrow-up"></i>
+                                             </h4>
+-                                            <p class="starta-descbox">Клиентов</p>
++                                            <p class="starta-descbox">Клиентов из @(goal?.TargetClients ?? 0)</p>
+                                         </article>
+                                     </div>
+                                 </div>
+@@ -394,7 +437,7 @@
+                                             <h4 class="starta-h4 d-flex align-items-center fw-normal mb-0">
+                                                 @totalItemsDisplay<i class="fa-solid fa-arrow-up"></i>
+                                             </h4>
+-                                            <p class="starta-descbox">Ед. техники</p>
++                                            <p class="starta-descbox">Ед. техники из @(goal?.TargetItems ?? 0)</p>
+                                         </article>
+                                     </div>
+                                 </div>
+@@ -470,12 +513,13 @@
+                              alt="BG" />
+ 
+                         <!-- PLay Button -->
+-                        <div class="playBtn startplay">
++                        <button type="button" class="playBtn startplay" aria-label="Смотреть видео">
+                             <i class="fa-solid fa-play"></i>
+-                            <span id="circle-text">
+-                                &nbsp;. смотреть видео . смотреть видео . смотреть видео 
+-                            </span>
+-                        </div>
++                            <svg id="circle-text" viewBox="0 0 160 160" aria-hidden="true" focusable="false">
++                                <defs><path id="ecobay-video-ring" d="M80,80 m-61,0 a61,61 0 1,1 122,0 a61,61 0 1,1 -122,0" /></defs>
++                                <text><textPath href="#ecobay-video-ring" textLength="383.27" lengthAdjust="spacing">СМОТРЕТЬ ВИДЕО · СМОТРЕТЬ ВИДЕО · </textPath></text>
++                            </svg>
++                        </button>
+ 
+                         <!-- video frame -->
+                         <iframe data-src="https://www.youtube.com/embed/e0TblOS6o_s?controls=0"
+@@ -650,7 +694,7 @@
+                 <!-- Текстовый блок -->
+                 <div class="col-md-6">
+                     <h1 class="starta-heading">Наши будние дни</h1>
+-                    <h1 class="starta-h1">Мы вывозим технику ежедневно. Выходной — воскресенье.</h1>
++                    <h1 class="starta-h1">Вывозим технику с понедельника по субботу. Заявки принимаем и в воскресенье.</h1>
+                     <p class="starta-desc">
+                         Начиная с 9 утра и до позднего вечера, наша служба принимает заявки и вывозит технику по согласованному времени.
+                     </p>
+@@ -928,8 +972,8 @@
+                                         Да, но заявки принимаем каждый день.
+                                     </h3>
+                                     <p class="starta-desc">
+-                                        Выезды обычно не выполняются по воскресеньям и в праздничные дни.
+-                                        В эти дни техника не вывозится, но вы можете спокойно оставить заявку заранее.
++                                        В воскресенье мы принимаем заявки, но технику не собираем и не вывозим.
++                                        Выезд согласуем на рабочий день; график в праздники уточняйте по телефону.
+                                     </p>
+                                     <p class="starta-desc">
+                                         Заявки принимаются ежедневно — по телефону и через сайт.
+@@ -1101,8 +1145,8 @@
+                     </p>
+ 
+                     <p class="starta-desc">
+-                        Приём заявок через сайт — круглосуточно. Мы перезвоним
+-                        в рабочее время.
++                        В воскресенье принимаем заявки, но не собираем и не вывозим технику.
++                        Заявку через сайт можно оставить круглосуточно.
+                     </p>
+                 </div>
+             </div>
+@@ -1148,7 +1192,7 @@
+                                 }
+                                 <li>
+                                     <a class="menu-animation" href="/?all=1" onclick="window.ecobayCity && ecobayCity.set('all')">
+-                                        Вся Беларусь
++                                        Все наши города и районы
+                                     </a>
+                                 </li>
+                             </ul>
+@@ -1189,7 +1233,7 @@
+                     <div>
+                         <p class="mb-1 starta-desc"><strong>Время работы:</strong></p>
+                         <p class="mb-0 starta-desc">Пон–Сб: 9:00–20:00</p>
+-                        <p class="mb-0 starta-desc">Воскресенье: выходной</p>
++                        <p class="mb-0 starta-desc">Воскресенье: приём заявок, без вывоза</p>
+                     </div>
+                 </div>
+ 
+@@ -1255,7 +1299,7 @@
+             </button>
+ 
+             <button type="button" class="city-modal-other" @onclick="ChooseAllBelarusAsync">
+-                Моего города нет в списке — показать всю Беларусь
++                Моего города нет: посмотреть зону обслуживания
+             </button>
+         </div>
+     </div>
+@@ -1310,7 +1354,7 @@
+     private string thisYear = DateTime.Now.Year.ToString();
+     private int ProgresPercent = 0;
+     private int year = DateTime.Now.Year;
+-    private string Title = "Вывоз бытовой техники по всей Беларуси";
++    private string Title = "Вывоз техники в наших городах и их районах";
+     private const string DefaultPhone = DbSeeder.DefaultPhone;
+ 
+     private string? HeroTextOverride =>
+@@ -1330,8 +1374,8 @@
+     }
+ 
+     private string FooterCitiesText => activeCities.Count > 0
+-        ? $"Приём бытовой техники в {CitiesInText}, а также в других городах и районах Беларуси."
+-        : "Приём бытовой техники по всей Беларуси.";
++        ? $"Приём бытовой техники только в {CitiesInText} и населённых пунктах районов этих городов."
++        : "Зону обслуживания уточняйте по телефону.";
+ 
+     private string MetaDescription
+     {
+@@ -1341,7 +1385,7 @@
+             if (!isCityMode && !string.IsNullOrWhiteSpace(mainPage.Description)) return mainPage.Description!;
+             return activeCities.Count > 0
+                 ? $"Вывоз и утилизация бытовой техники в {CitiesInText}. Приедем, вынесем и заплатим на месте."
+-                : "Вывоз и утилизация бытовой техники по всей Беларуси.";
++                : "Вывоз техники в обслуживаемых городах и их районах.";
+         }
+     }
+ 
+@@ -1427,7 +1471,7 @@
+ 
+     #region Показатели/цели
+ 
+-    private int totalClientsDisplay;
++    private long totalClientsDisplay;
+     private int totalItemsDisplay;
+     private int progressPercentDisplay;
+ 
+@@ -1480,7 +1524,7 @@
+         }
+         else
+         {
+-            Title = string.IsNullOrWhiteSpace(mainPage.Title) ? "Вывоз бытовой техники по всей Беларуси" : mainPage.Title;
++            Title = string.IsNullOrWhiteSpace(mainPage.Title) ? "Вывоз техники в наших городах и их районах" : mainPage.Title;
+             phone = string.IsNullOrWhiteSpace(mainPage.Phone) ? DefaultPhone : mainPage.Phone!;
+             price = mainPage.Price ?? 20m;
+             priceToKopeks = mainPage.PriceToKopeks;
+@@ -1521,33 +1565,22 @@
+     {
+         var currentYear = DateTime.Now.Year;
+ 
+-        goal = await Db.Goals
++        goal = await Db.Goals.AsNoTracking()
+             .Where(g => g.IsActive && g.Year == currentYear)
+             .OrderByDescending(g => g.StartDate)
+             .FirstOrDefaultAsync();
+ 
+         if (goal == null)
+         {
+-            goal = new Goal
+-            {
+-                Year = currentYear,
+-                TargetClients = 5000,
+-                TargetItems = 12000,
+-                ActualClients = 0,
+-                ActualItems = 0,
+-                InactiveRequests = 0,
+-                StartDate = new DateTime(currentYear, 1, 5),
+-                IsActive = true
+-            };
+-
+-            Db.Goals.Add(goal);
+-            await Db.SaveChangesAsync();
+-        }
+-
+-        totalClientsDisplay = goal.TargetClients;
+-        totalItemsDisplay = goal.TargetItems;
+-
+-        var clientsProgress = goal.ActualClients + goal.InactiveRequests;
++            // Goals are now created only by the admin. A page view must not undo deactivation.
++            totalClientsDisplay = totalItemsDisplay = ProgresPercent = 0;
++            return;
++        }
++
++        totalClientsDisplay = AdminReporting.Completed(goal);
++        totalItemsDisplay = goal.ActualItems;
++
++        var clientsProgress = AdminReporting.Completed(goal);
+ 
+         if (goal.TargetClients > 0)
+             progressPercentDisplay = (int)Math.Round(100.0 * clientsProgress / goal.TargetClients);
+@@ -1834,12 +1867,16 @@
+             Db.Requests.Add(request);
+             await Db.SaveChangesAsync();
+ 
+-            // Атомарное увеличение счётчиков в БД (раньше значение бралось из памяти страницы,
+-            // открытой, возможно, час назад, и одновременные заявки перетирали друг друга).
+-            if (goal != null && goal.Id != 0)
++            // Read the current active goal: the admin may have changed it since this page was opened.
++            var goalYear = DateTime.Now.Year;
++            var activeGoalId = await Db.Goals.AsNoTracking()
++                .Where(g => g.IsActive && g.Year == goalYear)
++                .OrderByDescending(g => g.StartDate).ThenByDescending(g => g.Id)
++                .Select(g => (long?)g.Id).FirstOrDefaultAsync();
++            if (activeGoalId.HasValue)
+             {
+                 await Db.Goals
+-                    .Where(g => g.Id == goal.Id)
++                    .Where(g => g.Id == activeGoalId.Value && g.IsActive)
+                     .ExecuteUpdateAsync(u => u
+                         .SetProperty(g => g.ActualClients, g => g.ActualClients + 1)
+                         .SetProperty(g => g.ActualItems, g => g.ActualItems + 1));
+diff --git a/Components/Shared/AdminDashboard.razor b/Components/Shared/AdminDashboard.razor
+new file mode 100644
+--- /dev/null
++++ b/Components/Shared/AdminDashboard.razor
+@@ -0,0 +1,187 @@
++@using System.Globalization
++@using EcobayApp.Contex
++@using EcobayApp.Models
++@using EcobayApp.Services
++@using Microsoft.EntityFrameworkCore
++@inject IDbContextFactory<AppDBContext> DbFactory
++@inject ILogger<AdminDashboard> Logger
++
++<div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
++    <div><h2 class="admin-card-title mb-1">Обзор работы</h2>
++        <span class="admin-muted">На @loadedAt.ToString("dd.MM.yyyy HH:mm"). Периоды включают сегодняшний день.</span>
++    </div>
++    <button class="btn btn-outline-secondary" disabled="@busy" @onclick="LoadAsync">Обновить</button>
++</div>
++@if (error is not null) { <div class="admin-alert admin-alert-error mb-3">@error</div> }
++@if (loaded)
++{
++    <div class="row g-3 mb-3">
++        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
++            <span>Заявок сегодня</span><strong>@todayCount</strong><small class="admin-muted">За @today.ToString("dd.MM.yyyy")</small>
++        </div></div>
++        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
++            <span>За последние 7 дней</span><strong>@weekCount</strong>
++            <small class="@DeltaClass(weekCount, previousWeek)">@AdminReporting.Change(weekCount, previousWeek)</small>
++        </div></div>
++        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
++            <span>За последние 30 дней</span><strong>@monthCount</strong>
++            <small class="@DeltaClass(monthCount, previousMonth)">@AdminReporting.Change(monthCount, previousMonth)</small>
++        </div></div>
++        <div class="col-sm-6 col-xl-3"><div class="admin-stat">
++            <span>Всего заявок в базе</span><strong>@total</strong><small class="admin-muted">Все города и даты</small>
++        </div></div>
++    </div>
++    <div class="row g-3 mb-3">
++        <div class="col-lg-6">
++            <div class="admin-card">
++                <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
++                    <h2 class="admin-card-title mb-0">Цели на @today.Year год</h2>
++                    <button class="btn btn-sm btn-outline-success" @onclick="() => OnGoals.InvokeAsync()">Изменить цели</button>
++                </div>
++                @if (goal is null)
++                {
++                    <p class="admin-muted">Активная цель на текущий год не задана. Создайте её во вкладке «Цели».</p>
++                }
++                else
++                {
++                    <div class="admin-goal-summary">
++                        <div><span>Клиентов: факт / цель</span><strong>@goal.ActualClients.ToString("N0") / @goal.TargetClients.ToString("N0")</strong></div>
++                        <div><span>Техники: факт / цель</span><strong>@goal.ActualItems.ToString("N0") / @goal.TargetItems.ToString("N0")</strong></div>
++                    </div>
++                    <p class="mt-3 mb-2">Прогресс клиентов: <strong>@ClientPercent.ToString("0.#")%</strong></p>
++                    <div class="admin-progress" role="progressbar" aria-label="Прогресс клиентов"
++                         aria-valuenow="@Math.Clamp(ClientPercent, 0, 100)" aria-valuemin="0" aria-valuemax="100">
++                        <span style="@Width(ClientPercent)"></span>
++                    </div>
++                    <p class="admin-muted mt-2">
++                        По формуле сайта: @goal.ActualClients + @goal.InactiveRequests = @AdminReporting.Completed(goal) из @goal.TargetClients.
++                        Ручная корректировка хранится в InactiveRequests.
++                    </p>
++                    <p class="mb-2">Прогресс техники: <strong>@ItemPercent.ToString("0.#")%</strong></p>
++                    <div class="admin-progress"><span style="@Width(ItemPercent)"></span></div>
++                }
++                <div class="admin-hint mt-3">
++                    За 7 дней: @weekCount против @previousWeek за предыдущие 7.
++                    За 30 дней: @monthCount против @previousMonth за предыдущие 30.
++                    Текущий день ещё не завершён.
++                </div>
++            </div>
++        </div>
++        <div class="col-lg-6">
++            <div class="admin-card">
++                <h2 class="admin-card-title">Заявки по городам за 30 дней</h2>
++                @if (byCity.Count == 0)
++                {
++                    <p class="admin-muted py-5 text-center">За последние 30 дней заявок нет.</p>
++                }
++                else
++                {
++                    <div class="admin-city-chart">
++                        <div class="admin-donut" style="@DonutStyle" role="img" aria-label="Доли заявок по городам; точные значения в списке рядом">
++                            <div><strong>@monthCount</strong><span>заявок</span></div>
++                        </div>
++                        <ul class="admin-chart-legend">
++                            @for (var i = 0; i < byCity.Count; i++)
++                            {
++                                var item = byCity[i];
++                                <li>
++                                    <span class="admin-chart-dot" style="@($"background:{Color(i)}")"></span>
++                                    <span>@item.City</span>
++                                    <strong>@item.Count</strong>
++                                    <small>@((100m * item.Count / monthCount).ToString("0.#"))%</small>
++                                </li>
++                            }
++                        </ul>
++                    </div>
++                }
++            </div>
++        </div>
++    </div>
++    <div class="admin-card">
++        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
++            <h2 class="admin-card-title mb-0">Сегодня: последние @todayRows.Count из @todayCount заявок</h2>
++            <button class="admin-btn admin-btn-primary admin-btn-sm" @onclick="() => OnRequests.InvokeAsync()">Смотреть больше</button>
++        </div>
++        <AdminRequestTable Rows="todayRows" />
++    </div>
++}
++
++@code {
++    [Parameter] public EventCallback OnRequests { get; set; }
++    [Parameter] public EventCallback OnGoals { get; set; }
++    private bool busy, loaded;
++    private string? error;
++    private DateTime today, loadedAt;
++    private int todayCount, weekCount, previousWeek, monthCount, previousMonth, total;
++    private Goal? goal;
++    private List<AdminRequestRow> todayRows = new();
++    private List<CityCount> byCity = new();
++    private sealed class CityCount { public string City { get; set; } = ""; public int Count { get; set; } }
++    private static readonly string[] Colors = { "#4caf50", "#267d97", "#e59c37", "#7565a9", "#c46c70", "#648b76" };
++    private static string Color(int index) => index < Colors.Length ? Colors[index] : $"hsl({index * 137.5 % 360:0},45%,45%)";
++    private decimal ClientPercent => goal is null ? 0 : AdminReporting.Percent(AdminReporting.Completed(goal), goal.TargetClients);
++    private decimal ItemPercent => goal is null ? 0 : AdminReporting.Percent(goal.ActualItems, goal.TargetItems);
++    private static string Width(decimal value) => $"width:{Math.Clamp(value, 0, 100).ToString(CultureInfo.InvariantCulture)}%";
++    private static string DeltaClass(int now, int before) => now > before ? "admin-delta-up" : now < before ? "admin-delta-down" : "admin-muted";
++    private string DonutStyle
++    {
++        get
++        {
++            decimal sum = 0;
++            var stops = byCity.Select((item, index) =>
++            {
++                var start = sum;
++                sum += 100m * item.Count / monthCount;
++                return $"{Color(index)} {start.ToString("0.####", CultureInfo.InvariantCulture)}% {sum.ToString("0.####", CultureInfo.InvariantCulture)}%";
++            });
++            return $"background:conic-gradient({string.Join(",", stops)})";
++        }
++    }
++
++    protected override Task OnInitializedAsync() => LoadAsync();
++    private async Task LoadAsync()
++    {
++        if (busy) return;
++        busy = true;
++        error = null;
++        try
++        {
++            today = DateTime.Today;
++            var end = today.AddDays(1);
++            var monthStart = today.AddDays(-29);
++            var weekStart = today.AddDays(-6);
++            var previousWeekStart = weekStart.AddDays(-7);
++            var previousMonthStart = monthStart.AddDays(-30);
++            await using var db = await DbFactory.CreateDbContextAsync();
++            // SQL aggregates over 60 days, not loading the request history into memory.
++            var days = await db.Requests.AsNoTracking()
++                .Where(r => r.DateCreate >= previousMonthStart && r.DateCreate < end)
++                .GroupBy(r => r.DateCreate.Date)
++                .Select(g => new { Day = g.Key, Count = g.Count() }).ToListAsync();
++            todayCount = days.Where(d => d.Day == today).Sum(d => d.Count);
++            weekCount = days.Where(d => d.Day >= weekStart).Sum(d => d.Count);
++            previousWeek = days.Where(d => d.Day >= previousWeekStart && d.Day < weekStart).Sum(d => d.Count);
++            monthCount = days.Where(d => d.Day >= monthStart).Sum(d => d.Count);
++            previousMonth = days.Where(d => d.Day < monthStart).Sum(d => d.Count);
++            total = await db.Requests.CountAsync();
++            goal = await db.Goals.AsNoTracking().Where(g => g.Year == today.Year && g.IsActive)
++                .OrderByDescending(g => g.StartDate).ThenByDescending(g => g.Id).FirstOrDefaultAsync();
++            todayRows = await AdminReporting.Rows(db.Requests.AsNoTracking()
++                    .Where(r => r.DateCreate >= today && r.DateCreate < end))
++                .OrderByDescending(r => r.Date).ThenByDescending(r => r.Id).Take(8).ToListAsync();
++            byCity = await AdminReporting.Rows(db.Requests.AsNoTracking()
++                    .Where(r => r.DateCreate >= monthStart && r.DateCreate < end))
++                .GroupBy(r => new { r.CityId, r.City })
++                .Select(g => new CityCount { City = g.Key.City, Count = g.Count() })
++                .OrderByDescending(c => c.Count).ThenBy(c => c.City).ToListAsync();
++            loadedAt = DateTime.Now;
++            loaded = true;
++        }
++        catch (Exception ex)
++        {
++            Logger.LogError(ex, "Cannot load dashboard");
++            error = "Не удалось загрузить дашборд. Нажмите «Обновить».";
++        }
++        finally { busy = false; }
++    }
++}
+diff --git a/Components/Shared/AdminGoals.razor b/Components/Shared/AdminGoals.razor
+new file mode 100644
+--- /dev/null
++++ b/Components/Shared/AdminGoals.razor
+@@ -0,0 +1,148 @@
++@using EcobayApp.Contex
++@using EcobayApp.Models
++@using EcobayApp.Services
++@using Microsoft.EntityFrameworkCore
++@inject IDbContextFactory<AppDBContext> DbFactory
++@inject ILogger<AdminGoals> Logger
++
++<div class="admin-card">
++    <h2 class="admin-card-title">Цели и ручная корректировка прогресса</h2>
++    <div class="d-flex gap-2 align-items-end mb-3">
++        <div><label class="admin-label" for="goalsYear">Год</label>
++            <input class="form-control" id="goalsYear" type="number" min="2020" max="2100" @bind="selectedYear" disabled="@busy" /></div>
++        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="LoadAsync">Загрузить</button>
++    </div>
++    @if (error is not null) { <div class="admin-alert admin-alert-error mb-3" role="alert">@error</div> }
++    @if (message is not null) { <div class="admin-alert admin-alert-ok mb-3" role="status">@message</div> }
++    @if (edit is not null)
++    {
++        <h3 class="admin-card-title">@(edit.Id == 0 ? "Новая цель" : "Редактирование цели") на @edit.Year год</h3>
++        <div class="row g-3">
++            <div class="col-lg-7">
++                <div class="row g-3">
++                    <div class="col-sm-6"><label class="admin-label" for="targetClients">Цель: клиентов</label>
++                        <input class="form-control" id="targetClients" type="number" min="1" max="1000000000" @bind="edit.TargetClients" disabled="@busy" /></div>
++                    <div class="col-sm-6"><label class="admin-label" for="targetItems">Цель: единиц техники</label>
++                        <input class="form-control" id="targetItems" type="number" min="1" max="1000000000" @bind="edit.TargetItems" disabled="@busy" /></div>
++                    <div class="col-sm-6"><label class="admin-label" for="actualClients">Фактически: клиентов</label>
++                        <input class="form-control" id="actualClients" type="number" min="0" max="1000000000" @bind="edit.ActualClients" disabled="@busy" /></div>
++                    <div class="col-sm-6"><label class="admin-label" for="actualItems">Фактически: единиц техники</label>
++                        <input class="form-control" id="actualItems" type="number" min="0" max="1000000000" @bind="edit.ActualItems" disabled="@busy" /></div>
++                    <div class="col-sm-6"><label class="admin-label" for="inactiveRequests">Ручная добавка к прогрессу</label>
++                        <input class="form-control" id="inactiveRequests" type="number" min="0" max="1000000000" @bind="edit.InactiveRequests" disabled="@busy" />
++                        <small class="admin-muted">Поле БД InactiveRequests. Это количество, не процент.</small></div>
++                    <div class="col-sm-6"><label class="admin-label" for="goalStart">Дата начала</label>
++                        <input class="form-control" id="goalStart" type="date" @bind="edit.StartDate" disabled="@busy" /></div>
++                </div>
++                <div class="form-check form-switch my-3">
++                    <input class="form-check-input" id="goalActive" type="checkbox" @bind="edit.IsActive" disabled="@busy" />
++                    <label class="form-check-label" for="goalActive">Активная цель этого года</label>
++                </div>
++                <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="SaveAsync">@(busy ? "Сохранение..." : "Сохранить цели и прогресс")</button>
++            </div>
++            <div class="col-lg-5">
++                <div class="admin-hint">
++                    <h3 class="admin-card-title">Предпросмотр</h3>
++                    <p>Клиенты: @edit.ActualClients + @edit.InactiveRequests = <strong>@AdminReporting.Completed(edit)</strong> из @edit.TargetClients.</p>
++                    <p>Выполнение: <strong>@ClientPercent.ToString("0.#")%</strong></p>
++                    <div class="admin-progress"><span style="@Width(ClientPercent)"></span></div>
++                    <p class="mt-3">Техника: @edit.ActualItems из @edit.TargetItems, <strong>@ItemPercent.ToString("0.#")%</strong>.</p>
++                    <div class="admin-progress"><span style="@Width(ItemPercent)"></span></div>
++                    <p class="admin-muted mt-3 mb-0">
++                        После сохранения эти значения увидят дашборд и новые открытия сайта.
++                        Новые заявки по-прежнему автоматически добавляют по 1 к факту клиентов и техники.
++                        Ручная добавка не создаёт заявки и не меняет статистику по городам.
++                    </p>
++                </div>
++            </div>
++        </div>
++    }
++</div>
++
++@code {
++    private int selectedYear = DateTime.Today.Year;
++    private Goal? edit, original;
++    private bool busy;
++    private string? error, message;
++    private decimal ClientPercent => edit is null ? 0 : AdminReporting.Percent(AdminReporting.Completed(edit), edit.TargetClients);
++    private decimal ItemPercent => edit is null ? 0 : AdminReporting.Percent(edit.ActualItems, edit.TargetItems);
++    private static string Width(decimal n) => $"width:{Math.Clamp(n, 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)}%";
++
++    protected override Task OnInitializedAsync() => LoadAsync();
++    private async Task LoadAsync()
++    {
++        if (busy) return;
++        error = message = null;
++        if (selectedYear is < 2020 or > 2100) { error = "Укажите год от 2020 до 2100."; return; }
++        busy = true;
++        try
++        {
++            await using var db = await DbFactory.CreateDbContextAsync();
++            edit = await db.Goals.AsNoTracking().Where(g => g.Year == selectedYear)
++                .OrderByDescending(g => g.IsActive).ThenByDescending(g => g.StartDate).ThenByDescending(g => g.Id)
++                .FirstOrDefaultAsync();
++            original = edit is null ? null : Clone(edit);
++            edit ??= new Goal { Year = selectedYear, StartDate = new DateTime(selectedYear, 1, 1), TargetClients = 5000, TargetItems = 12000 };
++        }
++        catch (Exception ex) { Logger.LogError(ex, "Cannot load goal"); error = "Не удалось загрузить цели."; }
++        finally { busy = false; }
++    }
++
++    private async Task SaveAsync()
++    {
++        if (busy || edit is null) return;
++        error = message = null;
++        if (selectedYear != edit.Year) { error = "Год изменён. Сначала нажмите «Загрузить»."; return; }
++        if (edit.TargetClients is < 1 or > 1000000000 || edit.TargetItems is < 1 or > 1000000000 ||
++            edit.ActualClients is < 0 or > 1000000000 || edit.ActualItems is < 0 or > 1000000000 ||
++            edit.InactiveRequests is < 0 or > 1000000000)
++        { error = "Цели должны быть больше нуля, фактические значения и добавка неотрицательные. Максимум: 1 000 000 000."; return; }
++        if (edit.StartDate.Year != edit.Year) { error = "Дата начала должна относиться к выбранному году."; return; }
++        busy = true;
++        try
++        {
++            await using var db = await DbFactory.CreateDbContextAsync();
++            await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
++            if (edit.Id == 0)
++            {
++                if (await db.Goals.AnyAsync(g => g.Year == edit.Year))
++                { error = "Цель уже создана в другой сессии. Нажмите «Загрузить»."; return; }
++                db.Goals.Add(edit);
++                await db.SaveChangesAsync();
++            }
++            else
++            {
++                var old = original!;
++                // Optimistic comparison protects increments made by new requests while the editor was open.
++                var count = await db.Goals.Where(g => g.Id == old.Id && g.Year == old.Year &&
++                        g.ActualClients == old.ActualClients && g.ActualItems == old.ActualItems &&
++                        g.InactiveRequests == old.InactiveRequests && g.TargetClients == old.TargetClients &&
++                        g.TargetItems == old.TargetItems && g.IsActive == old.IsActive && g.StartDate == old.StartDate)
++                    .ExecuteUpdateAsync(s => s
++                        .SetProperty(g => g.TargetClients, edit.TargetClients)
++                        .SetProperty(g => g.TargetItems, edit.TargetItems)
++                        .SetProperty(g => g.ActualClients, edit.ActualClients)
++                        .SetProperty(g => g.ActualItems, edit.ActualItems)
++                        .SetProperty(g => g.InactiveRequests, edit.InactiveRequests)
++                        .SetProperty(g => g.StartDate, edit.StartDate)
++                        .SetProperty(g => g.IsActive, edit.IsActive));
++                if (count == 0) { error = "Данные изменились: возможно, пришла новая заявка. Нажмите «Загрузить» и повторите правку."; return; }
++            }
++            if (edit.IsActive)
++                await db.Goals.Where(g => g.Year == edit.Year && g.Id != edit.Id && g.IsActive)
++                    .ExecuteUpdateAsync(s => s.SetProperty(g => g.IsActive, false));
++            await transaction.CommitAsync();
++            original = Clone(edit);
++            message = "Цели и прогресс сохранены.";
++        }
++        catch (Exception ex) { Logger.LogError(ex, "Cannot save goal"); error = "Не удалось сохранить. Обновите данные и повторите попытку."; }
++        finally { busy = false; }
++    }
++
++    private static Goal Clone(Goal g) => new()
++    {
++        Id = g.Id, Year = g.Year, TargetClients = g.TargetClients, TargetItems = g.TargetItems,
++        ActualClients = g.ActualClients, ActualItems = g.ActualItems, InactiveRequests = g.InactiveRequests,
++        StartDate = g.StartDate, IsActive = g.IsActive
++    };
++}
+diff --git a/Components/Shared/AdminRequestTable.razor b/Components/Shared/AdminRequestTable.razor
+new file mode 100644
+--- /dev/null
++++ b/Components/Shared/AdminRequestTable.razor
+@@ -0,0 +1,39 @@
++@using EcobayApp.Services
++
++<div class="table-responsive">
++    <table class="table table-hover align-middle admin-table">
++        <thead>
++            <tr><th>Дата</th><th>Клиент</th><th>Телефон</th><th>Сообщение</th><th>Город</th>
++                @if (AllowDelete) { <th><span class="visually-hidden">Действия</span></th> }
++            </tr>
++        </thead>
++        <tbody>
++            @foreach (var row in Rows)
++            {
++                <tr @key="row.Id">
++                    <td class="text-nowrap">@row.Date.ToString("dd.MM.yyyy HH:mm")</td>
++                    <td>@row.Name</td>
++                    <td class="text-nowrap"><a href="@($"tel:{row.Phone}")">@row.Phone</a></td>
++                    <td class="admin-request-message">@row.Message</td>
++                    <td>@row.City</td>
++                    @if (AllowDelete)
++                    {
++                        <td><button type="button" class="btn btn-sm btn-outline-danger"
++                                    disabled="@Busy" @onclick="() => OnDelete.InvokeAsync(row.Id)">Удалить</button></td>
++                    }
++                </tr>
++            }
++            @if (Rows.Count == 0)
++            {
++                <tr><td colspan="@(AllowDelete ? 6 : 5)" class="text-center py-4 admin-muted">Заявок за выбранный период нет.</td></tr>
++            }
++        </tbody>
++    </table>
++</div>
++
++@code {
++    [Parameter] public IReadOnlyList<AdminRequestRow> Rows { get; set; } = Array.Empty<AdminRequestRow>();
++    [Parameter] public bool AllowDelete { get; set; }
++    [Parameter] public bool Busy { get; set; }
++    [Parameter] public EventCallback<long> OnDelete { get; set; }
++}
+diff --git a/Components/Shared/AdminRequests.razor b/Components/Shared/AdminRequests.razor
+new file mode 100644
+--- /dev/null
++++ b/Components/Shared/AdminRequests.razor
+@@ -0,0 +1,156 @@
++@using EcobayApp.Contex
++@using EcobayApp.Models
++@using EcobayApp.Services
++@using Microsoft.EntityFrameworkCore
++@inject IDbContextFactory<AppDBContext> DbFactory
++@inject IJSRuntime JS
++@inject ILogger<AdminRequests> Logger
++
++<div class="admin-card">
++    <h2 class="admin-card-title">Заявки</h2>
++    <p class="admin-muted">Период до 30 дней включительно. Фильтры применяются ко всей базе, а не только к открытой странице.</p>
++    <div class="row g-3 mb-3">
++        <div class="col-sm-6 col-lg-2">
++            <label class="admin-label" for="requestsFrom">С даты</label>
++            <input id="requestsFrom" class="form-control" type="date" @bind="from" disabled="@busy" />
++        </div>
++        <div class="col-sm-6 col-lg-2">
++            <label class="admin-label" for="requestsTo">По дату включительно</label>
++            <input id="requestsTo" class="form-control" type="date" @bind="to" disabled="@busy" />
++        </div>
++        <div class="col-sm-6 col-lg-3">
++            <label class="admin-label" for="requestsSearch">Имя или телефон</label>
++            <input id="requestsSearch" class="form-control" @bind="search" maxlength="100" disabled="@busy" />
++        </div>
++        <div class="col-sm-6 col-lg-3">
++            <label class="admin-label" for="requestsCity">Город</label>
++            <select id="requestsCity" class="form-select" @bind="cityId" disabled="@busy">
++                <option value="">Все города</option>
++                <option value="0">Город не указан</option>
++                @foreach (var city in cities) { <option value="@city.Id">@city.Name</option> }
++            </select>
++        </div>
++        <div class="col-sm-6 col-lg-2">
++            <label class="admin-label" for="requestsSize">На странице</label>
++            <select id="requestsSize" class="form-select" @bind="pageSize" disabled="@busy">
++                <option value="20">20 заявок</option><option value="30">30 заявок</option><option value="50">50 заявок</option>
++            </select>
++        </div>
++    </div>
++    <div class="d-flex flex-wrap gap-2 mb-3">
++        <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="ApplyAsync">Применить</button>
++        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(1)">Сегодня</button>
++        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(7)">7 дней</button>
++        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(30)">30 дней</button>
++    </div>
++    @if (error is not null) { <div class="admin-alert admin-alert-error mb-3" role="alert">@error</div> }
++    @if (hasResult)
++    {
++        <p class="admin-muted">Период: @appliedFrom.ToString("dd.MM.yyyy") — @appliedTo.ToString("dd.MM.yyyy"). Найдено: @total.</p>
++        <AdminRequestTable Rows="rows" AllowDelete="true" Busy="busy" OnDelete="DeleteAsync" />
++        <div class="admin-pagination">
++            <span>Показано @(total == 0 ? 0 : (page - 1) * appliedSize + 1)–@Math.Min(page * appliedSize, total) из @total</span>
++            <div class="d-flex align-items-center gap-2">
++                <button class="btn btn-outline-secondary" disabled="@(busy || page <= 1)" @onclick="() => MoveAsync(page - 1)">Назад</button>
++                <span>Страница @(page) из @Pages</span>
++                <button class="btn btn-outline-secondary" disabled="@(busy || page >= Pages)" @onclick="() => MoveAsync(page + 1)">Далее</button>
++            </div>
++        </div>
++    }
++</div>
++
++@code {
++    [Parameter] public bool TodayOnly { get; set; }
++    private DateTime from = DateTime.Today.AddDays(-29), to = DateTime.Today;
++    private string? search, error;
++    private long? cityId;
++    private int pageSize = 20, appliedSize = 20, page = 1, total;
++    private DateTime appliedFrom, appliedTo;
++    private string? appliedSearch;
++    private long? appliedCityId;
++    private bool busy, hasResult;
++    private int Pages => Math.Max(1, (int)Math.Ceiling((double)total / appliedSize));
++    private List<City> cities = new();
++    private List<AdminRequestRow> rows = new();
++
++    protected override async Task OnInitializedAsync()
++    {
++        if (TodayOnly) from = to = DateTime.Today;
++        await using var db = await DbFactory.CreateDbContextAsync();
++        cities = await db.Cities.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
++        await ApplyAsync();
++    }
++
++    private async Task PresetAsync(int days)
++    {
++        to = DateTime.Today;
++        from = to.AddDays(1 - days);
++        await ApplyAsync();
++    }
++
++    private async Task ApplyAsync()
++    {
++        if (busy) return;
++        error = AdminReporting.ValidateRange(from, to);
++        if (error is not null) return; // Leave the previously applied rows and their period untouched.
++        appliedFrom = from.Date;
++        appliedTo = to.Date;
++        appliedSearch = search?.Trim();
++        appliedCityId = cityId;
++        appliedSize = pageSize is 20 or 30 or 50 ? pageSize : 20;
++        await LoadAsync(1);
++    }
++
++    private Task MoveAsync(int target) => LoadAsync(Math.Clamp(target, 1, Pages));
++
++    private async Task LoadAsync(int target)
++    {
++        if (busy) return;
++        busy = true;
++        error = null;
++        try
++        {
++            await using var db = await DbFactory.CreateDbContextAsync();
++            var endExclusive = appliedTo.AddDays(1);
++            var query = AdminReporting.Rows(db.Requests.AsNoTracking()
++                .Where(r => r.DateCreate >= appliedFrom && r.DateCreate < endExclusive));
++            if (!string.IsNullOrEmpty(appliedSearch))
++                query = query.Where(r => r.Name.Contains(appliedSearch) || r.Phone.Contains(appliedSearch));
++            if (appliedCityId == 0) query = query.Where(r => r.CityId == null);
++            else if (appliedCityId.HasValue) query = query.Where(r => r.CityId == appliedCityId.Value);
++
++            total = await query.CountAsync();
++            page = Math.Clamp(target, 1, Pages);
++            rows = await query.OrderByDescending(r => r.Date).ThenByDescending(r => r.Id)
++                .Skip((page - 1) * appliedSize).Take(appliedSize).ToListAsync();
++            hasResult = true;
++        }
++        catch (Exception ex)
++        {
++            Logger.LogError(ex, "Cannot load requests");
++            error = "Не удалось загрузить заявки. Повторите попытку.";
++            hasResult = false;
++        }
++        finally { busy = false; }
++    }
++
++    private async Task DeleteAsync(long id)
++    {
++        if (busy || !await JS.InvokeAsync<bool>("confirm", "Удалить заявку? Счётчики целей автоматически не изменятся.")) return;
++        busy = true;
++        var success = false;
++        try
++        {
++            await using var db = await DbFactory.CreateDbContextAsync();
++            await db.Requests.Where(r => r.Id == id).ExecuteDeleteAsync();
++            success = true;
++        }
++        catch (Exception ex)
++        {
++            Logger.LogError(ex, "Cannot delete request {RequestId}", id);
++            error = "Не удалось удалить заявку.";
++        }
++        finally { busy = false; }
++        if (success) await LoadAsync(page);
++    }
++}
+diff --git a/Contex/AppDBContext.cs b/Contex/AppDBContext.cs
+--- a/Contex/AppDBContext.cs
++++ b/Contex/AppDBContext.cs
+@@ -31,6 +31,9 @@
+ 			modelBuilder.Entity<AdminUser>()
+ 				.HasIndex(u => u.Login)
+ 				.IsUnique();
++
++			// Filter recent requests and page them in a deterministic order.
++			modelBuilder.Entity<Request>().HasIndex(r => new { r.DateCreate, r.Id });
+ 		}
+ 	}
+ }
+diff --git a/Migrations/20261025092536_AddCityLocalContentAndRequestIndex.Designer.cs b/Migrations/20261025092536_AddCityLocalContentAndRequestIndex.Designer.cs
+new file mode 100644
+--- /dev/null
++++ b/Migrations/20261025092536_AddCityLocalContentAndRequestIndex.Designer.cs
+@@ -0,0 +1,455 @@
++﻿// <auto-generated />
++using System;
++using EcobayApp.Contex;
++using Microsoft.EntityFrameworkCore;
++using Microsoft.EntityFrameworkCore.Infrastructure;
++using Microsoft.EntityFrameworkCore.Metadata;
++using Microsoft.EntityFrameworkCore.Migrations;
++using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
++
++#nullable disable
++
++namespace EcobayApp.Migrations
++{
++    [DbContext(typeof(AppDBContext))]
++    [Migration("20261025092536_AddCityLocalContentAndRequestIndex")]
++    partial class AddCityLocalContentAndRequestIndex
++    {
++        /// <inheritdoc />
++        protected override void BuildTargetModel(ModelBuilder modelBuilder)
++        {
++#pragma warning disable 612, 618
++            modelBuilder
++                .HasAnnotation("ProductVersion", "8.0.22")
++                .HasAnnotation("Relational:MaxIdentifierLength", 128);
++
++            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
++
++            modelBuilder.Entity("EcobayApp.Models.AdminUser", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<DateTime>("CreatedAt")
++                        .HasColumnType("datetime2");
++
++                    b.Property<string>("DisplayName")
++                        .HasMaxLength(100)
++                        .HasColumnType("nvarchar(100)");
++
++                    b.Property<int>("FailedLoginCount")
++                        .HasColumnType("int");
++
++                    b.Property<bool>("IsActive")
++                        .HasColumnType("bit");
++
++                    b.Property<DateTime?>("LastLoginAt")
++                        .HasColumnType("datetime2");
++
++                    b.Property<DateTime?>("LockoutUntil")
++                        .HasColumnType("datetime2");
++
++                    b.Property<string>("Login")
++                        .IsRequired()
++                        .HasMaxLength(64)
++                        .HasColumnType("nvarchar(64)");
++
++                    b.Property<bool>("MustChangePassword")
++                        .HasColumnType("bit");
++
++                    b.Property<string>("PasswordHash")
++                        .IsRequired()
++                        .HasMaxLength(500)
++                        .HasColumnType("nvarchar(500)");
++
++                    b.Property<string>("SecurityStamp")
++                        .IsRequired()
++                        .HasMaxLength(64)
++                        .HasColumnType("nvarchar(64)");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("Login")
++                        .IsUnique();
++
++                    b.ToTable("AdminUsers");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.City", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<string>("DefaultPhone")
++                        .HasMaxLength(50)
++                        .HasColumnType("nvarchar(50)");
++
++                    b.Property<decimal?>("DefaultPrice")
++                        .HasColumnType("decimal(18,2)");
++
++                    b.Property<bool>("IsActive")
++                        .HasColumnType("bit");
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(100)
++                        .HasColumnType("nvarchar(100)");
++
++                    b.Property<string>("NameIn")
++                        .IsRequired()
++                        .HasMaxLength(120)
++                        .HasColumnType("nvarchar(120)");
++
++                    b.Property<string>("Slug")
++                        .IsRequired()
++                        .HasMaxLength(50)
++                        .HasColumnType("nvarchar(50)");
++
++                    b.Property<int>("SortOrder")
++                        .HasColumnType("int");
++
++                    b.HasKey("Id");
++
++                    b.ToTable("Cities");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.Client", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<long?>("CityId")
++                        .HasColumnType("bigint");
++
++                    b.Property<string>("Comment")
++                        .HasMaxLength(500)
++                        .HasColumnType("nvarchar(500)");
++
++                    b.Property<string>("Name")
++                        .IsRequired()
++                        .HasMaxLength(100)
++                        .HasColumnType("nvarchar(100)");
++
++                    b.Property<string>("Phone")
++                        .IsRequired()
++                        .HasMaxLength(50)
++                        .HasColumnType("nvarchar(50)");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("CityId");
++
++                    b.ToTable("Clients");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.Goal", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<int>("ActualClients")
++                        .HasColumnType("int");
++
++                    b.Property<int>("ActualItems")
++                        .HasColumnType("int");
++
++                    b.Property<int>("InactiveRequests")
++                        .HasColumnType("int");
++
++                    b.Property<bool>("IsActive")
++                        .HasColumnType("bit");
++
++                    b.Property<DateTime>("StartDate")
++                        .HasColumnType("datetime2");
++
++                    b.Property<int>("TargetClients")
++                        .HasColumnType("int");
++
++                    b.Property<int>("TargetItems")
++                        .HasColumnType("int");
++
++                    b.Property<int>("Year")
++                        .HasColumnType("int");
++
++                    b.HasKey("Id");
++
++                    b.ToTable("Goals");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.MainPageSettings", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<string>("CitySelectorText")
++                        .HasMaxLength(400)
++                        .HasColumnType("nvarchar(400)");
++
++                    b.Property<string>("CitySelectorTitle")
++                        .HasMaxLength(160)
++                        .HasColumnType("nvarchar(160)");
++
++                    b.Property<string>("Description")
++                        .HasMaxLength(300)
++                        .HasColumnType("nvarchar(300)");
++
++                    b.Property<string>("HeroText")
++                        .HasMaxLength(600)
++                        .HasColumnType("nvarchar(600)");
++
++                    b.Property<string>("HeroTitle")
++                        .HasMaxLength(200)
++                        .HasColumnType("nvarchar(200)");
++
++                    b.Property<bool>("IsCityListShown")
++                        .HasColumnType("bit");
++
++                    b.Property<bool>("IsCitySelectorEnabled")
++                        .HasColumnType("bit");
++
++                    b.Property<bool>("IsDeliveryPriceMode")
++                        .HasColumnType("bit");
++
++                    b.Property<bool>("IsGlobalPromoShownOnCityPages")
++                        .HasColumnType("bit");
++
++                    b.Property<bool>("IsRememberCityEnabled")
++                        .HasColumnType("bit");
++
++                    b.Property<string>("KeyWords")
++                        .HasMaxLength(300)
++                        .HasColumnType("nvarchar(300)");
++
++                    b.Property<string>("Phone")
++                        .HasMaxLength(50)
++                        .HasColumnType("nvarchar(50)");
++
++                    b.Property<decimal?>("Price")
++                        .HasColumnType("decimal(18,2)");
++
++                    b.Property<int?>("PriceToKopeks")
++                        .HasColumnType("int");
++
++                    b.Property<string>("Title")
++                        .IsRequired()
++                        .HasMaxLength(160)
++                        .HasColumnType("nvarchar(160)");
++
++                    b.Property<DateTime>("UpdatedAt")
++                        .HasColumnType("datetime2");
++
++                    b.HasKey("Id");
++
++                    b.ToTable("MainPageSettings");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.PageCity", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<long>("CityId")
++                        .HasColumnType("bigint");
++
++                    b.Property<string>("CoverageText")
++                        .HasMaxLength(1500)
++                        .HasColumnType("nvarchar(1500)");
++
++                    b.Property<string>("Description")
++                        .HasMaxLength(300)
++                        .HasColumnType("nvarchar(300)");
++
++                    b.Property<string>("HeroTitle")
++                        .HasMaxLength(200)
++                        .HasColumnType("nvarchar(200)");
++
++                    b.Property<bool>("IsDeliveryPriceMode")
++                        .HasColumnType("bit");
++
++                    b.Property<bool>("IsShowPromo")
++                        .HasColumnType("bit");
++
++                    b.Property<string>("KeyWords")
++                        .HasMaxLength(300)
++                        .HasColumnType("nvarchar(300)");
++
++                    b.Property<string>("LocalIntro")
++                        .HasMaxLength(1500)
++                        .HasColumnType("nvarchar(1500)");
++
++                    b.Property<string>("PhoneCity")
++                        .HasMaxLength(50)
++                        .HasColumnType("nvarchar(50)");
++
++                    b.Property<string>("PickupDetails")
++                        .HasMaxLength(1500)
++                        .HasColumnType("nvarchar(1500)");
++
++                    b.Property<decimal?>("Price")
++                        .HasColumnType("decimal(18,2)");
++
++                    b.Property<int?>("PriceToKopeks")
++                        .HasColumnType("int");
++
++                    b.Property<string>("PromoText")
++                        .HasMaxLength(500)
++                        .HasColumnType("nvarchar(500)");
++
++                    b.Property<string>("Title")
++                        .IsRequired()
++                        .HasMaxLength(160)
++                        .HasColumnType("nvarchar(160)");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("CityId");
++
++                    b.ToTable("PageCities");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.PromoMessage", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<long?>("CityId")
++                        .HasColumnType("bigint");
++
++                    b.Property<bool>("IsActive")
++                        .HasColumnType("bit");
++
++                    b.Property<string>("Text")
++                        .IsRequired()
++                        .HasMaxLength(500)
++                        .HasColumnType("nvarchar(500)");
++
++                    b.Property<string>("Title")
++                        .IsRequired()
++                        .HasMaxLength(160)
++                        .HasColumnType("nvarchar(160)");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("CityId");
++
++                    b.ToTable("PromoMessages");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.Request", b =>
++                {
++                    b.Property<long>("Id")
++                        .ValueGeneratedOnAdd()
++                        .HasColumnType("bigint");
++
++                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
++
++                    b.Property<long>("ClientId")
++                        .HasColumnType("bigint");
++
++                    b.Property<DateTime>("DateCreate")
++                        .HasColumnType("datetime2");
++
++                    b.Property<string>("Message")
++                        .HasMaxLength(500)
++                        .HasColumnType("nvarchar(500)");
++
++                    b.Property<long?>("PageCityId")
++                        .HasColumnType("bigint");
++
++                    b.Property<string>("Source")
++                        .HasMaxLength(300)
++                        .HasColumnType("nvarchar(300)");
++
++                    b.HasKey("Id");
++
++                    b.HasIndex("ClientId");
++
++                    b.HasIndex("PageCityId");
++
++                    b.HasIndex("DateCreate", "Id");
++
++                    b.ToTable("Requests");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.Client", b =>
++                {
++                    b.HasOne("EcobayApp.Models.City", "City")
++                        .WithMany("Clients")
++                        .HasForeignKey("CityId");
++
++                    b.Navigation("City");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.PageCity", b =>
++                {
++                    b.HasOne("EcobayApp.Models.City", "City")
++                        .WithMany("Pages")
++                        .HasForeignKey("CityId")
++                        .OnDelete(DeleteBehavior.Cascade)
++                        .IsRequired();
++
++                    b.Navigation("City");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.PromoMessage", b =>
++                {
++                    b.HasOne("EcobayApp.Models.City", "City")
++                        .WithMany()
++                        .HasForeignKey("CityId");
++
++                    b.Navigation("City");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.Request", b =>
++                {
++                    b.HasOne("EcobayApp.Models.Client", "Client")
++                        .WithMany("Requests")
++                        .HasForeignKey("ClientId")
++                        .OnDelete(DeleteBehavior.Cascade)
++                        .IsRequired();
++
++                    b.HasOne("EcobayApp.Models.PageCity", "PageCity")
++                        .WithMany()
++                        .HasForeignKey("PageCityId");
++
++                    b.Navigation("Client");
++
++                    b.Navigation("PageCity");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.City", b =>
++                {
++                    b.Navigation("Clients");
++
++                    b.Navigation("Pages");
++                });
++
++            modelBuilder.Entity("EcobayApp.Models.Client", b =>
++                {
++                    b.Navigation("Requests");
++                });
++#pragma warning restore 612, 618
++        }
++    }
++}
+diff --git a/Migrations/20261025092536_AddCityLocalContentAndRequestIndex.cs b/Migrations/20261025092536_AddCityLocalContentAndRequestIndex.cs
+new file mode 100644
+--- /dev/null
++++ b/Migrations/20261025092536_AddCityLocalContentAndRequestIndex.cs
+@@ -0,0 +1,84 @@
++﻿using Microsoft.EntityFrameworkCore.Migrations;
++
++#nullable disable
++
++namespace EcobayApp.Migrations
++{
++    /// <inheritdoc />
++    public partial class AddCityLocalContentAndRequestIndex : Migration
++    {
++        /// <inheritdoc />
++        protected override void Up(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.AddColumn<string>(
++                name: "CoverageText",
++                table: "PageCities",
++                type: "nvarchar(1500)",
++                maxLength: 1500,
++                nullable: true);
++
++            migrationBuilder.AddColumn<string>(
++                name: "HeroTitle",
++                table: "PageCities",
++                type: "nvarchar(200)",
++                maxLength: 200,
++                nullable: true);
++
++            migrationBuilder.AddColumn<string>(
++                name: "LocalIntro",
++                table: "PageCities",
++                type: "nvarchar(1500)",
++                maxLength: 1500,
++                nullable: true);
++
++            migrationBuilder.AddColumn<string>(
++                name: "PickupDetails",
++                table: "PageCities",
++                type: "nvarchar(1500)",
++                maxLength: 1500,
++                nullable: true);
++
++            migrationBuilder.CreateIndex(
++                name: "IX_Requests_DateCreate_Id",
++                table: "Requests",
++                columns: new[] { "DateCreate", "Id" });
++
++            // Replace only known old defaults. Do not overwrite the owner's custom copy.
++            migrationBuilder.Sql("""
++                UPDATE [MainPageSettings]
++                SET [Title] = N'Вывоз техники в наших городах и их районах'
++                WHERE [Title] = N'Вывоз бытовой техники по всей Беларуси';
++                UPDATE [MainPageSettings]
++                SET [HeroTitle] = N'Вывоз техники в наших городах и их районах'
++                WHERE [HeroTitle] = N'Быстрый вывоз техники на утилизацию по всей Беларуси';
++                UPDATE [MainPageSettings]
++                SET [Description] = N'Вывоз техники только в указанных на сайте городах и населённых пунктах их районов. Выберите город и узнайте условия.'
++                WHERE [Description] = N'Вывоз и утилизация бытовой техники по Беларуси: приедем, вынесем, вывезем и заплатим на месте.';
++                """);
++        }
++
++        /// <inheritdoc />
++        protected override void Down(MigrationBuilder migrationBuilder)
++        {
++            migrationBuilder.DropIndex(
++                name: "IX_Requests_DateCreate_Id",
++                table: "Requests");
++
++            migrationBuilder.DropColumn(
++                name: "CoverageText",
++                table: "PageCities");
++
++            migrationBuilder.DropColumn(
++                name: "HeroTitle",
++                table: "PageCities");
++
++            migrationBuilder.DropColumn(
++                name: "LocalIntro",
++                table: "PageCities");
++
++            migrationBuilder.DropColumn(
++                name: "PickupDetails",
++                table: "PageCities");
++        }
++    }
++}
+diff --git a/Migrations/AppDBContextModelSnapshot.cs b/Migrations/AppDBContextModelSnapshot.cs
+--- a/Migrations/AppDBContextModelSnapshot.cs
++++ b/Migrations/AppDBContextModelSnapshot.cs
+@@ -266,10 +266,18 @@
+                     b.Property<long>("CityId")
+                         .HasColumnType("bigint");
+ 
++                    b.Property<string>("CoverageText")
++                        .HasMaxLength(1500)
++                        .HasColumnType("nvarchar(1500)");
++
+                     b.Property<string>("Description")
+                         .HasMaxLength(300)
+                         .HasColumnType("nvarchar(300)");
+ 
++                    b.Property<string>("HeroTitle")
++                        .HasMaxLength(200)
++                        .HasColumnType("nvarchar(200)");
++
+                     b.Property<bool>("IsDeliveryPriceMode")
+                         .HasColumnType("bit");
+ 
+@@ -280,10 +288,18 @@
+                         .HasMaxLength(300)
+                         .HasColumnType("nvarchar(300)");
+ 
++                    b.Property<string>("LocalIntro")
++                        .HasMaxLength(1500)
++                        .HasColumnType("nvarchar(1500)");
++
+                     b.Property<string>("PhoneCity")
+                         .HasMaxLength(50)
+                         .HasColumnType("nvarchar(50)");
+ 
++                    b.Property<string>("PickupDetails")
++                        .HasMaxLength(1500)
++                        .HasColumnType("nvarchar(1500)");
++
+                     b.Property<decimal?>("Price")
+                         .HasColumnType("decimal(18,2)");
+ 
+@@ -367,6 +383,8 @@
+                     b.HasIndex("ClientId");
+ 
+                     b.HasIndex("PageCityId");
++
++                    b.HasIndex("DateCreate", "Id");
+ 
+                     b.ToTable("Requests");
+                 });
+diff --git a/Models/MainPageSettings.cs b/Models/MainPageSettings.cs
+--- a/Models/MainPageSettings.cs
++++ b/Models/MainPageSettings.cs
+@@ -16,7 +16,7 @@
+ 
+ 		[Required]
+ 		[MaxLength(160)]
+-		public string Title { get; set; } = "Вывоз бытовой техники по всей Беларуси";
++		public string Title { get; set; } = "Вывоз техники в наших городах и их районах";
+ 
+ 		[MaxLength(300)]
+ 		public string? Description { get; set; }
+diff --git a/Models/PageCity.cs b/Models/PageCity.cs
+--- a/Models/PageCity.cs
++++ b/Models/PageCity.cs
+@@ -1,43 +1,58 @@
+-﻿using System.ComponentModel.DataAnnotations;
+-
+-namespace EcobayApp.Models
+-{
+-	public class PageCity
+-	{
+-		[Key]
+-		public long Id { get; set; }
+-
+-		[Required]
+-		[MaxLength(160)]
+-		public string Title { get; set; } = null!;
+-
+-		[MaxLength(300)]
+-		public string? Description { get; set; }
+-
+-		[MaxLength(300)]
+-		public string? KeyWords { get; set; }
+-
+-		[Required]
+-		public long CityId { get; set; }
+-		public City City { get; set; } = null!;
+-
+-		/// <summary>
+-		/// Если true, диапазон цены трактуется как:
+-		/// ОТ — мы сами приезжаем и вывозим,
+-		/// ДО — клиент сам привозит технику в передвижной пункт.
+-		/// </summary>
+-		public bool IsDeliveryPriceMode { get; set; } = false;
+-
+-		public decimal? Price { get; set; }
+-
+-		public int? PriceToKopeks { get; set; }
+-
+-		[MaxLength(50)]
+-		public string? PhoneCity { get; set; }
+-
+-		public bool IsShowPromo { get; set; } = false;
+-
+-		[MaxLength(500)]
+-		public string? PromoText { get; set; }
+-	}
+-}
+\ No newline at end of file
++﻿using System.ComponentModel.DataAnnotations;
++
++namespace EcobayApp.Models
++{
++	public class PageCity
++	{
++		[Key]
++		public long Id { get; set; }
++
++		[Required]
++		[MaxLength(160)]
++		public string Title { get; set; } = null!;
++
++		[MaxLength(300)]
++		public string? Description { get; set; }
++
++		[MaxLength(300)]
++		public string? KeyWords { get; set; }
++
++		[Required]
++		public long CityId { get; set; }
++		public City City { get; set; } = null!;
++
++		/// <summary>Optional city-specific first-screen heading and useful local details. Plain text only.</summary>
++		[MaxLength(200)]
++		public string? HeroTitle { get; set; }
++
++		[MaxLength(1500)]
++		public string? LocalIntro { get; set; }
++
++		/// <summary>Actual covered towns/villages of this city's district; do not list unsupported places.</summary>
++		[MaxLength(1500)]
++		public string? CoverageText { get; set; }
++
++		/// <summary>Real dispatch schedule, pickup conditions, preparation or self-delivery details.</summary>
++		[MaxLength(1500)]
++		public string? PickupDetails { get; set; }
++
++		/// <summary>
++		/// Если true, диапазон цены трактуется как:
++		/// ОТ — мы сами приезжаем и вывозим,
++		/// ДО — клиент сам привозит технику в передвижной пункт.
++		/// </summary>
++		public bool IsDeliveryPriceMode { get; set; } = false;
++
++		public decimal? Price { get; set; }
++
++		public int? PriceToKopeks { get; set; }
++
++		[MaxLength(50)]
++		public string? PhoneCity { get; set; }
++
++		public bool IsShowPromo { get; set; } = false;
++
++		[MaxLength(500)]
++		public string? PromoText { get; set; }
++	}
++}
+diff --git a/README_PATCH_V2.md b/README_PATCH_V2.md
+new file mode 100644
+--- /dev/null
++++ b/README_PATCH_V2.md
+@@ -0,0 +1,91 @@
++# Ecobay: патч v2
++
++## Какую версию обновляет
++
++Патч рассчитан на предыдущий архив **Ecobay_updated.zip**, выданный в этой переписке. Это не полный проект и не готовая папка публикации IIS. Если после того архива вы правили те же файлы самостоятельно, сначала объедините изменения через Git или сравнение файлов, не заменяйте их вслепую.
++
++В ZIP включены только новые и изменённые файлы с исходными путями. Картинок, зависимостей, `bin`, `obj`, файлов конфигурации с паролями и тестовой базы в нём нет. `Ecobay-v2.patch` содержит те же изменения в формате unified diff; это альтернативный способ установки, применять оба способа не нужно. `patch-manifest.json` перечисляет файлы и SHA-256 предыдущей и новой версий.
++
++## Установка
++
++1. Сделайте резервную копию исходников и БД. Не подменяйте исходники работающего приложения до подготовки миграции и публикации.
++2. Распакуйте ZIP в корень предыдущего проекта с сохранением путей и заменой перечисленных файлов. Либо из корня проекта выполните:
++
++   ```sh
++   git apply --check Ecobay-v2.patch
++   git apply Ecobay-v2.patch
++   ```
++
++3. Примените **одним** из способов новую миграцию `AddCityLocalContentAndRequestIndex`:
++
++   ```sh
++   dotnet ef database update
++   ```
++
++   Или выполните `Sql/2026-10-25_PatchV2.sql` на вашей SQL Server БД. SQL-скрипт рассчитан на БД с уже установленной первой версией и её миграцией `AddCityActiveMainPageAdminAuth`; скрипт идемпотентный.
++
++4. Соберите и опубликуйте проект обычным для вашего IIS/хостинга способом. `appsettings.json`, пароли и каталог ключей `App_Data/keys` оставьте своими; этот патч их не меняет.
++
++Миграция добавляет четыре nullable-поля `PageCities` и индекс заявок по дате/ID. Таблицы и заявки не удаляются, начальные/фактические значения целей не меняются. Только старые стандартные H1, Title и description общей страницы с обещанием работы по всей Беларуси заменяются на корректную географию; произвольные тексты, введённые вами, не перезаписываются. Проверьте собственные рекламные формулировки в разделе «Главная сайта».
++
++## Изменения
++
++### Главная и страницы городов
++
++- Телефон крупной кнопкой с иконкой звонка расположен **до** декоративных иконок и списка городов. На мобильном кнопка на всю ширину.
++- Указано: работаем **только** в активных городах из БД и населённых пунктах районов этих городов. На других территориях вывоз не обещается.
++- В воскресенье принимаем заявки, но не собираем и не вывозим технику. Информация приведена к одному виду в главной, FAQ и контактах.
++- Юридическое название в контактах исправлено на **ООО «ЭКОТЕХБЕЛК»**; на остальных страницах оно уже было таким.
++- Кнопка запуска видео с вращающейся надписью центрирована. Текст по окружности переведён на SVG, не зависит от вычислений CircleType и ширины контейнера.
++- На страницах городов появились необязательные местные блоки. Их заполнение описано в `CITY_PAGES.md`. Пустые блоки не отображаются, HTML из полей не исполняется.
++
++### Дашборд
++
++- Заявки за сегодня, последние 7 и 30 дней, общее количество.
++- Изменение за 7/30 дней относительно предыдущего такого же периода, в штуках и процентах. При нулевом предыдущем значении процент не выдумывается.
++- Цели: факт / план по клиентам и технике, процент выполнения и ручная добавка.
++- Кольцевая диаграмма заявок по городам за последние 30 дней, рядом точные количества и доли. Рисуется средствами CSS без новой внешней библиотеки.
++- Последние 8 заявок за сегодня. «Смотреть больше» открывает вкладку «Заявки» с фильтром на сегодняшний день.
++
++Статистика строится по реальным строкам `Requests`, а не по ручной корректировке целей. Записи без определяемого города учитываются отдельной группой. Сравниваются календарные периоды, текущий день включён и пока не завершён. Используется существующая в проекте договорённость `DateCreate = DateTime.Now`: границы суток соответствуют часовому поясу сервера. Для белорусского рабочего дня проверьте часовой пояс сервера/IIS; исторические даты этим патчем не сдвигаются.
++
++### Заявки
++
++- Отдельная вкладка с фильтром дат, города, имени или телефона.
++- Максимум **30 дней включительно**: например, 1–30 октября можно, 1–31 октября нельзя. Конечная дата включается целиком.
++- Страницы по **20, 30 или 50** записей, «Назад»/«Далее», количество результатов.
++- Фильтрация и пагинация выполняются в БД. Порядок: новые сверху, при совпадении даты сортировка по ID.
++- Удаление заявки сохранено с подтверждением. Оно не уменьшает цели автоматически, как и в предыдущей версии.
++
++### Цели
++
++Во вкладке «Цели» выбирается год и редактируются существующие поля:
++
++- `TargetClients`, `TargetItems`: целевые значения;
++- `ActualClients`, `ActualItems`: фактические значения;
++- `InactiveRequests`: **ручная добавка** к прогрессу клиентов;
++- `StartDate`, `IsActive`.
++
++Формула сохранена:
++
++```text
++Прогресс клиентов = (ActualClients + InactiveRequests) / TargetClients × 100%
++Прогресс техники = ActualItems / TargetItems × 100%
++```
++
++`InactiveRequests` не является процентом: например, факт 123 + добавка 17 при цели 250 дают 56%. Полоса ограничена 100%, а в панели фактический процент может быть выше. Ручная добавка не создаёт заявки и не влияет на диаграмму/сравнение периодов.
++
++Добавлена защита от перезаписи свежих данных: если во время редактирования пришла заявка или другой администратор изменил цель, сохранение попросит сначала загрузить актуальное состояние. Открытие главной страницы больше не создаёт новую активную цель взамен отключённой.
++
++На сайте счётчики в блоке целей теперь показывают выполненное количество и целевое значение, а не выдают план за факт. Изменения видны при новом открытии/обновлении публичной страницы.
++
++## Что проверено
++
++- Сборка проекта .NET 8 без ошибок.
++- Один короткий браузерный smoke-тест на изолированной SQLite БД с искусственными данными: статистика дашборда, диаграмма, 8 строк за сегодня, переход к заявкам, пагинация, размер 50, ограничение дат, сохранение InactiveRequests, сохранение и вывод городского текста.
++- Положение телефона до иконок, центр кнопки видео и отсутствие горизонтального переполнения на ширине 390 px.
++- В этом прогоне ошибок JavaScript не обнаружено.
++
++Боевая БД, хостинг и Google Ads не проверялись и не изменялись. Полного регрессионного тестирования не было, в соответствии с запросом на минимальные проверки. SQL Server миграция сгенерирована, но на вашем сервере ещё не применена.
++
++Сборка также показывает предупреждение о старой версии MailKit 4.14.1; пакет существовал в исходном проекте и этим патчем не обновлялся. Обновление зависимости лучше сделать отдельным небольшим изменением с проверкой отправки почты.
+diff --git a/Services/AdminReporting.cs b/Services/AdminReporting.cs
+new file mode 100644
+--- /dev/null
++++ b/Services/AdminReporting.cs
+@@ -0,0 +1,54 @@
++using EcobayApp.Models;
++using Microsoft.EntityFrameworkCore;
++
++namespace EcobayApp.Services;
++
++/// <summary>Shared SQL projections and interval rules. Dates use the existing DateCreate server-local convention.</summary>
++public static class AdminReporting
++{
++    public static string? ValidateRange(DateTime from, DateTime to)
++    {
++        if (to.Date < from.Date) return "Дата окончания не может быть раньше даты начала.";
++        if ((to.Date - from.Date).Days >= 30) return "Выберите диапазон не более 30 дней включительно.";
++        return null;
++    }
++
++    public static IQueryable<AdminRequestRow> Rows(IQueryable<Request> requests) =>
++        requests.Select(r => new AdminRequestRow
++        {
++            Id = r.Id,
++            Date = r.DateCreate,
++            Name = r.Client.Name,
++            Phone = r.Client.Phone,
++            Message = r.Message,
++            CityId = r.PageCity != null ? (long?)r.PageCity.CityId : r.Client.CityId,
++            City = r.PageCity != null ? r.PageCity.City.Name
++                : r.Client.City != null ? r.Client.City.Name : "Город не указан"
++        });
++
++    // Keep the legacy public formula explicit; InactiveRequests is NOT a stored percentage.
++    public static long Completed(Goal goal) => (long)goal.ActualClients + goal.InactiveRequests;
++    public static decimal Percent(long completed, int target) =>
++        target > 0 ? Math.Round(100m * completed / target, 1) : 0m;
++
++    public static string Change(int current, int previous)
++    {
++        var delta = current - previous;
++        var signed = delta > 0 ? $"+{delta}" : delta.ToString();
++        if (previous == 0)
++            return current == 0 ? "Без изменений; в предыдущем периоде 0" : $"{signed}; в предыдущем периоде 0";
++        var percent = Math.Round(100m * delta / previous, 1);
++        return $"{signed} ({(percent > 0 ? "+" : "")}{percent:0.#}%) к предыдущему периоду";
++    }
++}
++
++public sealed class AdminRequestRow
++{
++    public long Id { get; set; }
++    public DateTime Date { get; set; }
++    public string Name { get; set; } = "";
++    public string Phone { get; set; } = "";
++    public string? Message { get; set; }
++    public long? CityId { get; set; }
++    public string City { get; set; } = "";
++}
+diff --git a/Services/DbSeeder.cs b/Services/DbSeeder.cs
+--- a/Services/DbSeeder.cs
++++ b/Services/DbSeeder.cs
+@@ -74,10 +74,10 @@
+ 
+ 		public static MainPageSettings CreateDefaultMainPage() => new()
+ 		{
+-			Title = "Вывоз бытовой техники по всей Беларуси",
+-			Description = "Вывоз и утилизация бытовой техники по Беларуси: приедем, вынесем, вывезем и заплатим на месте.",
++			Title = "Вывоз техники в наших городах и их районах",
++			Description = "Вывоз техники только в указанных на сайте городах и населённых пунктах их районов. Выберите город и узнайте условия.",
+ 			KeyWords = "вывоз техники, утилизация техники, приём бытовой техники, утилизация электроники, Беларусь",
+-			HeroTitle = "Быстрый вывоз техники на утилизацию по всей Беларуси",
++			HeroTitle = "Вывоз техники в наших городах и их районах",
+ 			Phone = DefaultPhone,
+ 			Price = 20m,
+ 			IsCityListShown = true,
+diff --git a/Sql/2026-10-25_PatchV2.sql b/Sql/2026-10-25_PatchV2.sql
+new file mode 100644
+--- /dev/null
++++ b/Sql/2026-10-25_PatchV2.sql
+@@ -0,0 +1,78 @@
++﻿BEGIN TRANSACTION;
++GO
++
++IF NOT EXISTS (
++    SELECT * FROM [__EFMigrationsHistory]
++    WHERE [MigrationId] = N'20261025092536_AddCityLocalContentAndRequestIndex'
++)
++BEGIN
++    ALTER TABLE [PageCities] ADD [CoverageText] nvarchar(1500) NULL;
++END;
++GO
++
++IF NOT EXISTS (
++    SELECT * FROM [__EFMigrationsHistory]
++    WHERE [MigrationId] = N'20261025092536_AddCityLocalContentAndRequestIndex'
++)
++BEGIN
++    ALTER TABLE [PageCities] ADD [HeroTitle] nvarchar(200) NULL;
++END;
++GO
++
++IF NOT EXISTS (
++    SELECT * FROM [__EFMigrationsHistory]
++    WHERE [MigrationId] = N'20261025092536_AddCityLocalContentAndRequestIndex'
++)
++BEGIN
++    ALTER TABLE [PageCities] ADD [LocalIntro] nvarchar(1500) NULL;
++END;
++GO
++
++IF NOT EXISTS (
++    SELECT * FROM [__EFMigrationsHistory]
++    WHERE [MigrationId] = N'20261025092536_AddCityLocalContentAndRequestIndex'
++)
++BEGIN
++    ALTER TABLE [PageCities] ADD [PickupDetails] nvarchar(1500) NULL;
++END;
++GO
++
++IF NOT EXISTS (
++    SELECT * FROM [__EFMigrationsHistory]
++    WHERE [MigrationId] = N'20261025092536_AddCityLocalContentAndRequestIndex'
++)
++BEGIN
++    CREATE INDEX [IX_Requests_DateCreate_Id] ON [Requests] ([DateCreate], [Id]);
++END;
++GO
++
++IF NOT EXISTS (
++    SELECT * FROM [__EFMigrationsHistory]
++    WHERE [MigrationId] = N'20261025092536_AddCityLocalContentAndRequestIndex'
++)
++BEGIN
++    UPDATE [MainPageSettings]
++    SET [Title] = N'Вывоз техники в наших городах и их районах'
++    WHERE [Title] = N'Вывоз бытовой техники по всей Беларуси';
++    UPDATE [MainPageSettings]
++    SET [HeroTitle] = N'Вывоз техники в наших городах и их районах'
++    WHERE [HeroTitle] = N'Быстрый вывоз техники на утилизацию по всей Беларуси';
++    UPDATE [MainPageSettings]
++    SET [Description] = N'Вывоз техники только в указанных на сайте городах и населённых пунктах их районов. Выберите город и узнайте условия.'
++    WHERE [Description] = N'Вывоз и утилизация бытовой техники по Беларуси: приедем, вынесем, вывезем и заплатим на месте.';
++END;
++GO
++
++IF NOT EXISTS (
++    SELECT * FROM [__EFMigrationsHistory]
++    WHERE [MigrationId] = N'20261025092536_AddCityLocalContentAndRequestIndex'
++)
++BEGIN
++    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
++    VALUES (N'20261025092536_AddCityLocalContentAndRequestIndex', N'8.0.22');
++END;
++GO
++
++COMMIT;
++GO
++
+diff --git a/wwwroot/css/custom/ecobay.css b/wwwroot/css/custom/ecobay.css
+--- a/wwwroot/css/custom/ecobay.css
++++ b/wwwroot/css/custom/ecobay.css
+@@ -628,3 +628,107 @@
+   text-decoration: none;
+ }
+ .admin-login-back:hover { color: var(--primary-color); }
++
++/* Patch v2: phone is the primary CTA, ahead of city chips and decorative icons. */
++.hero-primary-contact { margin-top: 24px; }
++.hero-primary-contact .call-button {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  min-height: 66px;
++  height: auto;
++  padding: 16px 30px;
++  margin: 0;
++  font-size: clamp(22px, 2.1vw, 30px);
++  font-weight: 900;
++  line-height: 1.25;
++  text-decoration: none;
++  box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
++}
++.hero-primary-contact > span {
++  display: block;
++  margin-top: 10px;
++  max-width: 470px;
++  color: rgba(255,255,255,.9);
++  font-size: 14px;
++}
++.hero-coverage-note { color: #fff; font-size: 16px; max-width: 620px; }
++.hero-cities-label { line-height: 1.5; color: #fff; }
++.hero-cities-note { line-height: 1.5; color: rgba(255,255,255,.9); }
++.city-local-section { background: #f4f7f4; }
++.city-local-card { height: 100%; padding: 24px; background: #fff; border-radius: 16px; border-top: 3px solid var(--primary-color); }
++.city-local-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 14px; }
++.city-local-card p { white-space: pre-line; overflow-wrap: anywhere; margin: 0; line-height: 1.65; color: #4c554e; }
++.admin-local-editor summary { cursor: pointer; font-weight: 700; color: #2e7d32; }
++
++/* One coordinate system for play glyph and rotating SVG. No CircleType DOM measuring. */
++.video-block .playBtn {
++  position: absolute;
++  top: 50%;
++  left: 50%;
++  transform: translate(-50%, -50%);
++  width: 160px;
++  height: 160px;
++  margin: 0;
++  padding: 0;
++  border: 0;
++  border-radius: 50%;
++  color: #fff;
++  background: transparent;
++  z-index: 2;
++}
++.video-block .playBtn > i {
++  position: absolute;
++  top: 50%;
++  left: 50%;
++  transform: translate(-45%, -50%);
++  font-size: 27px;
++}
++.video-block svg#circle-text {
++  display: block;
++  width: 100%;
++  height: 100%;
++  position: absolute;
++  inset: 0;
++  overflow: visible;
++  transform-origin: 50% 50%;
++}
++.video-block svg#circle-text text { fill: #fff; font-family: inherit; font-size: 14px; font-weight: 600; }
++.video-block .playBtn:focus-visible { outline: 3px solid #fff; outline-offset: 5px; }
++
++/* Admin reporting: no chart CDN or canvas dependency. Values have text equivalents. */
++.admin-shell { font-variant-numeric: tabular-nums; }
++.admin-stat { height: 100%; }
++.admin-stat small { display: block; line-height: 1.45; }
++.admin-delta-up { color: #287a35; }
++.admin-delta-down { color: #ad4c37; }
++.admin-goal-summary { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
++.admin-goal-summary span { display: block; color: #677168; font-size: 13px; }
++.admin-goal-summary strong { display: block; font-size: 21px; margin-top: 5px; }
++.admin-progress { height: 9px; border-radius: 9px; background: #e8eee9; overflow: hidden; }
++.admin-progress > span { display: block; height: 100%; background: #4caf50; border-radius: inherit; }
++.admin-city-chart { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; padding: 16px 0; }
++.admin-donut {
++  flex: 0 0 200px;
++  width: 200px;
++  height: 200px;
++  border-radius: 50%;
++  padding: 29px;
++}
++.admin-donut > div { display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; border-radius: 50%; width: 100%; height: 100%; }
++.admin-donut strong { font-size: 30px; line-height: 1.25; }
++.admin-donut span { color: #69736c; font-size: 14px; }
++.admin-chart-legend { list-style: none; padding: 0; margin: 0; flex: 1 1 180px; max-height: 280px; overflow-y: auto; }
++.admin-chart-legend li { display: grid; grid-template-columns: 10px minmax(0,1fr) auto 48px; align-items: center; gap: 8px; padding: 7px 0; font-size: 14px; }
++.admin-chart-legend small { text-align: right; color: #69736c; font-size: 12px; }
++.admin-chart-dot { width: 9px; height: 9px; border-radius: 50%; }
++.admin-request-message { min-width: 160px; max-width: 350px; white-space: pre-wrap; overflow-wrap: anywhere; }
++.admin-pagination { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; font-size: 14px; }
++@media (max-width: 767.98px) {
++  .hero-primary-contact .call-button { width: 100%; font-size: clamp(22px, 6vw, 28px); min-height: 64px; }
++  .hero-primary-contact > span { margin-inline: auto; }
++  .admin-city-chart { justify-content: center; }
++  .admin-chart-legend { flex-basis: 100%; }
++  .admin-goal-summary { grid-template-columns: 1fr; }
++  .admin-pagination > div { flex-wrap: wrap; }
++}
+diff --git a/wwwroot/js/custom/custom.js b/wwwroot/js/custom/custom.js
+--- a/wwwroot/js/custom/custom.js
++++ b/wwwroot/js/custom/custom.js
+@@ -338,6 +338,8 @@
+ 
+     function initCircleText() {
+         var el = document.getElementById("circle-text");
++        // SVG textPath is already centered and must not be rebuilt by CircleType.
++        if (el && el.namespaceURI === "http://www.w3.org/2000/svg") return;
+         if (!el || typeof window.CircleType === "undefined" || el.dataset.ctInit === "1") return;
+         new CircleType(el);
+         el.dataset.ctInit = "1";

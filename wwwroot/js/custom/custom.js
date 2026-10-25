@@ -1,534 +1,552 @@
-// ========================
-// REINIT ANIMATIONS (������� �������)
-// ========================
-window.reinitAllAnimations = () => {
-    console.log("Reinitializing animations...");
-    setTimeout(() => {
-        window.initHoverButtons();
-        window.initVideoBlock();
-        window.initCircleText();
-        window.initGsapAnimations();
-        window.initSwiper();
-        window.initMobileMenu();
-    }, 50);
-};
+/* =====================================================================
+   Ecobay.by — анимации и интерактив страницы.
 
-// ========================
-// SWIPER INITIALIZATION
-// ========================
-window._swiperInstances = window._swiperInstances || {};
+   Принципы:
+   • Один вход: ecobay.initPage(). Вызывается из Blazor (Home.OnAfterRenderAsync)
+     после того, как интерактивный компонент отрисовал DOM. На статических страницах
+     (контакты, соглашение) — автоматически по DOMContentLoaded.
+   • initPage идемпотентна: повторный вызов убирает старые ScrollTrigger/Swiper и создаёт заново.
+   • Все клики/hover — через делегирование на document (переживают перерисовку DOM Blazor'ом).
+   • Нативная прокрутка вместо smooth-scrollbar: smooth-scrollbar перестраивал DOM внутри
+     Blazor-компонента и ломал position: fixed (промо-окно, меню).
+   • prefers-reduced-motion — анимации отключаются.
+   ===================================================================== */
 
-window.initSwiper = () => {
-    if (typeof Swiper === "undefined") return;
+(function () {
+    "use strict";
 
-    const selector = ".testimonialsSlides";
-    const el = document.querySelector(selector);
-    if (!el) return;
+    // -----------------------------------------------------------------
+    // Выбор города (localStorage / sessionStorage)
+    // -----------------------------------------------------------------
+    var CITY_KEY = "ecobay.city";
+    var REMEMBER_KEY = "ecobay.city.remember";
+    var DISMISS_KEY = "ecobay.city.dismissed";
 
-    if (window._swiperInstances[selector]) {
-        try {
-            window._swiperInstances[selector].destroy(true, true);
-        } catch (e) { }
-        delete window._swiperInstances[selector];
+    function safe(fn, fallback) {
+        try { return fn(); } catch (e) { return fallback; }
     }
 
-    window._swiperInstances[selector] = new Swiper(selector, {
-        slidesPerView: 1,
-        loop: true,
-        autoplay: { delay: 3000 },
-        speed: 400
-    });
-};
-
-// ========================
-// GSAP ANIMATIONS
-// ========================
-window.initGsapAnimations = () => {
-    if (typeof gsap === "undefined") return;
-
-    if (gsap.killTweensOf) {
-        gsap.killTweensOf(".animate-img, .animate-img2, .animate-img3");
-    }
-    if (window.ScrollTrigger && window.ScrollTrigger.getAll) {
-        window.ScrollTrigger.getAll().forEach(t => t.kill());
+    function isRemember() {
+        return safe(function () { return localStorage.getItem(REMEMBER_KEY) !== "0"; }, true);
     }
 
-    gsap.from(".animate-img", { opacity: 0, y: 50, duration: 1 });
-    gsap.from(".animate-img2", { opacity: 0, x: -50, duration: 1 });
-    gsap.from(".animate-img3", { opacity: 0, scale: 0.8, duration: 1 });
-};
+    window.ecobayCity = {
+        /** Сохранённый выбор: slug города, "all" (вся Беларусь) или null. */
+        get: function () {
+            var value = safe(function () {
+                return isRemember() ? localStorage.getItem(CITY_KEY) : sessionStorage.getItem(CITY_KEY);
+            }, null);
+            if (value) return value;
+            var dismissed = safe(function () { return sessionStorage.getItem(DISMISS_KEY) === "1"; }, false);
+            return dismissed ? "all" : null;
+        },
+        set: function (slug) {
+            if (!slug || !/^(all|[a-z0-9-]{1,50})$/.test(slug)) return;
+            safe(function () {
+                if (isRemember()) localStorage.setItem(CITY_KEY, slug);
+                else sessionStorage.setItem(CITY_KEY, slug);
+            });
+        },
+        clear: function () {
+            safe(function () {
+                localStorage.removeItem(CITY_KEY);
+                sessionStorage.removeItem(CITY_KEY);
+                sessionStorage.removeItem(DISMISS_KEY);
+            });
+        },
+        /** Окно закрыли крестиком — не показываем до конца сеанса. */
+        dismiss: function () {
+            safe(function () { sessionStorage.setItem(DISMISS_KEY, "1"); });
+        },
+        setRemember: function (enabled) {
+            safe(function () {
+                localStorage.setItem(REMEMBER_KEY, enabled ? "1" : "0");
+                if (!enabled) localStorage.removeItem(CITY_KEY);
+            });
+        }
+    };
 
-// ========================
-// CIRCLE TEXT
-// ========================
-window.initCircleText = () => {
-    const el = document.getElementById("circle-text");
-    if (!el || typeof CircleType === "undefined") return;
+    // -----------------------------------------------------------------
+    // Утилиты
+    // -----------------------------------------------------------------
+    var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var hasGsap = function () { return typeof window.gsap !== "undefined"; };
+    var hasScrollTrigger = function () { return hasGsap() && typeof window.ScrollTrigger !== "undefined"; };
 
-    if (el.dataset.ctInit === "1") {
-        el.dataset.ctInit = "0";
+    function $all(selector, root) {
+        return Array.prototype.slice.call((root || document).querySelectorAll(selector));
     }
 
-    new CircleType(el);
-    el.dataset.ctInit = "1";
-};
+    function navHeight() {
+        var nav = document.querySelector(".starta-nav");
+        return nav ? nav.getBoundingClientRect().height : 0;
+    }
 
-// ========================
-// VIDEO BLOCK
-// ========================
-window.initVideoBlock = () => {
-    const $frame = $(".video-block iframe");
-    const $play = $(".video-block .startplay");
-    const $close = $(".video-block .close");
+    function closeMobileMenu() {
+        $all(".menuIcon").forEach(function (i) { i.classList.remove("close"); });
+        $all(".starta-mobile-nav").forEach(function (n) { n.classList.remove("menu-active"); });
+        document.documentElement.classList.remove("menu-open");
+    }
 
-    if ($frame.length === 0) return;
+    function scrollToTarget(target) {
+        var y;
+        if (target === 0 || target === "top") {
+            y = 0;
+        } else {
+            var el = typeof target === "string" ? document.querySelector(target) : target;
+            if (!el) return false;
+            // Позиция считается в момент клика (раньше — один раз при загрузке, до загрузки картинок).
+            y = el.getBoundingClientRect().top + window.pageYOffset - (navHeight() + 20);
+            if (el.id === "top") y = 0;
+        }
 
-    $play.off("click").on("click", () => {
-        $frame.show();
-    });
+        if (hasGsap() && window.ScrollToPlugin && !reduceMotion) {
+            gsap.to(window, { scrollTo: { y: Math.max(0, y), autoKill: false }, duration: 1.1, ease: "power3.inOut" });
+        } else {
+            window.scrollTo({ top: Math.max(0, y), behavior: reduceMotion ? "auto" : "smooth" });
+        }
+        return true;
+    }
 
-    $close.off("click").on("click", () => {
-        $frame.hide();
-    });
+    function setActiveMenu(hash) {
+        $all(".starta-menu li a").forEach(function (a) {
+            var h = safe(function () { return new URL(a.href, location.href).hash; }, "");
+            a.classList.toggle("active", h === hash);
+        });
+    }
 
-    const el = document.getElementById("circle-text");
-    if (el && !el.dataset.ctInit && typeof CircleType !== "undefined") {
+    // -----------------------------------------------------------------
+    // Глобальные обработчики (навешиваются один раз)
+    // -----------------------------------------------------------------
+    var globalsBound = false;
+
+    function bindGlobalHandlers() {
+        if (globalsBound) return;
+        globalsBound = true;
+
+        // Кнопки: «взрыв» круга от точки входа курсора.
+        // mouseover/mouseout с проверкой relatedTarget = mouseenter/mouseleave, но работает через делегирование
+        // (раньше mouseover срабатывал на каждом дочернем элементе и анимация «дёргалась»).
+        document.addEventListener("mouseover", function (e) {
+            var btn = e.target.closest && e.target.closest(".starta-button");
+            if (!btn || btn.contains(e.relatedTarget)) return;
+            var hover = btn.querySelector(".starta-button-hover");
+            if (!hover) return;
+            var r = btn.getBoundingClientRect();
+            hover.style.left = (e.clientX - r.left) + "px";
+            hover.style.top = (e.clientY - r.top) + "px";
+            hover.classList.remove("desplode-circle");
+            hover.classList.add("explode-circle");
+        });
+        document.addEventListener("mouseout", function (e) {
+            var btn = e.target.closest && e.target.closest(".starta-button");
+            if (!btn || btn.contains(e.relatedTarget)) return;
+            var hover = btn.querySelector(".starta-button-hover");
+            if (!hover) return;
+            var r = btn.getBoundingClientRect();
+            hover.style.left = (e.clientX - r.left) + "px";
+            hover.style.top = (e.clientY - r.top) + "px";
+            hover.classList.remove("explode-circle");
+            hover.classList.add("desplode-circle");
+        });
+
+        // Подчёркивание пунктов меню
+        document.addEventListener("mouseover", function (e) {
+            var a = e.target.closest && e.target.closest(".menu-animation");
+            if (a && !a.contains(e.relatedTarget)) a.classList.add("hover");
+        });
+        document.addEventListener("mouseout", function (e) {
+            var a = e.target.closest && e.target.closest(".menu-animation");
+            if (a && !a.contains(e.relatedTarget)) a.classList.remove("hover");
+        });
+
+        document.addEventListener("click", function (e) {
+            if (!e.target.closest) return;
+
+            // Мобильное меню (раньше три разных обработчика переключали его по очереди и меню «не открывалось»)
+            var icon = e.target.closest(".menuIcon");
+            if (icon) {
+                e.preventDefault();
+                var nav = document.querySelector(".starta-mobile-nav");
+                var open = !icon.classList.contains("close");
+                icon.classList.toggle("close", open);
+                if (nav) nav.classList.toggle("menu-active", open);
+                document.documentElement.classList.toggle("menu-open", open);
+                return;
+            }
+
+            // Видео: грузим iframe только по клику (раньше два YouTube-плеера грузились сразу и тормозили страницу)
+            var play = e.target.closest(".video-block .startplay");
+            if (play) {
+                var block = play.closest(".video-block");
+                var frame = block && block.querySelector("iframe");
+                if (frame) {
+                    var src = frame.getAttribute("data-src") || frame.getAttribute("src") || "";
+                    if (src && src !== "about:blank") {
+                        frame.src = src + (src.indexOf("?") > -1 ? "&" : "?") + "autoplay=1";
+                    }
+                    frame.style.display = "block";
+                    var closeBtn = block.querySelector(".close");
+                    if (closeBtn) closeBtn.style.display = "block";
+                }
+                return;
+            }
+
+            var close = e.target.closest(".video-block .close");
+            if (close) {
+                var vb = close.closest(".video-block");
+                var f = vb && vb.querySelector("iframe");
+                if (f) {
+                    f.src = "about:blank"; // останавливаем воспроизведение
+                    f.style.display = "none";
+                }
+                close.style.display = "none";
+                return;
+            }
+
+            if (e.target.closest(".backToTop")) {
+                e.preventDefault();
+                scrollToTarget(0);
+                setActiveMenu("#top");
+                return;
+            }
+
+            // Якорные ссылки вида "/gomel#about" и "/#plan".
+            // Раньше $("/gomel#about") бросал ошибку jQuery, и весь остальной код инициализации не выполнялся.
+            var link = e.target.closest("a[href*='#']");
+            if (link && !link.target) {
+                var url = safe(function () { return new URL(link.href, location.href); }, null);
+                if (url && url.hash && url.pathname === location.pathname && url.origin === location.origin) {
+                    var target = safe(function () { return document.querySelector(decodeURIComponent(url.hash)); }, null);
+                    if (target) {
+                        e.preventDefault();
+                        closeMobileMenu();
+                        scrollToTarget(target);
+                        setActiveMenu(url.hash);
+                        if (history.replaceState) history.replaceState(null, "", url.pathname + url.search + url.hash);
+                    }
+                }
+            }
+
+            // Ссылка внутри мобильного меню (например, «Сменить город») — закрываем меню.
+            if (e.target.closest(".starta-mobile-nav a")) closeMobileMenu();
+        });
+
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeMobileMenu();
+        });
+
+        // Липкое меню + кнопка «наверх». requestAnimationFrame — не чаще одного раза за кадр.
+        var ticking = false;
+        window.addEventListener("scroll", function () {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(function () {
+                ticking = false;
+                updateStickyNav();
+            });
+        }, { passive: true });
+
+        var resizeTimer;
+        window.addEventListener("resize", function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function () {
+                sizeTestimonialCircles();
+                if (window.innerWidth > 992) closeMobileMenu();
+                if (hasScrollTrigger()) ScrollTrigger.refresh();
+            }, 150);
+        });
+
+        // После загрузки картинок высоты секций меняются — пересчитываем точки срабатывания.
+        window.addEventListener("load", function () {
+            if (hasScrollTrigger()) ScrollTrigger.refresh();
+            sizeTestimonialCircles();
+        });
+    }
+
+    // -----------------------------------------------------------------
+    // Липкое меню
+    // -----------------------------------------------------------------
+    var STICKY_AT = 300;
+
+    function ensureBackToTop() {
+        if (!document.querySelector(".backToTop")) {
+            var b = document.createElement("div");
+            b.className = "backToTop";
+            b.setAttribute("role", "button");
+            b.setAttribute("aria-label", "Наверх");
+            b.innerHTML = '<i class="fa-solid fa-arrow-up"></i>';
+            document.body.appendChild(b);
+        }
+    }
+
+    function updateStickyNav() {
+        var nav = document.querySelector(".starta-nav");
+        var header = nav && nav.closest("header");
+        var y = window.pageYOffset || document.documentElement.scrollTop;
+        var sticky = y >= STICKY_AT;
+
+        if (nav && header) {
+            if (sticky && !nav.classList.contains("sticky")) {
+                // Резервируем место под меню, чтобы контент не «прыгал» при переходе в position: fixed.
+                header.style.paddingTop = nav.offsetHeight + "px";
+                nav.classList.add("sticky");
+            } else if (!sticky && nav.classList.contains("sticky")) {
+                nav.classList.remove("sticky");
+                header.style.paddingTop = "";
+            }
+        }
+
+        var toTop = document.querySelector(".backToTop");
+        if (toTop) toTop.classList.toggle("is-visible", y >= 500);
+    }
+
+    // -----------------------------------------------------------------
+    // Виджеты
+    // -----------------------------------------------------------------
+    var swiperInstance = null;
+
+    function initSwiper() {
+        if (typeof window.Swiper === "undefined") return;
+        var el = document.querySelector(".testimonialsSlides");
+        if (!el) return;
+
+        if (swiperInstance) {
+            safe(function () { swiperInstance.destroy(true, true); });
+            swiperInstance = null;
+        }
+
+        swiperInstance = new Swiper(el, {
+            slidesPerView: 1,
+            loop: true,
+            speed: 700,
+            autoHeight: true, // раньше высота фиксировалась по первому слайду и длинные отзывы обрезались
+            grabCursor: true,
+            autoplay: reduceMotion ? false : { delay: 6000, disableOnInteraction: false, pauseOnMouseEnter: true }
+        });
+    }
+
+    function sizeTestimonialCircles() {
+        $all(".testimonialCircle").forEach(function (c) {
+            var h = c.parentElement ? c.parentElement.offsetHeight : 0;
+            if (h) {
+                c.style.width = h + "px";
+                c.style.height = h + "px";
+            }
+        });
+    }
+
+    function initCircleText() {
+        var el = document.getElementById("circle-text");
+        // SVG textPath is already centered and must not be rebuilt by CircleType.
+        if (el && el.namespaceURI === "http://www.w3.org/2000/svg") return;
+        if (!el || typeof window.CircleType === "undefined" || el.dataset.ctInit === "1") return;
         new CircleType(el);
         el.dataset.ctInit = "1";
     }
-};
 
-// ========================
-// MOBILE MENU (Blazor-����������)
-// ========================
-window.initMobileMenu = () => {
-    const menuIcon = document.querySelector(".menuIcon");
-    const mobileNav = document.querySelector(".starta-mobile-nav");
-
-    if (!menuIcon || !mobileNav) {
-        console.log("Menu elements not found");
-        return;
+    function initIconColors() {
+        // Было "rgb(--primary-color)" — некорректный CSS, у первой иконки цвет не применялся.
+        var colors = ["var(--primary-color)", "rgb(255, 202, 96)", "rgb(63, 223, 254)"];
+        $all(".starta-icon").forEach(function (el, i) {
+            el.style.backgroundColor = colors[i % colors.length];
+        });
     }
 
-    console.log("Initializing mobile menu...");
-
-    // ������� ��� ������ �����������
-    $(menuIcon).off("click");
-
-    // ���������� �����
-    $(menuIcon).on("click", function (e) {
-        e.stopPropagation();
-        console.log("Menu toggled");
-        $(this).toggleClass("close");
-        $(mobileNav).toggleClass("menu-active");
-    });
-
-    // �������� ���� ��� ����� �� ������
-    $(mobileNav).find("a").off("click").on("click", function () {
-        $(menuIcon).removeClass("close");
-        $(mobileNav).removeClass("menu-active");
-    });
-};
-
-// ========================
-// HOVER BUTTONS
-// ========================
-window.initHoverButtons = () => {
-    const $buttons = $(".starta-button");
-    if ($buttons.length === 0) return;
-
-    $buttons.off("mouseover mouseleave");
-
-    $buttons.on("mouseover", function (e) {
-        const relX = e.pageX - $(this).offset().left;
-        const relY = e.pageY - $(this).offset().top;
-        $(this).find(".starta-button-hover")
-            .css({ left: relX, top: relY })
-            .removeClass("desplode-circle")
-            .addClass("explode-circle");
-    });
-
-    $buttons.on("mouseleave", function (e) {
-        const relX = e.pageX - $(this).offset().left;
-        const relY = e.pageY - $(this).offset().top;
-        $(this).find(".starta-button-hover")
-            .css({ left: relX, top: relY })
-            .removeClass("explode-circle")
-            .addClass("desplode-circle");
-    });
-};
-
-// ========================
-// DOCUMENT READY
-// ========================
-$(document).ready(function () {
-    console.log("Document ready");
-
-    // Loader
-    gsap.to(".loader", 0.5, {
-        delay: 3,
-        opacity: 0,
-    });
-    $(".loader").css("pointer-events", "none");
-
-    // Menu toggle function
-    function menu(menuIcon) {
-        menuIcon.toggleClass("close");
-        $(".starta-mobile-nav").toggleClass("menu-active");
+    function initButtons() {
+        $all(".starta-button-2 > .starta-button-hover").forEach(function (h) { h.remove(); });
     }
 
-    // ���������� ��� .menuIcon (���� ������������ ����� �����)
-    $(document).off("click", ".menuIcon").on("click", ".menuIcon", function () {
-        menu($(this));
-    });
+    // -----------------------------------------------------------------
+    // GSAP-анимации
+    // -----------------------------------------------------------------
+    var gsapContext = null;
 
-    // Smooth scroll
-    const ScrollArea = document.getElementById("scroll-content");
-    if (ScrollArea) {
-        const options = {
-            damping: 0.1,
-            speed: 1,
-            renderByPixel: true,
-            continuousScrolling: true,
-            syncCallbacks: true,
-            alwaysShowTracks: true,
-        };
-        var scrollbar = Scrollbar.init(ScrollArea, options);
+    function isBelowFold(el) {
+        // Анимируем появление только того, что ещё не видно. То, что уже на экране в момент
+        // инициализации, не прячем — иначе контент «мигает» (сначала виден, потом исчезает и выезжает).
+        return el.getBoundingClientRect().top > window.innerHeight * 0.92;
+    }
 
-        $(".starta-nav").addClass("transitionNav");
-        $(".menuIcon").addClass("transitionNav");
+    var revealed = [];
 
-        if ($(".backToTop").length === 0) {
-            $("body").append('<div class="backToTop"><i class="fa-solid fa-arrow-up"></i></div>');
+    function insideRevealed(el) {
+        // Не анимируем элемент, если уже анимируется его контейнер (иначе двойное появление).
+        for (var i = 0; i < revealed.length; i++) {
+            if (revealed[i] !== el && revealed[i].contains(el)) return true;
         }
+        return false;
+    }
 
-        scrollbar.addListener((status) => {
-            const offset = status.offset;
+    function reveal(selector, vars, stagger) {
+        var items = $all(selector).filter(function (el) { return isBelowFold(el) && !insideRevealed(el); });
+        if (!items.length) return;
+        revealed = revealed.concat(items);
 
-            if (offset.y >= 500) {
-                $(".starta-nav").addClass("sticky");
-                $(".menuIcon").css("top", offset.y + 38 + "px");
-                $(".sticky").css("top", offset.y + "px");
-                $(".backToTop").css({ opacity: "1", transform: "translateY(0px)" });
-                setTimeout(() => {
-                    $(".starta-nav").removeClass("transitionNav");
-                    $(".menuIcon").removeClass("transitionNav");
-                }, 1000);
-            } else {
-                $(".starta-nav").css("top", 0 + "px");
-                $(".starta-nav").removeClass("sticky");
-                $(".menuIcon").css("top", 0 + 38 + "px");
-                $(".backToTop").css({ opacity: "0", transform: "translateY(100%)" });
-                $(".starta-nav").addClass("transitionNav");
-                $(".menuIcon").addClass("transitionNav");
+        ScrollTrigger.batch(items, {
+            start: "top 88%",
+            once: true,
+            onEnter: function (batch) {
+                gsap.to(batch, {
+                    opacity: 1, x: 0, y: 0, scale: 1,
+                    duration: vars.duration || 0.8,
+                    ease: vars.ease || "power3.out",
+                    stagger: stagger || 0.12,
+                    overwrite: true,
+                    clearProps: "transform,opacity"
+                });
             }
-
-            $(".starta-mobile-nav").css("top", offset.y + "px");
         });
 
-        $(".backToTop").off("click").on("click", function (e) {
-            const target = $("#top");
-            const targetEl = $(target);
-            if (targetEl.length === 0) return;
-            const targetRect = targetEl.offset();
-            e.preventDefault();
-            gsap.to(scrollbar, {
-                scrollTo: targetRect.top,
-                duration: 2.5,
-                ease: "power4.inOut",
-            });
-
-            $(".starta-menu li a").removeClass("active");
+        gsap.set(items, {
+            opacity: 0,
+            x: vars.x || 0,
+            y: vars.y === undefined ? 40 : vars.y,
+            scale: vars.scale || 1
         });
     }
 
-    // Menu Hover
-    $(document).off("mouseover mouseleave", ".menu-animation");
-    $(document).on("mouseover", ".menu-animation", function () {
-        $(this).addClass("hover");
-    });
-    $(document).on("mouseleave", ".menu-animation", function () {
-        $(this).removeClass("hover");
-    });
+    function countUp(el) {
+        // Первый текстовый узел (рядом стоит иконка-стрелка)
+        var node = Array.prototype.find.call(el.childNodes, function (n) {
+            return n.nodeType === 3 && n.textContent.trim().length;
+        });
+        if (!node) return;
+        var target = parseInt(node.textContent.replace(/\D/g, ""), 10);
+        if (!target) return;
 
-    // Button animations hover
-    $(document).off("mouseover mouseleave", ".starta-button");
-    $(document).on("mouseover", ".starta-button", function (e) {
-        var relX = e.pageX - $(this).offset().left;
-        var relY = e.pageY - $(this).offset().top;
-        $(this).find(".starta-button-hover").css({ left: relX, top: relY });
-        $(this).find(".starta-button-hover").removeClass("desplode-circle");
-        $(this).find(".starta-button-hover").addClass("explode-circle");
-    });
+        var obj = { v: 0 };
+        gsap.to(obj, {
+            v: target,
+            duration: 1.6,
+            ease: "power2.out",
+            scrollTrigger: { trigger: el, start: "top 90%", once: true },
+            onUpdate: function () { node.textContent = Math.round(obj.v).toLocaleString("ru-RU"); },
+            onComplete: function () { node.textContent = target.toLocaleString("ru-RU"); }
+        });
+        node.textContent = "0";
+    }
 
-    $(document).on("mouseleave", ".starta-button", function (e) {
-        var relX = e.pageX - $(this).offset().left;
-        var relY = e.pageY - $(this).offset().top;
-        $(this).find(".starta-button-hover").css({ left: relX, top: relY });
-        $(this).find(".starta-button-hover").removeClass("explode-circle");
-        $(this).find(".starta-button-hover").addClass("desplode-circle");
-    });
+    function initGsap() {
+        if (!hasScrollTrigger()) return;
 
-    $(".starta-button-2").each(function () {
-        $(this).children(".starta-button-hover").remove();
-    });
+        gsap.registerPlugin(ScrollTrigger);
+        if (window.ScrollToPlugin) gsap.registerPlugin(ScrollToPlugin);
 
-    // GSAP plugins
-    if (typeof gsap !== "undefined" && typeof ScrollTrigger !== "undefined" && typeof ScrollToPlugin !== "undefined") {
-        gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
-
-        if (ScrollArea) {
-            scrollbar.addListener(ScrollTrigger.update);
-            ScrollTrigger.defaults({ scroller: ScrollArea });
-
-            ScrollTrigger.scrollerProxy("#scroll-content", {
-                scrollTop(value) {
-                    if (arguments.length) {
-                        scrollbar.scrollTop = value;
-                    }
-                    return scrollbar.scrollTop;
-                },
-            });
+        // Убираем всё, что было создано прошлым вызовом
+        if (gsapContext) {
+            gsapContext.revert();
+            gsapContext = null;
         }
 
-        // GSAP Timelines
-        let shapes = gsap.timeline({
-            scrollTrigger: {
-                scrub: true,
-                pin: true,
-                start: "top top",
-                end: "+=100%",
-            },
-        });
+        revealed = [];
+        if (reduceMotion) return;
 
-        shapes.to(".shapes img", {
-            y: 80,
-            duration: 1,
-        });
-
-        let imgBLock = gsap.timeline({
-            scrollTrigger: {
-                trigger: ".animate-img",
-                start: "center 80%",
-                end: "bottom 10%",
-            },
-        });
-        imgBLock.from(".animate-img", {
-            x: -500,
-            duration: 0.7,
-            opacity: 0,
-        });
-        imgBLock.to(".animate-img", {
-            x: 0,
-            duration: 0.7,
-            opacity: 1,
-        });
-
-        imgBLock.from(".fill", {
-            width: 0,
-        });
-        imgBLock.to(".fill", {
-            width: "75%",
-        });
-
-        let imgBLock2 = gsap.timeline({
-            scrollTrigger: {
-                trigger: ".animate-img2",
-                start: "center 50%",
-                end: "bottom 10%",
-            },
-        });
-
-        imgBLock2.from(".animate-img2", {
-            x: -500,
-            duration: 0.7,
-            opacity: 0,
-        });
-        imgBLock2.to(".animate-img2", {
-            x: 0,
-            duration: 0.7,
-            opacity: 1,
-        });
-
-        let imgBLock3 = gsap.timeline({
-            scrollTrigger: {
-                trigger: ".animate-img3",
-                start: "top center",
-                end: "bottom 10%",
-            },
-        });
-
-        imgBLock3.from(".animate-img3", {
-            x: -500,
-            duration: 0.7,
-            opacity: 0,
-        });
-        imgBLock3.to(".animate-img3", {
-            x: 0,
-            duration: 0.7,
-            opacity: 1,
-        });
-    }
-
-    // Icon colors
-    let iconbg = ["rgb(--primary-color)", "rgb(255,202,96)", "rgb(63,223,254)"];
-
-    $(".starta-icon").each(function (i) {
-        let colorIndex = i % iconbg.length;
-        $(this).css("background-color", iconbg[colorIndex]);
-    });
-
-    // YT Link copy
-    $(".ytLink").each(function () {
-        $(this)
-            .closest(".imgOverlay")
-            .find(".servicePlay")
-            .attr("data-copy", $(this).parent("a").attr("href"));
-    });
-
-    $(document).off("click", ".servicePlay").on("click", ".servicePlay", function () {
-        const videoLink = $(this).attr("data-copy");
-        const tempInput = $("<input>");
-        $("body").append(tempInput);
-        tempInput.val(videoLink).select();
-        document.execCommand("copy");
-        tempInput.remove();
-        $(this).children("span").text("Copied!");
-    });
-
-    // Circle Text
-    const circleTextEl = document.getElementById("circle-text");
-    if (circleTextEl && typeof CircleType !== "undefined" && !circleTextEl.dataset.ctInit) {
-        new CircleType(circleTextEl);
-        circleTextEl.dataset.ctInit = "1";
-    }
-
-    // Testimonials Slide
-    if (typeof Swiper !== "undefined") {
-        const swiper2 = new Swiper(".testimonialsSlides", {
-            slidesPerView: 1,
-            loop: true,
-        });
-
-        var testimonialHeight = $(".testimonialSingle").outerHeight();
-        $(".testimonialsSlides").css("height", testimonialHeight + "px");
-
-        // Insta feed Slides
-        if (typeof EffectMaterial !== "undefined") {
-            const swiper = new Swiper(".swiper", {
-                modules: [EffectMaterial],
-                effect: "material",
-                slidesPerView: 7,
-                spaceBetween: 20,
-            });
-            const rClass = ["bottomSlide", "topSlide"];
-            $(".swiper-material-content").each(function (index) {
-                $(this).addClass(rClass[Math.floor(Math.random() * rClass.length)]);
-            });
-        }
-    }
-
-    // Scroll to sections
-    $(".starta-menu li a").each(function (e) {
-        const target = $(this).attr("href");
-        const targetEl = $(target);
-        if (targetEl.length === 0) return;
-        const targetRect = targetEl.offset();
-
-        $(this).off("click").on("click", function (e) {
-            $(".menuIcon").removeClass("close");
-            $(".starta-mobile-nav").removeClass("menu-active");
-            e.preventDefault();
-
-            if (typeof gsap !== "undefined" && ScrollArea) {
-                gsap.to(scrollbar, {
-                    scrollTo: targetRect.top - 120,
-                    duration: 2.5,
-                    ease: "power4.inOut",
+        gsapContext = gsap.context(function () {
+            // Параллакс фона и фигур первого экрана (scrub — привязка к прокрутке).
+            // Раньше: pin: true без trigger «прибивал» страницу, а смещение фигур не работало.
+            var hero = document.querySelector("header#top");
+            if (hero) {
+                gsap.to(".heroBG img", {
+                    yPercent: 12, scale: 1.08, ease: "none",
+                    scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true }
+                });
+                $all(".shapes img").forEach(function (img, i) {
+                    gsap.to(img, {
+                        y: 60 + i * 35, rotation: i % 2 ? 12 : -12, ease: "none",
+                        scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true }
+                    });
                 });
             }
 
-            $(".starta-menu li a").removeClass("active");
-            $(this).addClass("active");
+            // Блок «Наши цели»: картинка выезжает слева, карточка — снизу, полоса прогресса
+            // заполняется до реального процента из БД (раньше всегда до 75%).
+            $all(".bar .fill").forEach(function (fill) {
+                var p = parseFloat(fill.getAttribute("data-progress"));
+                if (isNaN(p)) return;
+                gsap.fromTo(fill, { width: "0%" }, {
+                    width: p + "%", duration: 1.6, ease: "power2.out",
+                    scrollTrigger: { trigger: fill, start: "top 92%", once: true }
+                });
+            });
+            $all(".starta-performance h4.starta-h4.d-flex").forEach(countUp);
+
+            // Сначала — контейнеры (карточки, блоки), затем — отдельные тексты вне этих контейнеров.
+            reveal(".animate-img", { x: -120, y: 0, duration: 1 });
+            reveal(".starta-performance", { y: 50 });
+            reveal(".featureSingle", { y: 40 }, 0.15);
+            reveal(".starta-plans .plan", { y: 60 }, 0.18);
+            reveal(".details_img", { y: 60, scale: 0.94 }, 0.18);
+            reveal(".starta-about .video-block", { y: 60, scale: 0.97, duration: 1 });
+            reveal(".accordion-item", { y: 30 }, 0.1);
+            reveal(".testimonialsSlides", { y: 40 });
+            reveal(".starta-contacts .col-md-6", { y: 40 }, 0.15);
+            reveal(".starta-footer .row > div", { y: 30 }, 0.12);
+            reveal(".contact-box", { y: 30 });
+
+            reveal("section .starta-heading", { y: 20, duration: 0.6 });
+            reveal("section .starta-h1", { y: 30 });
+            reveal("section .starta-desc", { y: 24, duration: 0.7 });
+            reveal(".starta-list li", { x: -30, y: 0, duration: 0.6 }, 0.08);
+            reveal(".details-list li", { x: -30, y: 0 }, 0.12);
+            reveal(".starta-block-img", { y: 50, scale: 0.97 });
+
+            // Подсветка пункта меню текущей секции
+            ["top", "about", "services", "plan", "team", "faqs"].forEach(function (id) {
+                var section = document.getElementById(id);
+                if (!section) return;
+                ScrollTrigger.create({
+                    trigger: section,
+                    start: "top 40%",
+                    end: "bottom 40%",
+                    onToggle: function (self) { if (self.isActive) setActiveMenu("#" + id); }
+                });
+            });
         });
-    });
 
-    // Play video
-    $(document).off("click", ".startplay").on("click", ".startplay", function () {
-        const getParent = $(this).closest(".video-block");
-        const getVideo = getParent.find("iframe");
-        getVideo.css("display", "block");
-        getParent.find(".close").css("display", "block");
-        var symbol = getVideo[0].src.indexOf("?") > -1 ? "&" : "?";
+        ScrollTrigger.refresh();
+    }
 
-        if (getVideo[0].src.indexOf("autoplay") === -1) {
-            getVideo[0].src += symbol + "autoplay=1";
-        } else {
-            getVideo[0].src = getVideo[0].src.replace(/autoplay=0/, "autoplay=1");
+    // -----------------------------------------------------------------
+    // Публичное API
+    // -----------------------------------------------------------------
+    window.ecobay = {
+        initPage: function () {
+            bindGlobalHandlers();
+            ensureBackToTop();
+            closeMobileMenu();
+            initButtons();
+            initIconColors();
+            initCircleText();
+            initSwiper();
+            sizeTestimonialCircles();
+            initGsap();
+            updateStickyNav();
+            document.documentElement.classList.add("ecobay-ready");
+        },
+
+        /** Блокировка прокрутки страницы под модальным окном. */
+        lockScroll: function (lock) {
+            document.documentElement.classList.toggle("modal-open", !!lock);
         }
-    });
+    };
 
-    // Close video
-    $(document).off("click", ".video-block .close").on("click", ".video-block .close", function () {
-        const getParent = $(this).closest(".video-block");
-        const getVideo = getParent.find("iframe");
-        getVideo.css("display", "none");
+    // Совместимость со старыми вызовами из Razor-кода
+    window.reinitAllAnimations = window.ecobay.initPage;
 
-        var symbol = getVideo[0].src.indexOf("?") > -1 ? "&" : "?";
-
-        if (getVideo[0].src.indexOf("autoplay") === -1) {
-            getVideo[0].src += symbol + "autoplay=0";
-        } else {
-            getVideo[0].src = getVideo[0].src.replace(/autoplay=1/, "autoplay=0");
+    // Статические страницы (без интерактивного Blazor) инициализируем сами.
+    // Главная страница помечена data-interactive-page — её инициализирует Blazor после отрисовки,
+    // иначе анимации запускались дважды (на пререндере и после подключения SignalR).
+    function autoInit() {
+        if (document.querySelector("[data-interactive-page]")) {
+            bindGlobalHandlers(); // меню и якоря работают ещё до подключения Blazor
+            ensureBackToTop();
+            updateStickyNav();
+            return;
         }
+        window.ecobay.initPage();
+    }
 
-        $(this).css("display", "none");
-    });
-
-    // Testimonial circle
-    $(".testimonialCircle").each(function () {
-        $(this).css({
-            width: $(this).parent().outerHeight() + "px",
-            height: $(this).parent().outerHeight() + "px",
-        });
-    });
-
-    // �������������� ��� ��������
-    window.reinitAllAnimations();
-});
-
-// ========================
-// BLAZOR SUPPORT
-// ========================
-if (window.Blazor) {
-    window.Blazor.addEventListener("enhancedload", () => {
-        console.log("Blazor enhanced load - reinitializing animations");
-        window.reinitAllAnimations();
-    });
-}
-
-// ������������� ��� �������� ��������
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("DOM Content Loaded");
-    window.reinitAllAnimations();
-});
-
-
-// 1. ��������� HTML �������
-console.log('Mobile nav:', document.querySelector('.starta-mobile-nav'));
-
-// 2. ��������� CSS
-const nav = document.querySelector('.starta-mobile-nav');
-if (nav) {
-    const computed = window.getComputedStyle(nav);
-    console.log('Position:', computed.position);
-    console.log('Left:', computed.left);
-    console.log('Display:', computed.display);
-    console.log('Z-index:', computed.zIndex);
-}
-
-// 3. ��������� ������
-console.log('Menu icon:', document.querySelector('.menuIcon'));
-
-// 4. ������� ������� ���� �������
-document.querySelector('.starta-mobile-nav')?.classList.add('menu-active');
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", autoInit);
+    else autoInit();
+})();

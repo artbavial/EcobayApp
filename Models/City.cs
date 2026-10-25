@@ -29,6 +29,15 @@ namespace EcobayApp.Models
 		/// <summary>Базовая цена по городу (если нет переопределения на PageCity).</summary>
 		public decimal? DefaultPrice { get; set; }
 
+		/// <summary>
+		/// Город активирован: показывается в окне выбора города, в футере и доступен по своему URL.
+		/// Неактивный город скрыт с сайта, его URL перенаправляет на страницу «Вся Беларусь».
+		/// </summary>
+		public bool IsActive { get; set; } = true;
+
+		/// <summary>Порядок сортировки в списках (меньше — выше). При равенстве — по названию.</summary>
+		public int SortOrder { get; set; } = 0;
+
 		/// <summary>Страницы города (посадочные).</summary>
 		public ICollection<PageCity> Pages { get; set; } = new List<PageCity>();
 
