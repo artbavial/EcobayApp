@@ -1,4 +1,4 @@
-using System.Threading.RateLimiting;
+﻿using System.Threading.RateLimiting;
 using EcobayApp.Components;
 using EcobayApp.Contex;
 using EcobayApp.Models;
@@ -18,7 +18,13 @@ var builder = WebApplication.CreateBuilder(args);
 // Окружение задаётся переменной ASPNETCORE_ENVIRONMENT (в launchSettings.json для локальной разработки уже Development).
 
 builder.Services.AddRazorComponents()
-	.AddInteractiveServerComponents();
+	// Запас по времени: тяжёлые операции в браузере (распознавание скриншота) не должны обрывать соединение.
+	.AddInteractiveServerComponents(o => o.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(10))
+	.AddHubOptions(o =>
+	{
+		o.ClientTimeoutInterval = TimeSpan.FromMinutes(2);
+		o.KeepAliveInterval = TimeSpan.FromSeconds(15);
+	});
 
 // Строка подключения из appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("EcobayConnection");
@@ -46,6 +52,12 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddSingleton<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
 builder.Services.AddScoped<AdminAuthService>();
+builder.Services.AddScoped<RequestWorkflow>();
+builder.Services.AddSingleton<RequestFileStore>();
+
+// Каждый час добавляет заданное количество к прогрессу цели (если включено в панели).
+builder.Services.AddSingleton<GoalAutoIncrementService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<GoalAutoIncrementService>());
 
 builder.Services
 	.AddAuthentication(AdminAuthService.Scheme)
@@ -53,7 +65,8 @@ builder.Services
 	{
 		options.LoginPath = "/admin/login";
 		options.LogoutPath = "/admin/logout";
-		options.AccessDeniedPath = "/admin/login";
+		// Водитель, открывший раздел администратора, попадает на свою страницу заявок.
+		options.AccessDeniedPath = "/driver";
 		options.ReturnUrlParameter = "returnUrl";
 
 		options.Cookie.Name = ".Ecobay.Admin";
@@ -150,6 +163,15 @@ app.MapPost("/admin/logout", async (HttpContext http, IAntiforgery antiforgery) 
 	await http.SignOutAsync(AdminAuthService.Scheme);
 	return Results.LocalRedirect("/admin/login?logout=1");
 });
+
+// Скриншоты заявок — только для вошедших администраторов и водителей.
+app.MapGet("/admin/files/requests/{id:long}", async (long id, IDbContextFactory<AppDBContext> dbFactory, RequestFileStore store) =>
+{
+	await using var db = await dbFactory.CreateDbContextAsync();
+	var rel = await db.Requests.Where(r => r.Id == id).Select(r => r.ScreenshotPath).FirstOrDefaultAsync();
+	var path = store.Resolve(rel);
+	return path is null ? Results.NotFound() : Results.File(path, RequestFileStore.ContentType(path));
+}).RequireAuthorization(policy => policy.RequireRole(AdminRoles.Admin, AdminRoles.Driver));
 
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();

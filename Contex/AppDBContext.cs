@@ -1,4 +1,4 @@
-using EcobayApp.Models;
+﻿using EcobayApp.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EcobayApp.Contex
@@ -19,6 +19,8 @@ namespace EcobayApp.Contex
 		public DbSet<Goal> Goals { get; set; } = null!;
 		public DbSet<MainPageSettings> MainPageSettings { get; set; } = null!;
 		public DbSet<AdminUser> AdminUsers { get; set; } = null!;
+		public DbSet<RequestEvent> RequestEvents { get; set; } = null!;
+		public DbSet<Feedback> Feedbacks { get; set; } = null!;
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -34,6 +36,16 @@ namespace EcobayApp.Contex
 
 			// Filter recent requests and page them in a deterministic order.
 			modelBuilder.Entity<Request>().HasIndex(r => new { r.DateCreate, r.Id });
+			modelBuilder.Entity<Request>().HasIndex(r => new { r.Status, r.DateCreate });
+			modelBuilder.Entity<Request>().HasIndex(r => new { r.RouteDriverId, r.RouteDate });
+			modelBuilder.Entity<Request>().Property(r => r.PaidAmount).HasPrecision(10, 2);
+
+			modelBuilder.Entity<RequestEvent>().Property(e => e.PaidAmount).HasPrecision(10, 2);
+			modelBuilder.Entity<RequestEvent>()
+				.HasOne(e => e.Request).WithMany(r => r.Events)
+				.HasForeignKey(e => e.RequestId).OnDelete(DeleteBehavior.Cascade);
+
+			modelBuilder.Entity<Feedback>().HasIndex(f => f.CreatedAt);
 		}
 	}
 }

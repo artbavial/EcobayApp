@@ -3,7 +3,7 @@
 <div class="table-responsive">
     <table class="table table-hover align-middle admin-table">
         <thead>
-            <tr><th>Дата</th><th>Клиент</th><th>Телефон</th><th>Сообщение</th><th>Город</th>
+            <tr><th>Дата</th><th>Статус</th><th>Клиент</th><th>Телефон</th><th>Сообщение</th><th>Город</th>
                 @if (AllowDelete) { <th><span class="visually-hidden">Действия</span></th> }
             </tr>
         </thead>
@@ -12,6 +12,7 @@
             {
                 <tr @key="row.Id">
                     <td class="text-nowrap">@row.Date.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td><span class="req-status req-status-@row.Status.ToString().ToLowerInvariant()">@RequestWorkflow.StatusTitle(row.Status)</span></td>
                     <td>@row.Name</td>
                     <td class="text-nowrap"><a href="@($"tel:{row.Phone}")">@row.Phone</a></td>
                     <td class="admin-request-message">@row.Message</td>
@@ -25,7 +26,7 @@
             }
             @if (Rows.Count == 0)
             {
-                <tr><td colspan="@(AllowDelete ? 6 : 5)" class="text-center py-4 admin-muted">Заявок за выбранный период нет.</td></tr>
+                <tr><td colspan="@(AllowDelete ? 7 : 6)" class="text-center py-4 admin-muted">Заявок за выбранный период нет.</td></tr>
             }
         </tbody>
     </table>

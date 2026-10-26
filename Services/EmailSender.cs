@@ -10,6 +10,7 @@ using System.Threading.Tasks.Dataflow;
 public interface IEmailSender
 {
 	Task SendRequestCreatedAsync(Client client, Request request, City? city, PageCity? pageCity);
+	Task SendFeedbackAsync(Feedback feedback, string? cityName);
 }
 
 public class EmailSender : IEmailSender
@@ -50,7 +51,39 @@ public class EmailSender : IEmailSender
 
 
 		email.Body = new TextPart(TextFormat.Html) { Text = html };
+		await SendAsync(email);
+	}
 
+	public async Task SendFeedbackAsync(Feedback feedback, string? cityName)
+	{
+		static string E(string? v) => System.Net.WebUtility.HtmlEncode(v ?? string.Empty);
+		var type = feedback.Type switch
+		{
+			FeedbackType.Complaint => "Жалоба",
+			FeedbackType.Suggestion => "Предложение",
+			_ => "Отзыв"
+		};
+
+		var email = new MimeMessage();
+		email.From.Add(MailboxAddress.Parse(_settings.From));
+		email.To.Add(MailboxAddress.Parse(_settings.To));
+		email.Subject = $"{type} с сайта Ecobay";
+		email.Body = new TextPart(TextFormat.Html)
+		{
+			Text = $@"
+			<h2>{type} с сайта Ecobay.by</h2>
+			<p><strong>Дата:</strong> {feedback.CreatedAt:dd.MM.yyyy HH:mm}</p>
+			<p><strong>Город:</strong> {E(cityName ?? "не указан")}</p>
+			<p><strong>Имя:</strong> {E(feedback.Name ?? "не указано")}</p>
+			<p><strong>Телефон:</strong> {E(feedback.Phone ?? "не указан")}</p>
+			<p><strong>Текст:</strong><br/>{E(feedback.Text).Replace("\n", "<br/>")}</p>
+			<p>Обращение сохранено в панели управления, вкладка «Обращения».</p>"
+		};
+		await SendAsync(email);
+	}
+
+	private async Task SendAsync(MimeMessage email)
+	{
 		using var smtp = new MailKit.Net.Smtp.SmtpClient();
 		await smtp.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.StartTls);
 		await smtp.AuthenticateAsync(_settings.SmtpUser, _settings.SmtpPass);

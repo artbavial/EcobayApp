@@ -1,6 +1,6 @@
 @page "/adminpanel"
 @page "/admin"
-@attribute [Authorize]
+@attribute [Authorize(Roles = AdminRoles.Admin)]
 @rendermode InteractiveServer
 
 @using System.Security.Claims
@@ -25,6 +25,7 @@
             <a class="admin-brand text-decoration-none" href="/adminpanel">
                 <img src="images/hero/icon.png" alt="" />Ecobay<span>.by</span>
                 <small>панель управления</small>
+                <span class="admin-engine">ArtBavial Engine CMS v0.9</span>
             </a>
             <div class="d-flex align-items-center gap-3 flex-wrap">
                 <a class="admin-link" href="/?all=1" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть сайт</a>
@@ -49,6 +50,8 @@
             <li><button class="@(activeTab == AdminTab.Dashboard ? "active" : "")" @onclick="() => SetTab(AdminTab.Dashboard)"><i class="fa-solid fa-chart-line"></i> Дашборд</button></li>
             <li><button class="@(activeTab == AdminTab.Requests ? "active" : "")" @onclick="() => OpenRequests(false)"><i class="fa-solid fa-inbox"></i> Заявки</button></li>
             <li><button class="@(activeTab == AdminTab.Goals ? "active" : "")" @onclick="() => SetTab(AdminTab.Goals)"><i class="fa-solid fa-bullseye"></i> Цели</button></li>
+            <li><button class="@(activeTab == AdminTab.Routes ? "active" : "")" @onclick="() => SetTab(AdminTab.Routes)"><i class="fa-solid fa-route"></i> Маршруты</button></li>
+            <li><button class="@(activeTab == AdminTab.Feedback ? "active" : "")" @onclick="() => SetTab(AdminTab.Feedback)"><i class="fa-solid fa-comment-dots"></i> Обращения</button></li>
             <li><button class="@(activeTab == AdminTab.Cities ? "active" : "")" @onclick="() => SetTab(AdminTab.Cities)"><i class="fa-solid fa-city"></i> Города</button></li>
             <li><button class="@(activeTab == AdminTab.MainPage ? "active" : "")" @onclick="() => SetTab(AdminTab.MainPage)"><i class="fa-solid fa-flag"></i> Главная сайта</button></li>
             <li><button class="@(activeTab == AdminTab.Users ? "active" : "")" @onclick="() => SetTab(AdminTab.Users)"><i class="fa-solid fa-users-gear"></i> Пользователи</button></li>
@@ -60,13 +63,21 @@
                 <AdminDashboard OnRequests="() => OpenRequests(true)" OnGoals="() => SetTab(AdminTab.Goals)" />
                 break;
             case AdminTab.Requests:
-                <AdminRequests TodayOnly="requestsTodayOnly" />
+                <AdminRequests TodayOnly="requestsTodayOnly" IsAdmin="true" CurrentUserId="currentUserId" CurrentUserName="@currentUserDisplay" />
                 break;
             case AdminTab.Goals:
                 <AdminGoals />
                 break;
+            case AdminTab.Routes:
+                <AdminRoutes />
+                break;
+
+            case AdminTab.Feedback:
+                <AdminFeedback />
+                break;
+
             case AdminTab.Cities:
-                @CitiesTab()
+                <AdminCities />
                 break;
             case AdminTab.MainPage:
                 @MainPageTab()
@@ -76,10 +87,11 @@
                 break;
         }
     </div>
+    <footer class="admin-footer">© 2026 Разработка ArtBavial Software. Все права защищены.</footer>
 </div>
 
 @code {
-    private enum AdminTab { Dashboard, Requests, Goals, Cities, MainPage, Users }
+    private enum AdminTab { Dashboard, Requests, Routes, Goals, Feedback, Cities, MainPage, Users }
 
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
@@ -88,6 +100,7 @@
     private string currentUserDisplay = "";
     private bool mustChangePassword;
     private bool requestsTodayOnly;
+    private bool saving;
 
     private static readonly Regex SlugRegex = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.Compiled);
 
@@ -121,223 +134,11 @@
         if (mustChangePassword)
             activeTab = AdminTab.Users;
 
-        await LoadCitiesAsync(db);
         await LoadMainPageAsync(db);
         await LoadUsersAsync(db);
     }
 
-    // =====================================================================
-    // CITIES
-    // =====================================================================
-
-    private List<CityRow> cities = new();
-    private City? editCity;
-    private PageCity? editPage;
-    private PromoMessage? editPromo;
-
-    private string? cityMessage; private bool cityError;
-    private string? pageMessage; private bool pageError;
-    private string? promoMessage; private bool promoError;
-    private bool saving;
-
-    private sealed record CityRow(long Id, string Name, string Slug, bool IsActive, int SortOrder, bool HasPage);
-
-    private async Task LoadCitiesAsync(AppDBContext db)
-    {
-        cities = await db.Cities.AsNoTracking()
-            .OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
-            .Select(c => new CityRow(c.Id, c.Name, c.Slug, c.IsActive, c.SortOrder, c.Pages.Any()))
-            .ToListAsync();
-    }
-
-    private int ActiveCitiesOnSite => cities.Count(c => c.IsActive && c.HasPage);
-
-    private RenderFragment CitiesTab() => __builder =>
-    {
-        <div class="admin-hint mb-3">
-            <i class="fa-solid fa-circle-info"></i>
-            В окне выбора города на сайте показываются только <strong>активные</strong> города с сохранённой страницей.
-            Сейчас на сайте: <strong>@ActiveCitiesOnSite</strong> из @cities.Count.
-            Неактивный город скрыт со всего сайта, его адрес перенаправляет на страницу «Вся Беларусь».
-        </div>
-
-        <div class="row g-3">
-            <div class="col-lg-3">
-                <div class="admin-card">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h2 class="admin-card-title mb-0">Города</h2>
-                        <button class="admin-btn admin-btn-primary admin-btn-sm" @onclick="CreateNewCity"><i class="fa-solid fa-plus"></i> Добавить</button>
-                    </div>
-                    <ul class="admin-city-list">
-                        @foreach (var c in cities)
-                        {
-                            <li class="@(editCity?.Id == c.Id && c.Id != 0 ? "selected" : "")" @onclick="() => SelectCityAsync(c.Id)">
-                                <div>
-                                    <strong>@c.Name</strong>
-                                    <small>/@c.Slug</small>
-                                </div>
-                                @if (!c.IsActive)
-                                {
-                                    <span class="admin-badge admin-badge-off">выключен</span>
-                                }
-                                else if (!c.HasPage)
-                                {
-                                    <span class="admin-badge admin-badge-warn">нет страницы</span>
-                                }
-                                else
-                                {
-                                    <span class="admin-badge admin-badge-on">на сайте</span>
-                                }
-                            </li>
-                        }
-                    </ul>
-                </div>
-            </div>
-
-            <div class="col-lg-3">
-                <div class="admin-card">
-                    <h2 class="admin-card-title">Город</h2>
-                    @if (editCity is null)
-                    {
-                        <p class="admin-muted">Выберите город слева или создайте новый.</p>
-                    }
-                    else
-                    {
-                        <div class="form-check form-switch mb-3 admin-switch">
-                            <input class="form-check-input" type="checkbox" id="cityActive" @bind="editCity.IsActive" />
-                            <label class="form-check-label" for="cityActive">Город активен (виден на сайте)</label>
-                        </div>
-                        <div class="mb-3">
-                            <label class="admin-label">Название (именительный падеж)</label>
-                            <input class="form-control" @bind="editCity.Name" placeholder="Гомель" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="admin-label">Название в предложном падеже</label>
-                            <input class="form-control" @bind="editCity.NameIn" placeholder="Гомеле" />
-                            <small class="admin-muted">Используется во фразах «в Гомеле».</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="admin-label">Slug (адрес страницы)</label>
-                            <div class="input-group">
-                                <span class="input-group-text">ecobay.by/</span>
-                                <input class="form-control" @bind="editCity.Slug" placeholder="gomel" />
-                            </div>
-                            <small class="admin-muted">Латиница в нижнем регистре, цифры и дефис.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="admin-label">Порядок в списке</label>
-                            <input class="form-control" type="number" @bind="editCity.SortOrder" />
-                            <small class="admin-muted">Меньше — выше. При равенстве — по алфавиту.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="admin-label">Телефон по умолчанию</label>
-                            <input class="form-control" @bind="editCity.DefaultPhone" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="admin-label">Цена по умолчанию (коп./кг)</label>
-                            <InputNumber class="form-control" TValue="decimal?" @bind-Value="editCity.DefaultPrice" />
-                        </div>
-
-                        <button class="admin-btn admin-btn-primary w-100" @onclick="SaveCityAsync" disabled="@saving">
-                            @(saving ? "Сохранение..." : "Сохранить город")
-                        </button>
-                        @StatusMessage(cityMessage, cityError)
-                        @if (editCity.Id != 0 && editCity.IsActive)
-                        {
-                            <a class="admin-link d-block mt-3" href="@($"/{editCity.Slug}")" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть страницу города</a>
-                        }
-                    }
-                </div>
-            </div>
-
-            <div class="col-lg-3">
-                <div class="admin-card">
-                    <h2 class="admin-card-title">Страница города</h2>
-                    @if (editPage is null)
-                    {
-                        <p class="admin-muted">Сначала сохраните город — страница создастся автоматически.</p>
-                    }
-                    else
-                    {
-                        @PageFields()
-                        <button class="admin-btn admin-btn-primary w-100" @onclick="SavePageAsync" disabled="@saving">
-                            @(saving ? "Сохранение..." : "Сохранить страницу")
-                        </button>
-                        @StatusMessage(pageMessage, pageError)
-                    }
-                </div>
-            </div>
-
-            <div class="col-lg-3">
-                <div class="admin-card">
-                    <h2 class="admin-card-title">Промо для города</h2>
-                    @if (editPromo is null)
-                    {
-                        <p class="admin-muted">Выберите сохранённый город — можно будет настроить всплывающее сообщение.</p>
-                    }
-                    else
-                    {
-                        @PromoFields(editPromo, "cityPromo")
-                        <button class="admin-btn admin-btn-primary w-100" @onclick="SavePromoAsync" disabled="@saving">
-                            @(saving ? "Сохранение..." : "Сохранить промо")
-                        </button>
-                        @StatusMessage(promoMessage, promoError)
-                    }
-                </div>
-            </div>
-        </div>
-    };
-
-    private RenderFragment PageFields() => __builder =>
-    {
-        <div class="mb-3">
-            <label class="admin-label">Title страницы</label>
-            <input class="form-control" @bind="editPage!.Title" />
-        </div>
-        <div class="mb-3">
-            <label class="admin-label">Описание (meta description)</label>
-            <textarea class="form-control" rows="3" @bind="editPage!.Description"></textarea>
-        </div>
-        <div class="mb-3">
-            <label class="admin-label">Ключевые слова (meta keywords)</label>
-            <textarea class="form-control" rows="2" @bind="editPage!.KeyWords"></textarea>
-        </div>
-        <div class="mb-3">
-            <label class="admin-label">Телефон для страницы</label>
-            <input class="form-control" @bind="editPage!.PhoneCity" />
-            <small class="admin-muted">Если пусто — телефон города (@(string.IsNullOrWhiteSpace(editCity?.DefaultPhone) ? "не указан" : editCity!.DefaultPhone)).</small>
-        </div>
-        <details class="admin-local-editor mb-3">
-            <summary>Уникальное содержание города</summary>
-            <p class="admin-muted mt-2">Пишите реальные местные условия, а не тот же текст с заменой города. Пустые блоки на сайте не выводятся.</p>
-            <label class="admin-label">Заголовок первого экрана</label>
-            <input class="form-control mb-3" maxlength="200" @bind="editPage!.HeroTitle" placeholder="Свой H1 для города (необязательно)" />
-            <label class="admin-label">О работе в этом городе</label>
-            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.LocalIntro"
-                      placeholder="Что полезно знать местному клиенту, какие заявки вывозите, особенности работы."></textarea>
-            <label class="admin-label">Город и его район: зона обслуживания</label>
-            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.CoverageText"
-                      placeholder="Конкретные населённые пункты района, которые вы действительно обслуживаете."></textarea>
-            <label class="admin-label">Условия и порядок вывоза</label>
-            <textarea class="form-control mb-3" rows="4" maxlength="1500" @bind="editPage!.PickupDetails"
-                      placeholder="Как согласовать выезд в район, что подготовить, реальный график и условия самопривоза."></textarea>
-        </details>
-        <div class="mb-3">
-            <label class="admin-label">Цена ОТ (коп./кг)</label>
-            <InputNumber class="form-control" TValue="decimal?" @bind-Value="editPage!.Price" />
-            <small class="admin-muted">Если пусто — цена города (@(editCity?.DefaultPrice?.ToString() ?? "не указана")).</small>
-        </div>
-        <div class="mb-3">
-            <label class="admin-label">Цена ДО (коп./кг)</label>
-            <InputNumber class="form-control" TValue="int?" @bind-Value="editPage!.PriceToKopeks" />
-            <small class="admin-muted">Если пусто — показывается только цена «от».</small>
-        </div>
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" id="deliveryPriceModeCheck" @bind="editPage!.IsDeliveryPriceMode" />
-            <label class="form-check-label" for="deliveryPriceModeCheck">Цена зависит от способа вывоза</label>
-            <small class="admin-muted d-block mt-1">«От» — мы приезжаем и вывозим. «До» — клиент сам привозит в передвижной пункт.</small>
-        </div>
-    };
+    // ---------- Общие фрагменты разметки ----------
 
     private RenderFragment PromoFields(PromoMessage promo, string idPrefix) => __builder =>
     {
@@ -362,186 +163,6 @@
             <p class="@(isError ? "admin-status-error" : "admin-status-ok") mt-2 mb-0">@message</p>
         }
     };
-
-    private void ResetCityMessages()
-    {
-        cityMessage = pageMessage = promoMessage = null;
-        cityError = pageError = promoError = false;
-    }
-
-    private void CreateNewCity()
-    {
-        ResetCityMessages();
-        editCity = new City
-        {
-            Name = "",
-            NameIn = "",
-            Slug = "",
-            DefaultPhone = DbSeeder.DefaultPhone,
-            DefaultPrice = 20m,
-            IsActive = true,
-            SortOrder = cities.Count == 0 ? 0 : cities.Max(c => c.SortOrder)
-        };
-        editPage = null;
-        editPromo = null;
-    }
-
-    private async Task SelectCityAsync(long cityId)
-    {
-        ResetCityMessages();
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-        editCity = await db.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cityId);
-        if (editCity is null)
-        {
-            editPage = null;
-            editPromo = null;
-            return;
-        }
-
-        editPage = await db.PageCities.AsNoTracking().FirstOrDefaultAsync(p => p.CityId == cityId)
-                   ?? NewPageFor(editCity);
-
-        editPromo = await db.PromoMessages.AsNoTracking().FirstOrDefaultAsync(p => p.CityId == cityId)
-                    ?? new PromoMessage { CityId = editCity.Id, Title = $"Акция в {editCity.NameIn}", Text = "", IsActive = false };
-    }
-
-    private static PageCity NewPageFor(City city) => new()
-    {
-        CityId = city.Id,
-        Title = $"Вывоз бытовой техники в {city.NameIn}",
-        Description = $"Быстрый и выгодный вывоз бытовой техники в {city.NameIn}.",
-        KeyWords = $"вывоз техники {city.Name}, утилизация техники {city.Name}, приём техники {city.Name}",
-        Price = city.DefaultPrice ?? 20m,
-        PhoneCity = city.DefaultPhone
-    };
-
-    private async Task<string?> ValidateCityAsync(AppDBContext db, City city)
-    {
-        city.Name = city.Name?.Trim() ?? "";
-        city.NameIn = city.NameIn?.Trim() ?? "";
-        city.Slug = (city.Slug ?? "").Trim().ToLowerInvariant();
-        city.DefaultPhone = string.IsNullOrWhiteSpace(city.DefaultPhone) ? null : city.DefaultPhone.Trim();
-
-        if (city.Name.Length == 0) return "Укажите название города.";
-        if (city.NameIn.Length == 0) return "Укажите название в предложном падеже (например, «Гомеле»).";
-        if (city.Slug.Length == 0) return "Укажите slug.";
-        if (!SlugRegex.IsMatch(city.Slug)) return "Slug: только латиница a–z, цифры и дефис (например, «gomel» или «novaya-guta»).";
-        if (ReservedSlugs.Contains(city.Slug)) return $"Адрес «{city.Slug}» зарезервирован сайтом, выберите другой.";
-        if (await db.Cities.AnyAsync(c => c.Slug == city.Slug && c.Id != city.Id)) return $"Город с адресом «{city.Slug}» уже существует.";
-        if (city.DefaultPrice is < 0) return "Цена не может быть отрицательной.";
-        return null;
-    }
-
-    private async Task SaveCityAsync()
-    {
-        if (editCity is null) return;
-        ResetCityMessages();
-        saving = true;
-
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-
-            var error = await ValidateCityAsync(db, editCity);
-            if (error is not null)
-            {
-                cityMessage = error; cityError = true;
-                return;
-            }
-
-            var isNew = editCity.Id == 0;
-            if (isNew) db.Cities.Add(editCity);
-            else db.Cities.Update(editCity);
-            await db.SaveChangesAsync();
-
-            // Для нового города сразу создаём страницу — иначе он не появится в окне выбора города.
-            if (!await db.PageCities.AnyAsync(p => p.CityId == editCity.Id))
-            {
-                db.PageCities.Add(NewPageFor(editCity));
-                await db.SaveChangesAsync();
-            }
-
-            var id = editCity.Id;
-            await LoadCitiesAsync(db);
-            await SelectCityAsync(id);
-            cityMessage = isNew ? "Город создан, страница города добавлена." : "Город сохранён.";
-        }
-        catch (Exception ex)
-        {
-            cityMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; cityError = true;
-        }
-        finally
-        {
-            saving = false;
-        }
-    }
-
-    private async Task SavePageAsync()
-    {
-        if (editCity is null || editCity.Id == 0 || editPage is null) return;
-        ResetCityMessages();
-
-        if (string.IsNullOrWhiteSpace(editPage.Title)) { pageMessage = "Укажите Title страницы."; pageError = true; return; }
-        if (editPage.HeroTitle?.Length > 200 || editPage.LocalIntro?.Length > 1500 ||
-            editPage.CoverageText?.Length > 1500 || editPage.PickupDetails?.Length > 1500)
-        { pageMessage = "Превышена длина местного текста: H1 до 200, каждый блок до 1500 символов."; pageError = true; return; }
-        if (editPage.Price is < 0 || editPage.PriceToKopeks is < 0) { pageMessage = "Цена не может быть отрицательной."; pageError = true; return; }
-
-        saving = true;
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            editPage.CityId = editCity.Id;
-            editPage.PhoneCity = string.IsNullOrWhiteSpace(editPage.PhoneCity) ? null : editPage.PhoneCity.Trim();
-            if (editPage.Id == 0) db.PageCities.Add(editPage);
-            else db.PageCities.Update(editPage);
-            await db.SaveChangesAsync();
-            await LoadCitiesAsync(db);
-            pageMessage = "Страница сохранена.";
-        }
-        catch (Exception ex)
-        {
-            pageMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; pageError = true;
-        }
-        finally
-        {
-            saving = false;
-        }
-    }
-
-    private async Task SavePromoAsync()
-    {
-        if (editCity is null || editCity.Id == 0 || editPromo is null) return;
-        ResetCityMessages();
-
-        if (editPromo.IsActive && (string.IsNullOrWhiteSpace(editPromo.Title) || string.IsNullOrWhiteSpace(editPromo.Text)))
-        {
-            promoMessage = "Для активного промо заполните заголовок и текст."; promoError = true;
-            return;
-        }
-
-        saving = true;
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            editPromo.CityId = editCity.Id;
-            editPromo.Title = string.IsNullOrWhiteSpace(editPromo.Title) ? $"Акция в {editCity.NameIn}" : editPromo.Title.Trim();
-            editPromo.Text ??= "";
-            if (editPromo.Id == 0) db.PromoMessages.Add(editPromo);
-            else db.PromoMessages.Update(editPromo);
-            await db.SaveChangesAsync();
-            promoMessage = "Промо сохранено.";
-        }
-        catch (Exception ex)
-        {
-            promoMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; promoError = true;
-        }
-        finally
-        {
-            saving = false;
-        }
-    }
 
     // =====================================================================
     // MAIN PAGE — «Вся Беларусь»
@@ -744,6 +365,7 @@
     private string? pwdMessage; private bool pwdError;
 
     private string? newLogin, newDisplayName, newPassword;
+    private string newRole = AdminRoles.Driver;
     private string? newUserMessage; private bool newUserError;
 
     private long resetUserId;
@@ -785,7 +407,7 @@
                     <h2 class="admin-card-title">Пользователи панели</h2>
                     <div class="table-responsive">
                         <table class="table align-middle admin-table mb-0">
-                            <thead><tr><th>Логин</th><th>Имя</th><th>Последний вход</th><th>Статус</th><th></th></tr></thead>
+                            <thead><tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Последний вход</th><th>Статус</th><th></th></tr></thead>
                             <tbody>
                                 @foreach (var u in users)
                                 {
@@ -793,6 +415,7 @@
                                     <tr>
                                         <td><strong>@u.Login</strong> @if (isMe) { <span class="admin-badge admin-badge-on">это вы</span> }</td>
                                         <td>@u.DisplayName</td>
+                                        <td><span class="admin-badge @(u.Role == AdminRoles.Driver ? "admin-badge-warn" : "admin-badge-on")">@AdminRoles.Title(u.Role)</span></td>
                                         <td class="text-nowrap">@(u.LastLoginAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
                                         <td>
                                             @if (!u.IsActive) { <span class="admin-badge admin-badge-off">отключён</span> }
@@ -800,8 +423,12 @@
                                             else { <span class="admin-badge admin-badge-on">активен</span> }
                                         </td>
                                         <td class="text-end text-nowrap">
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => StartEditUser(u)">Изменить</button>
                                             @if (!isMe)
                                             {
+                                                <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => ToggleRoleAsync(u.Id)">
+                                                    @(u.Role == AdminRoles.Driver ? "Сделать админом" : "Сделать водителем")
+                                                </button>
                                                 <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => { resetUserId = u.Id; resetPassword = null; usersMessage = null; }">Новый пароль</button>
                                                 <button class="btn btn-sm @(u.IsActive ? "btn-outline-danger" : "btn-outline-success")" @onclick="() => ToggleUserActiveAsync(u.Id)">
                                                     @(u.IsActive ? "Отключить" : "Включить")
@@ -809,10 +436,48 @@
                                             }
                                         </td>
                                     </tr>
+                                    @if (editUserId == u.Id)
+                                    {
+                                        <tr class="admin-row-edit">
+                                            <td colspan="6">
+                                                <div class="row g-2 align-items-end">
+                                                    <div class="col-sm-6 col-lg-3">
+                                                        <label class="admin-label">Логин</label>
+                                                        <input class="form-control" autocomplete="off" @bind="editLogin" disabled="@isMe" />
+                                                    </div>
+                                                    <div class="col-sm-6 col-lg-3">
+                                                        <label class="admin-label">Имя (видно в заявках и маршрутах)</label>
+                                                        <input class="form-control" maxlength="100" @bind="editDisplayName" />
+                                                    </div>
+                                                    <div class="col-sm-6 col-lg-3">
+                                                        <label class="admin-label">Роль</label>
+                                                        <select class="form-select" @bind="editRole" disabled="@isMe">
+                                                            <option value="@AdminRoles.Admin">Администратор</option>
+                                                            <option value="@AdminRoles.Driver">Водитель</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-sm-6 col-lg-3 d-flex gap-2 flex-wrap">
+                                                        <button class="btn btn-success" disabled="@saving" @onclick="SaveUserAsync">Сохранить</button>
+                                                        <button class="btn btn-link" @onclick="() => editUserId = 0">Отмена</button>
+                                                    </div>
+                                                    @if (!isMe && u.LockoutUntil > DateTime.Now)
+                                                    {
+                                                        <div class="col-12">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" type="checkbox" id="unlockUser" @bind="editUnlock" />
+                                                                <label class="form-check-label" for="unlockUser">Снять блокировку за неверные пароли</label>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                    @if (isMe) { <div class="col-12 admin-muted small">Свой логин и роль изменить нельзя — только имя.</div> }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
                                     @if (resetUserId == u.Id)
                                     {
                                         <tr class="admin-row-edit">
-                                            <td colspan="5">
+                                            <td colspan="6">
                                                 <div class="d-flex gap-2 flex-wrap align-items-center">
                                                     <span>Новый пароль для <strong>@u.Login</strong>:</span>
                                                     <input class="form-control w-auto" type="password" autocomplete="new-password" @bind="resetPassword" />
@@ -844,12 +509,20 @@
                             <label class="admin-label">Пароль</label>
                             <input class="form-control" type="password" autocomplete="new-password" @bind="newPassword" />
                         </div>
+                        <div class="col-md-4">
+                            <label class="admin-label">Роль</label>
+                            <select class="form-select" @bind="newRole">
+                                <option value="@AdminRoles.Driver">Водитель — только заявки</option>
+                                <option value="@AdminRoles.Admin">Администратор — вся панель</option>
+                            </select>
+                        </div>
                     </div>
+                    <small class="admin-muted d-block mt-2">Водитель входит по тому же адресу /admin/login и видит только страницу заявок: отработка, отмена, возврат, сумма выплаты и комментарий.</small>
                     <button class="admin-btn admin-btn-primary mt-3" @onclick="CreateUserAsync" disabled="@saving"><i class="fa-solid fa-user-plus"></i> Добавить</button>
                     @StatusMessage(newUserMessage, newUserError)
                 </div>
             </div>
-        </div>
+</div>
     };
 
     private async Task ChangeOwnPasswordAsync()
@@ -904,6 +577,7 @@
                 Login = login,
                 DisplayName = string.IsNullOrWhiteSpace(newDisplayName) ? null : newDisplayName.Trim(),
                 IsActive = true,
+                Role = newRole == AdminRoles.Admin ? AdminRoles.Admin : AdminRoles.Driver,
                 PasswordHash = ""
             };
             user.PasswordHash = Auth.HashPassword(user, newPassword!);
@@ -912,12 +586,90 @@
             await LoadUsersAsync(db);
 
             newLogin = newDisplayName = newPassword = null;
-            newUserMessage = $"Пользователь «{login}» добавлен.";
+            newUserMessage = $"{AdminRoles.Title(user.Role)} «{login}» добавлен.";
         }
         finally
         {
             saving = false;
         }
+    }
+
+    private long editUserId;
+    private string? editLogin, editDisplayName;
+    private string editRole = AdminRoles.Driver;
+    private bool editUnlock;
+
+    private void StartEditUser(AdminUser u)
+    {
+        usersMessage = null; usersError = false;
+        resetUserId = 0;
+        editUserId = u.Id;
+        editLogin = u.Login;
+        editDisplayName = u.DisplayName;
+        editRole = u.Role;
+        editUnlock = false;
+    }
+
+    private async Task SaveUserAsync()
+    {
+        usersMessage = null; usersError = false;
+        var isMe = editUserId == currentUserId;
+        saving = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == editUserId);
+            if (user is null) { editUserId = 0; return; }
+
+            var login = AdminAuthService.NormalizeLogin(editLogin);
+            var role = editRole == AdminRoles.Admin ? AdminRoles.Admin : AdminRoles.Driver;
+            var sessionsReset = false;
+            if (!isMe)
+            {
+                if (!Regex.IsMatch(login, "^[a-z0-9._-]{3,64}$")) { usersMessage = "Логин: 3–64 символа, латиница, цифры, точка, дефис, подчёркивание."; usersError = true; return; }
+                if (login != user.Login && await db.AdminUsers.AnyAsync(u => u.Login == login && u.Id != user.Id)) { usersMessage = "Такой логин уже есть."; usersError = true; return; }
+                if (role == AdminRoles.Driver && user.Role == AdminRoles.Admin && user.IsActive &&
+                    await db.AdminUsers.CountAsync(u => u.IsActive && u.Role == AdminRoles.Admin) <= 1)
+                { usersMessage = "Нельзя понизить последнего активного администратора."; usersError = true; return; }
+
+                sessionsReset = login != user.Login || role != user.Role;
+                user.Login = login;
+                user.Role = role;
+                if (editUnlock) { user.LockoutUntil = null; user.FailedLoginCount = 0; }
+                if (sessionsReset) user.SecurityStamp = Guid.NewGuid().ToString("N"); // новые логин/роль — после повторного входа
+            }
+            user.DisplayName = string.IsNullOrWhiteSpace(editDisplayName) ? null : editDisplayName.Trim();
+            await db.SaveChangesAsync();
+            await LoadUsersAsync(db);
+            if (isMe) currentUserDisplay = user.DisplayName ?? user.Login;
+            editUserId = 0;
+            usersMessage = $"Пользователь «{user.Login}» сохранён." + (sessionsReset ? " Его текущие сессии завершены — нужно войти заново." : "");
+        }
+        finally { saving = false; }
+    }
+
+    private async Task ToggleRoleAsync(long userId)
+    {
+        usersMessage = null; usersError = false;
+        if (userId == currentUserId) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null) return;
+
+        var toDriver = user.Role != AdminRoles.Driver;
+        if (toDriver && user.IsActive &&
+            await db.AdminUsers.CountAsync(u => u.IsActive && u.Role == AdminRoles.Admin) <= 1)
+        {
+            usersMessage = "Нельзя понизить последнего активного администратора."; usersError = true;
+            return;
+        }
+
+        user.Role = toDriver ? AdminRoles.Driver : AdminRoles.Admin;
+        user.SecurityStamp = Guid.NewGuid().ToString("N"); // новая роль применится после повторного входа
+        await db.SaveChangesAsync();
+        await LoadUsersAsync(db);
+        usersMessage = $"«{user.Login}» теперь {AdminRoles.Title(user.Role).ToLowerInvariant()}. Его текущие сессии завершены.";
     }
 
     private async Task ToggleUserActiveAsync(long userId)
@@ -929,9 +681,10 @@
         var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == userId);
         if (user is null) return;
 
-        if (user.IsActive && await db.AdminUsers.CountAsync(u => u.IsActive) <= 1)
+        if (user.IsActive && user.Role == AdminRoles.Admin &&
+            await db.AdminUsers.CountAsync(u => u.IsActive && u.Role == AdminRoles.Admin) <= 1)
         {
-            usersMessage = "Нельзя отключить последнего активного пользователя."; usersError = true;
+            usersMessage = "Нельзя отключить последнего активного администратора."; usersError = true;
             return;
         }
 

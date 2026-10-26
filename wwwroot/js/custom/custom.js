@@ -461,14 +461,8 @@
 
             // Блок «Наши цели»: картинка выезжает слева, карточка — снизу, полоса прогресса
             // заполняется до реального процента из БД (раньше всегда до 75%).
-            $all(".bar .fill").forEach(function (fill) {
-                var p = parseFloat(fill.getAttribute("data-progress"));
-                if (isNaN(p)) return;
-                gsap.fromTo(fill, { width: "0%" }, {
-                    width: p + "%", duration: 1.6, ease: "power2.out",
-                    scrollTrigger: { trigger: fill, start: "top 92%", once: true }
-                });
-            });
+            // Полоса прогресса заполняется через CSS (см. initProgressBars), а не GSAP:
+            // Blazor при перерисовке сбрасывал ширину, выставленную анимацией, и полоса уходила в ноль.
             $all(".starta-performance h4.starta-h4.d-flex").forEach(countUp);
 
             // Сначала — контейнеры (карточки, блоки), затем — отдельные тексты вне этих контейнеров.
@@ -508,6 +502,27 @@
     }
 
     // -----------------------------------------------------------------
+    // Прогресс цели: ширина задаётся из Blazor через --p, здесь только включаем плавное заполнение,
+    // когда полоса появилась на экране. Класс Blazor не трогает, поэтому значение больше не сбрасывается.
+    var barObserver = null;
+    function initProgressBars() {
+        var bars = $all(".bar");
+        if (!bars.length) return;
+        if (!("IntersectionObserver" in window) || reduceMotion) {
+            bars.forEach(function (b) { b.classList.add("is-filled"); });
+            return;
+        }
+        if (barObserver) barObserver.disconnect();
+        barObserver = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+                if (!e.isIntersecting) return;
+                e.target.classList.add("is-filled");
+                barObserver.unobserve(e.target);
+            });
+        }, { threshold: 0.6 });
+        bars.forEach(function (b) { if (!b.classList.contains("is-filled")) barObserver.observe(b); });
+    }
+
     // Публичное API
     // -----------------------------------------------------------------
     window.ecobay = {
@@ -521,6 +536,7 @@
             initSwiper();
             sizeTestimonialCircles();
             initGsap();
+            initProgressBars();
             updateStickyNav();
             document.documentElement.classList.add("ecobay-ready");
         },
@@ -529,6 +545,100 @@
         lockScroll: function (lock) {
             document.documentElement.classList.toggle("modal-open", !!lock);
         }
+    };
+
+    // -----------------------------------------------------------------
+    // Распознавание телефона на скриншоте (панель управления).
+    // Tesseract.js загружается только при первом использовании и работает в браузере —
+    // сервер не нагружается, внешние платные сервисы не нужны.
+    // -----------------------------------------------------------------
+    var tesseractPromise = null;
+
+    function loadTesseract() {
+        if (window.Tesseract) return Promise.resolve(window.Tesseract);
+        if (!tesseractPromise) {
+            tesseractPromise = new Promise(function (resolve, reject) {
+                var s = document.createElement("script");
+                s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+                s.async = true;
+                s.onload = function () { resolve(window.Tesseract); };
+                s.onerror = function () { tesseractPromise = null; reject(new Error("tesseract load failed")); };
+                document.head.appendChild(s);
+            });
+        }
+        return tesseractPromise;
+    }
+
+    // Уменьшаем большие скриншоты (iPhone ~1290x2800) перед распознаванием — меньше памяти и быстрее.
+    function shrinkImage(file) {
+        return new Promise(function (resolve) {
+            var url = URL.createObjectURL(file);
+            var img = new Image();
+            img.onload = function () {
+                try {
+                    var max = 1400, w = img.naturalWidth, h = img.naturalHeight;
+                    var k = Math.min(1, max / Math.max(w, h));
+                    var c = document.createElement("canvas");
+                    c.width = Math.round(w * k); c.height = Math.round(h * k);
+                    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+                    URL.revokeObjectURL(url);
+                    resolve(c);
+                } catch (e) { URL.revokeObjectURL(url); resolve(file); }
+            };
+            img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+            img.src = url;
+        });
+    }
+
+    function extractPhones(text) {
+        var result = [];
+        var add = function (digits) {
+            if (digits.indexOf("375") === 0 && digits.length === 12) { /* ok */ }
+            else if (digits.indexOf("80") === 0 && digits.length === 11) digits = "375" + digits.slice(2);
+            else if (digits.length === 9) digits = "375" + digits;
+            else return;
+            if (!/^375(25|29|33|44|17|1[5-6]|2[1-3]|2[4-9]|3[0-9]|4[0-9]|5[0-9]|6[0-9]|7[0-9]|8[0-9]|9[0-9])\d{7}$/.test(digits)) return;
+            var p = "+" + digits;
+            if (result.indexOf(p) === -1) result.push(p);
+        };
+        // Частые ошибки OCR: O→0, l/I→1
+        var t = (text || "").replace(/[Oo]/g, "0").replace(/[lI|]/g, "1");
+        var full = /(?:\+\s*)?(?:375|8\s*0)[\s\-().]*\d{2}[\s\-().]*\d{3}[\s\-.]*\d{2}[\s\-.]*\d{2}/g;
+        var m;
+        while ((m = full.exec(t))) add(m[0].replace(/\D/g, ""));
+        var local = /(?:^|[^\d])\(?(25|29|33|44)\)?[\s\-]*(\d{3})[\s\-]*(\d{2})[\s\-]*(\d{2})(?!\d)/g;
+        while ((m = local.exec(t))) add(m[1] + m[2] + m[3] + m[4]);
+        return result;
+    }
+
+    window.ecobayOcr = {
+        findPhones: function (inputId, dotnetRef) {
+            // Любая ошибка распознавания не должна ломать страницу: ловим всё и сообщаем в Blazor.
+            var reply = function (phones, err) {
+                try {
+                    var r = dotnetRef.invokeMethodAsync("OnPhonesFound", phones, err);
+                    if (r && r.catch) r.catch(function () { /* форму уже закрыли */ });
+                } catch (e) { /* соединение с сервером потеряно */ }
+            };
+            try {
+                var input = document.getElementById(inputId);
+                var file = input && input.files && input.files[0];
+                if (!file) { reply([], "no file"); return; }
+                var timeout = new Promise(function (_, reject) { setTimeout(function () { reject(new Error("timeout")); }, 90000); });
+                // Небольшая пауза: сначала Blazor дорисует форму и подтвердит получение, потом тяжёлая работа.
+                var pause = new Promise(function (resolve) { setTimeout(resolve, 300); });
+                Promise.race([
+                    pause.then(function () { return Promise.all([loadTesseract(), shrinkImage(file)]); })
+                        .then(function (r) { return r[0].recognize(r[1], "eng"); }),
+                    timeout
+                ])
+                    .then(function (res) { reply(extractPhones(res && res.data ? res.data.text : ""), null); })
+                    .catch(function (err) { reply([], String(err && err.message || err)); });
+            } catch (e) {
+                reply([], String(e && e.message || e));
+            }
+        },
+        extractPhones: extractPhones
     };
 
     // Совместимость со старыми вызовами из Razor-кода

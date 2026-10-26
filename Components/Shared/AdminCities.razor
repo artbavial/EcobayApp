@@ -1,0 +1,394 @@
+@using System.Text.RegularExpressions
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject ILogger<AdminCities> Logger
+
+<div class="city-admin @(editCity is null ? "" : "is-editing")">
+    <aside class="city-admin-list admin-card">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="admin-card-title mb-0">Города</h2>
+            <button class="admin-btn admin-btn-primary admin-btn-sm" disabled="@busy" @onclick="CreateNew"><i class="fa-solid fa-plus"></i> Добавить</button>
+        </div>
+        <p class="admin-muted mb-2">На сайте: <strong>@cities.Count(c => c.IsActive && c.HasPage)</strong> из @cities.Count. Только активные города показываются посетителям.</p>
+        @if (cities.Count > 6)
+        {
+            <input class="form-control mb-2" placeholder="Поиск города" @bind="filter" @bind:event="oninput" />
+        }
+        <ul class="city-admin-items">
+            @foreach (var c in FilteredCities)
+            {
+                <li class="@(editCity?.Id == c.Id && c.Id != 0 ? "selected" : "")" @key="c.Id">
+                    <button type="button" class="city-admin-item" disabled="@busy" @onclick="() => SelectAsync(c.Id)">
+                        <span class="city-admin-item-main">
+                            <strong>@c.Name</strong>
+                            <small>/@c.Slug · уникальный текст @c.Filled/@FillTotal</small>
+                        </span>
+                        @if (!c.IsActive) { <span class="admin-badge admin-badge-off">выключен</span> }
+                        else if (!c.HasPage) { <span class="admin-badge admin-badge-warn">нет страницы</span> }
+                        else { <span class="admin-badge admin-badge-on">на сайте</span> }
+                        <i class="fa-solid fa-chevron-right city-admin-chevron" aria-hidden="true"></i>
+                    </button>
+                </li>
+            }
+        </ul>
+    </aside>
+
+    <section class="city-admin-editor">
+        @if (editCity is null || editPage is null || editPromo is null)
+        {
+            <div class="admin-card city-admin-empty">
+                <i class="fa-solid fa-city"></i>
+                <p>Выберите город в списке или добавьте новый.</p>
+            </div>
+        }
+        else
+        {
+            <div class="admin-card">
+                <div class="city-admin-head">
+                    <button type="button" class="btn btn-link city-admin-back" @onclick="Back"><i class="fa-solid fa-arrow-left"></i> Все города</button>
+                    <div class="city-admin-title">
+                        <h2 class="admin-card-title mb-0">@(editCity.Id == 0 ? "Новый город" : editCity.Name)</h2>
+                        @if (editCity.Id != 0 && editCity.IsActive)
+                        {
+                            <a class="admin-link" href="@($"/{editCity.Slug}")" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть страницу</a>
+                        }
+                    </div>
+                    <div class="form-check form-switch admin-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="cityActive" @bind="editCity.IsActive" />
+                        <label class="form-check-label" for="cityActive">@(editCity.IsActive ? "Активен — виден на сайте" : "Выключен — скрыт с сайта")</label>
+                    </div>
+                </div>
+
+                <nav class="city-admin-tabs" role="tablist">
+                    @foreach (var (tab, title) in Tabs)
+                    {
+                        <button type="button" role="tab" class="@(activeTab == tab ? "active" : "")" @onclick="() => activeTab = tab">@title</button>
+                    }
+                </nav>
+
+                <div class="city-admin-body">
+                    @switch (activeTab)
+                    {
+                        case EditorTab.Main:
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="admin-label" for="cName">Название (именительный падеж) *</label>
+                                    <input id="cName" class="form-control" @bind="editCity.Name" placeholder="Гомель" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="admin-label" for="cNameIn">В предложном падеже *</label>
+                                    <input id="cNameIn" class="form-control" @bind="editCity.NameIn" placeholder="Гомеле" />
+                                    <small class="admin-muted">Для фраз «в Гомеле».</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="admin-label" for="cSlug">Адрес страницы *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">ecobay.by/</span>
+                                        <input id="cSlug" class="form-control" @bind="editCity.Slug" placeholder="gomel" />
+                                    </div>
+                                    <small class="admin-muted">Латиница, цифры, дефис. Меняйте осторожно: старые ссылки в рекламе перестанут работать.</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="admin-label" for="cSort">Порядок в списке</label>
+                                    <input id="cSort" class="form-control" type="number" @bind="editCity.SortOrder" />
+                                    <small class="admin-muted">Меньше — выше.</small>
+                                </div>
+                            </div>
+                            break;
+
+                        case EditorTab.Prices:
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="admin-label" for="cPhone">Телефон города</label>
+                                    <input id="cPhone" class="form-control" inputmode="tel" @bind="editCity.DefaultPhone" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="admin-label" for="pPhone">Телефон на странице</label>
+                                    <input id="pPhone" class="form-control" inputmode="tel" @bind="editPage.PhoneCity" placeholder="@editCity.DefaultPhone" />
+                                    <small class="admin-muted">Если пусто — телефон города.</small>
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <label class="admin-label" for="pPrice">Цена ОТ, коп./кг</label>
+                                    <InputNumber id="pPrice" class="form-control" TValue="decimal?" @bind-Value="editPage.Price" />
+                                </div>
+                                <div class="col-6 col-md-4">
+                                    <label class="admin-label" for="pPriceTo">Цена ДО, коп./кг</label>
+                                    <InputNumber id="pPriceTo" class="form-control" TValue="int?" @bind-Value="editPage.PriceToKopeks" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="admin-label" for="cPrice">Цена города по умолчанию</label>
+                                    <InputNumber id="cPrice" class="form-control" TValue="decimal?" @bind-Value="editCity.DefaultPrice" />
+                                    <small class="admin-muted">Если «Цена ОТ» пуста.</small>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="pDelivery" @bind="editPage.IsDeliveryPriceMode" />
+                                        <label class="form-check-label" for="pDelivery">Цена зависит от способа вывоза</label>
+                                        <small class="admin-muted d-block">«От» — мы приезжаем и вывозим. «До» — клиент сам привозит в передвижной пункт.</small>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="admin-hint">На сайте: <strong>@PricePreview</strong></div>
+                                </div>
+                            </div>
+                            break;
+
+                        case EditorTab.Texts:
+                            <div class="admin-hint mb-3">
+                                <i class="fa-solid fa-lightbulb"></i>
+                                Чтобы страницы городов не были дублями, пишите реальные местные условия: какие населённые пункты района обслуживаете,
+                                как согласуете выезд, особенности маршрутов. Пустые блоки на сайте не выводятся.
+                                Заполнено: <strong>@FilledCount(editPage)/@FillTotal</strong>.
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="admin-label" for="pH1">Заголовок первого экрана (H1)</label>
+                                    <input id="pH1" class="form-control" maxlength="200" @bind="editPage.HeroTitle" placeholder="Например: Вывоз старой техники в Бобруйске и Бобруйском районе" />
+                                </div>
+                                <div class="col-lg-4">
+                                    <label class="admin-label" for="pIntro">О работе в городе</label>
+                                    <textarea id="pIntro" class="form-control" rows="6" maxlength="1500" @bind="editPage.LocalIntro"
+                                              placeholder="Какие заявки здесь чаще всего, как быстро приезжаете, особенности работы."></textarea>
+                                </div>
+                                <div class="col-lg-4">
+                                    <label class="admin-label" for="pCoverage">Зона обслуживания</label>
+                                    <textarea id="pCoverage" class="form-control" rows="6" maxlength="1500" @bind="editPage.CoverageText"
+                                              placeholder="Конкретные населённые пункты района, куда вы реально выезжаете."></textarea>
+                                </div>
+                                <div class="col-lg-4">
+                                    <label class="admin-label" for="pPickup">Условия и порядок вывоза</label>
+                                    <textarea id="pPickup" class="form-control" rows="6" maxlength="1500" @bind="editPage.PickupDetails"
+                                              placeholder="Как согласовать выезд в район, что подготовить, где передвижной пункт."></textarea>
+                                </div>
+                                <div class="col-12"><hr class="my-1" /><h3 class="admin-card-title mt-2 mb-0">SEO</h3></div>
+                                <div class="col-lg-6">
+                                    <label class="admin-label" for="pTitle">Title страницы *</label>
+                                    <input id="pTitle" class="form-control" maxlength="160" @bind="editPage.Title" />
+                                    <small class="admin-muted">@((editPage.Title ?? "").Length)/60 — оптимально до 60 символов.</small>
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="admin-label" for="pKeys">Ключевые слова</label>
+                                    <input id="pKeys" class="form-control" maxlength="300" @bind="editPage.KeyWords" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="admin-label" for="pDesc">Описание (meta description)</label>
+                                    <textarea id="pDesc" class="form-control" rows="2" maxlength="300" @bind="editPage.Description"></textarea>
+                                    <small class="admin-muted">@((editPage.Description ?? "").Length)/160 — оптимально 120–160 символов.</small>
+                                </div>
+                            </div>
+                            break;
+
+                        case EditorTab.Promo:
+                            <div class="form-check form-switch mb-3 admin-switch">
+                                <input class="form-check-input" type="checkbox" id="promoActive" @bind="editPromo.IsActive" />
+                                <label class="form-check-label" for="promoActive">Показывать всплывающее сообщение на странице города</label>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <label class="admin-label" for="promoTitle">Заголовок</label>
+                                    <input id="promoTitle" class="form-control" maxlength="160" @bind="editPromo.Title" />
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="admin-label" for="promoText">Текст</label>
+                                    <textarea id="promoText" class="form-control" rows="3" maxlength="500" @bind="editPromo.Text"></textarea>
+                                </div>
+                            </div>
+                            break;
+                    }
+                </div>
+
+                <div class="city-admin-savebar">
+                    @if (message is not null) { <span class="@(isError ? "admin-status-error" : "admin-status-ok")">@message</span> }
+                    <button class="admin-btn admin-btn-primary ms-auto" disabled="@busy" @onclick="SaveAsync">
+                        @(busy ? "Сохранение..." : editCity.Id == 0 ? "Создать город" : "Сохранить изменения")
+                    </button>
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private enum EditorTab { Main, Prices, Texts, Promo }
+    private static readonly (EditorTab, string)[] Tabs =
+    {
+        (EditorTab.Main, "Основное"), (EditorTab.Prices, "Цены и телефон"), (EditorTab.Texts, "Тексты и SEO"), (EditorTab.Promo, "Промо")
+    };
+
+    private static readonly Regex SlugRegex = new("^[a-z0-9]+(?:-[a-z0-9]+)*$", RegexOptions.Compiled);
+    private static readonly HashSet<string> ReservedSlugs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "admin", "adminpanel", "driver", "contacts", "user-agreement", "error", "login", "logout",
+        "css", "js", "images", "font", "bootstrap", "_framework", "_blazor"
+    };
+
+    private const int FillTotal = 5;
+
+    private sealed record CityRow(long Id, string Name, string Slug, bool IsActive, int SortOrder, bool HasPage, int Filled);
+
+    private List<CityRow> cities = new();
+    private string? filter, message;
+    private bool busy, isError;
+    private EditorTab activeTab = EditorTab.Main;
+    private City? editCity;
+    private PageCity? editPage;
+    private PromoMessage? editPromo;
+
+    private IEnumerable<CityRow> FilteredCities => string.IsNullOrWhiteSpace(filter)
+        ? cities
+        : cities.Where(c => c.Name.Contains(filter.Trim(), StringComparison.OrdinalIgnoreCase) || c.Slug.Contains(filter.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    private static int FilledCount(PageCity p) =>
+        new[] { p.HeroTitle, p.LocalIntro, p.CoverageText, p.PickupDetails, p.Description }.Count(v => !string.IsNullOrWhiteSpace(v));
+
+    private string PricePreview
+    {
+        get
+        {
+            var from = (int)(editPage?.Price ?? editCity?.DefaultPrice ?? 20m);
+            var to = editPage?.PriceToKopeks;
+            if (to.HasValue && to.Value > from)
+                return editPage!.IsDeliveryPriceMode
+                    ? $"{from} коп./кг при выезде, {to} коп./кг при самопривозе"
+                    : $"от {from} до {to} коп./кг";
+            return $"от {from} коп./кг";
+        }
+    }
+
+    protected override Task OnInitializedAsync() => LoadListAsync();
+
+    private async Task LoadListAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        cities = await db.Cities.AsNoTracking()
+            .OrderBy(c => c.SortOrder).ThenBy(c => c.Name)
+            .Select(c => new CityRow(c.Id, c.Name, c.Slug, c.IsActive, c.SortOrder, c.Pages.Any(),
+                c.Pages.Select(p =>
+                    (p.HeroTitle != null && p.HeroTitle != "" ? 1 : 0) +
+                    (p.LocalIntro != null && p.LocalIntro != "" ? 1 : 0) +
+                    (p.CoverageText != null && p.CoverageText != "" ? 1 : 0) +
+                    (p.PickupDetails != null && p.PickupDetails != "" ? 1 : 0) +
+                    (p.Description != null && p.Description != "" ? 1 : 0)).FirstOrDefault()))
+            .ToListAsync();
+    }
+
+    private void CreateNew()
+    {
+        message = null;
+        activeTab = EditorTab.Main;
+        editCity = new City
+        {
+            Name = "", NameIn = "", Slug = "", DefaultPhone = DbSeeder.DefaultPhone, DefaultPrice = 20m, IsActive = true,
+            SortOrder = cities.Count == 0 ? 0 : cities.Max(c => c.SortOrder)
+        };
+        editPage = new PageCity { Title = "" };
+        editPromo = new PromoMessage { Title = "", Text = "", IsActive = false };
+    }
+
+    private async Task SelectAsync(long id)
+    {
+        message = null;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        editCity = await db.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+        if (editCity is null) { editPage = null; editPromo = null; return; }
+        editPage = await db.PageCities.AsNoTracking().Where(p => p.CityId == id).OrderBy(p => p.Id).FirstOrDefaultAsync()
+                   ?? DefaultPage(editCity);
+        editPromo = await db.PromoMessages.AsNoTracking().Where(p => p.CityId == id).OrderBy(p => p.Id).FirstOrDefaultAsync()
+                    ?? new PromoMessage { CityId = id, Title = $"Акция в {editCity.NameIn}", Text = "", IsActive = false };
+    }
+
+    private void Back()
+    {
+        editCity = null;
+        editPage = null;
+        editPromo = null;
+        message = null;
+    }
+
+    private static PageCity DefaultPage(City city) => new()
+    {
+        CityId = city.Id,
+        Title = $"Вывоз бытовой техники в {city.NameIn}",
+        Description = $"Вывоз бытовой техники в {city.NameIn} и населённых пунктах района. Приедем, вынесем, взвесим и заплатим на месте.",
+        KeyWords = $"вывоз техники {city.Name}, утилизация техники {city.Name}, приём техники {city.Name}",
+        Price = city.DefaultPrice ?? 20m,
+        PhoneCity = city.DefaultPhone
+    };
+
+    private async Task<(string? Error, EditorTab Tab)> ValidateAsync(AppDBContext db)
+    {
+        var c = editCity!;
+        c.Name = c.Name?.Trim() ?? "";
+        c.NameIn = c.NameIn?.Trim() ?? "";
+        c.Slug = (c.Slug ?? "").Trim().ToLowerInvariant();
+        c.DefaultPhone = string.IsNullOrWhiteSpace(c.DefaultPhone) ? null : c.DefaultPhone.Trim();
+
+        if (c.Name.Length == 0) return ("Укажите название города.", EditorTab.Main);
+        if (c.NameIn.Length == 0) return ("Укажите название в предложном падеже (например, «Гомеле»).", EditorTab.Main);
+        if (!SlugRegex.IsMatch(c.Slug)) return ("Адрес: только латиница a–z, цифры и дефис (например, «gomel»).", EditorTab.Main);
+        if (ReservedSlugs.Contains(c.Slug)) return ($"Адрес «{c.Slug}» занят разделом сайта.", EditorTab.Main);
+        if (await db.Cities.AnyAsync(x => x.Slug == c.Slug && x.Id != c.Id)) return ($"Город с адресом «{c.Slug}» уже есть.", EditorTab.Main);
+        if (c.DefaultPrice is < 0 || editPage!.Price is < 0 || editPage.PriceToKopeks is < 0) return ("Цена не может быть отрицательной.", EditorTab.Prices);
+        if (editPromo!.IsActive && (string.IsNullOrWhiteSpace(editPromo.Title) || string.IsNullOrWhiteSpace(editPromo.Text)))
+            return ("Для активного промо заполните заголовок и текст.", EditorTab.Promo);
+        return (null, activeTab);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (busy || editCity is null || editPage is null || editPromo is null) return;
+        message = null; isError = false;
+        busy = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var (error, tab) = await ValidateAsync(db);
+            if (error is not null) { message = error; isError = true; activeTab = tab; return; }
+
+            await using var tx = await db.Database.BeginTransactionAsync();
+            var isNew = editCity.Id == 0;
+            if (isNew) db.Cities.Add(editCity); else db.Cities.Update(editCity);
+            await db.SaveChangesAsync();
+
+            if (string.IsNullOrWhiteSpace(editPage.Title))
+                editPage.Title = DefaultPage(editCity).Title;
+            if (isNew && editPage.Id == 0)
+            {
+                var d = DefaultPage(editCity);
+                editPage.Description ??= d.Description;
+                editPage.KeyWords ??= d.KeyWords;
+                editPage.Price ??= d.Price;
+            }
+            editPage.CityId = editCity.Id;
+            editPage.PhoneCity = string.IsNullOrWhiteSpace(editPage.PhoneCity) ? null : editPage.PhoneCity.Trim();
+            if (editPage.Id == 0) db.PageCities.Add(editPage); else db.PageCities.Update(editPage);
+
+            editPromo.CityId = editCity.Id;
+            editPromo.Text ??= "";
+            if (string.IsNullOrWhiteSpace(editPromo.Title)) editPromo.Title = $"Акция в {editCity.NameIn}";
+            // Пустое неактивное промо не создаём, чтобы не плодить записи.
+            if (editPromo.Id != 0) db.PromoMessages.Update(editPromo);
+            else if (editPromo.IsActive || !string.IsNullOrWhiteSpace(editPromo.Text)) db.PromoMessages.Add(editPromo);
+
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            var id = editCity.Id;
+            await LoadListAsync();
+            var tabBefore = activeTab;
+            await SelectAsync(id);
+            activeTab = tabBefore;
+            message = isNew ? "Город создан. Заполните тексты на вкладке «Тексты и SEO»." : "Изменения сохранены.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot save city");
+            message = "Не удалось сохранить: " + ex.GetBaseException().Message;
+            isError = true;
+        }
+        finally { busy = false; }
+    }
+}

@@ -1,0 +1,352 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject IJSRuntime JS
+@inject ILogger<AdminRoutes> Logger
+
+@* Маршрутные листы: администратор выбирает водителя и день, добавляет заявки и задаёт порядок объезда. *@
+
+<div class="admin-card mb-3 route-toolbar">
+    <div class="row g-2 align-items-end">
+        <div class="col-sm-5 col-lg-4">
+            <label class="admin-label" for="routeDriver">Водитель</label>
+            <select id="routeDriver" class="form-select" @bind="driverId" @bind:after="LoadAsync" disabled="@busy">
+                @if (drivers.Count == 0) { <option value="0">Нет водителей — добавьте во вкладке «Пользователи»</option> }
+                @foreach (var d in drivers)
+                {
+                    <option value="@d.Id">@d.Name (@(routeCounts.TryGetValue(d.Id, out var n) ? n : 0))</option>
+                }
+            </select>
+        </div>
+        <div class="col-sm-7 col-lg-5">
+            <label class="admin-label" for="routeDate">День маршрута</label>
+            <div class="route-day-switch mb-0">
+                <button type="button" class="btn btn-outline-secondary" disabled="@busy" aria-label="Предыдущий день" @onclick="() => ShiftAsync(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                <input id="routeDate" type="date" class="form-control" @bind="date" @bind:after="LoadAsync" disabled="@busy" />
+                <button type="button" class="btn btn-outline-secondary" disabled="@busy" aria-label="Следующий день" @onclick="() => ShiftAsync(1)"><i class="fa-solid fa-chevron-right"></i></button>
+                @if (date != DateTime.Today) { <button type="button" class="btn btn-link" @onclick="() => { date = DateTime.Today; return LoadAsync(); }">Сегодня</button> }
+            </div>
+        </div>
+        <div class="col-lg-3 text-lg-end">
+            <button type="button" class="btn btn-outline-secondary" onclick="window.print()" disabled="@(route.Count == 0)"><i class="fa-solid fa-print"></i> Печать</button>
+        </div>
+    </div>
+    @if (error is not null) { <div class="admin-alert admin-alert-error mt-3 mb-0">@error</div> }
+</div>
+
+@if (viewId.HasValue)
+{
+    <RequestModal RequestId="viewId.Value" IsAdmin="true" OnClose="OnModalClosedAsync" />
+}
+
+<div class="route-grid">
+    <section class="admin-card route-sheet">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="admin-card-title mb-0">Маршрут: @DriverTitle, @AdminRequestRowFormat.Pickup(date, null)</h2>
+            @if (route.Count > 1)
+            {
+                <div class="d-flex flex-wrap gap-1">
+                    <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="GroupByCityAsync"
+                            title="Собрать заявки одного города подряд, сохраняя порядок городов">По городам</button>
+                    <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="SortRouteByTimeAsync"
+                            title="Внутри каждого города — по времени вывоза; без времени — в конце">По времени</button>
+                </div>
+            }
+        </div>
+        @if (route.Count == 0)
+        {
+            <p class="admin-muted py-3 mb-0">Маршрут пуст. Добавьте заявки из списка «Свободные заявки».</p>
+        }
+        <ol class="route-list">
+            @for (var i = 0; i < route.Count; i++)
+            {
+                var r = route[i];
+                var index = i;
+                var newCity = i == 0 || route[i - 1].City != r.City;
+                @if (newCity) { <li class="route-city-sep" aria-hidden="true"><i class="fa-solid fa-location-dot"></i> @r.City</li> }
+                <li class="route-item route-item-@r.Status.ToString().ToLowerInvariant()" @key="r.Id">
+                    <span class="route-point-no">@(index + 1)</span>
+                    <span class="pickup-chip @Chip(r).Css" title="Когда забрать">@Chip(r).Text</span>
+                    <div class="route-item-main is-clickable" role="button" tabindex="0" title="Открыть заявку" @onclick="() => viewId = r.Id">
+                        <div><strong>@(string.IsNullOrWhiteSpace(r.Name) ? "Без имени" : r.Name)</strong> · <a href="tel:@r.Phone" @onclick:stopPropagation="true">@r.Phone</a>
+                            @if (r.Status != RequestStatus.New) { <span class="req-status req-status-@r.Status.ToString().ToLowerInvariant() ms-1">@RequestWorkflow.StatusTitle(r.Status)</span> }
+                        </div>
+                        <div class="admin-muted small">
+                            @r.City@(string.IsNullOrWhiteSpace(r.Address) ? "" : ", " + r.Address)
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(r.Message)) { <div class="small">@r.Message</div> }
+                    </div>
+                    <div class="route-item-actions">
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(busy || index == 0)" aria-label="Выше" @onclick="() => MoveAsync(index, -1)"><i class="fa-solid fa-arrow-up"></i></button>
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(busy || index == route.Count - 1)" aria-label="Ниже" @onclick="() => MoveAsync(index, 1)"><i class="fa-solid fa-arrow-down"></i></button>
+                        <button class="btn btn-outline-danger btn-sm" disabled="@busy" aria-label="Убрать из маршрута" @onclick="() => RemoveAsync(r.Id)"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </li>
+            }
+        </ol>
+    </section>
+
+    <section class="admin-card route-pool">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="admin-card-title mb-0">Свободные заявки</h2>
+            <select class="form-select form-select-sm w-auto" @bind="poolCityId" @bind:after="LoadAsync" disabled="@busy">
+                <option value="">Все города</option>
+                @foreach (var c in cities) { <option value="@c.Id">@c.Name</option> }
+            </select>
+        </div>
+        <div class="route-pool-controls">
+            <select class="form-select form-select-sm" @bind="poolWhen" aria-label="Когда забрать">
+                <option value="all">Любая дата вывоза</option>
+                <option value="near">На этот день ±1 и без даты</option>
+                <option value="day">На этот день и без даты</option>
+                <option value="overdue">Просроченные</option>
+            </select>
+            <select class="form-select form-select-sm" @bind="poolSort" aria-label="Сортировка">
+                <option value="pickup">Сначала по дате вывоза</option>
+                <option value="created">Сначала старые заявки</option>
+            </select>
+            <div class="form-check form-check-inline mb-0">
+                <input class="form-check-input" type="checkbox" id="poolGroup" @bind="poolGroup" />
+                <label class="form-check-label small" for="poolGroup">По городам</label>
+            </div>
+        </div>
+        <p class="admin-muted small mb-2">
+            Не отработанные и никому не назначенные. Фильтр мягкий: дата вывоза — ориентир, заявку на другой день тоже можно взять в маршрут.
+            Показано @PoolView.Count() из @pool.Count.
+        </p>
+        @if (pool.Count == 0) { <p class="admin-muted py-3 mb-0">Свободных заявок нет.</p> }
+        @foreach (var g in PoolView.GroupBy(p => poolGroup ? p.City : ""))
+        {
+            <div class="route-pool-group">
+                @if (poolGroup)
+                {
+                <div class="route-pool-head">
+                    <strong>@g.Key</strong> <span class="admin-muted">(@g.Count())</span>
+                    @if (driverId > 0 && g.Count() > 1)
+                    {
+                        <button class="btn btn-link btn-sm ms-auto" disabled="@busy" @onclick="() => AddManyAsync(g.Select(x => x.Id).ToList())">Добавить все</button>
+                    }
+                </div>
+                }
+                @foreach (var r in g)
+                {
+                    <div class="route-pool-item @(r.PickupDate == date ? "is-today" : "")" @key="r.Id">
+                        <span class="pickup-chip @Chip(r).Css" title="Когда забрать">@Chip(r).Text</span>
+                        <div class="route-item-main is-clickable" role="button" tabindex="0" title="Открыть заявку" @onclick="() => viewId = r.Id">
+                            <div><strong>@(string.IsNullOrWhiteSpace(r.Name) ? "Без имени" : r.Name)</strong> · @r.Phone
+                                @if (r.IsManual) { <span class="admin-badge admin-badge-off">звонок</span> }
+                            </div>
+                            <div class="admin-muted small">
+                                @(string.IsNullOrWhiteSpace(r.Address) ? "адрес не указан" : r.Address)
+                                @if (!poolGroup) { <span> · @r.City</span> }
+                                · №@r.Id от @r.Date.ToString("dd.MM")
+                            </div>
+                        </div>
+                        <button class="admin-btn admin-btn-primary admin-btn-sm" disabled="@(busy || driverId <= 0)" @onclick="() => AddManyAsync(new() { r.Id })"><i class="fa-solid fa-plus"></i> В маршрут</button>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private sealed record DriverItem(long Id, string Name);
+
+    private List<DriverItem> drivers = new();
+    private Dictionary<long, int> routeCounts = new();
+    private List<City> cities = new();
+    private List<AdminRequestRow> route = new(), pool = new();
+    private long driverId;
+    private long? poolCityId;
+    private DateTime date = DateTime.Today;
+    private bool busy, poolGroup = true;
+    private long? viewId;
+
+    private async Task OnModalClosedAsync(bool changed)
+    {
+        viewId = null;
+        if (changed) await LoadAsync();
+    }
+    private string? error;
+    private string poolWhen = "all", poolSort = "pickup";
+
+    private static readonly System.Globalization.CultureInfo Ru = new("ru-RU");
+
+    /// <summary>Метка «когда забрать» относительно дня маршрута: зелёная — этот день, красная — просрочено.</summary>
+    private (string Text, string Css) Chip(AdminRequestRow r)
+    {
+        var time = r.PickupTime.HasValue ? " " + r.PickupTime.Value.ToString(@"hh\:mm") : "";
+        if (!r.PickupDate.HasValue) return ("без даты", "pickup-none");
+        var d = r.PickupDate.Value.Date;
+        if (d == date.Date) return ((time == "" ? "в этот день" : "к" + time), "pickup-day");
+        var label = d.ToString("dd.MM ddd", Ru) + time;
+        return (label, d < date.Date ? "pickup-overdue" : "pickup-later");
+    }
+
+    private IEnumerable<AdminRequestRow> PoolView
+    {
+        get
+        {
+            var day = date.Date;
+            IEnumerable<AdminRequestRow> q = poolWhen switch
+            {
+                "day" => pool.Where(r => r.PickupDate == null || r.PickupDate == day),
+                "near" => pool.Where(r => r.PickupDate == null || Math.Abs((r.PickupDate.Value - day).TotalDays) <= 1),
+                "overdue" => pool.Where(r => r.PickupDate < day),
+                _ => pool
+            };
+            q = poolSort == "created"
+                ? q.OrderBy(r => r.Date)
+                // Сначала этот день (по времени), затем просроченные, без даты и будущие.
+                : q.OrderBy(r => r.PickupDate == day ? 0 : r.PickupDate < day ? 1 : r.PickupDate == null ? 2 : 3)
+                   .ThenBy(r => r.PickupDate).ThenBy(r => r.PickupTime ?? TimeSpan.MaxValue).ThenBy(r => r.Date);
+            if (poolGroup)
+            {
+                var cityOrder = cities.Select((c, i) => (c.Name, i)).ToDictionary(x => x.Name, x => x.i);
+                q = q.OrderBy(r => cityOrder.TryGetValue(r.City, out var i) ? i : int.MaxValue); // OrderBy стабилен
+            }
+            return q;
+        }
+    }
+
+    private string DriverTitle => drivers.FirstOrDefault(d => d.Id == driverId)?.Name ?? "водитель не выбран";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        drivers = await db.AdminUsers.AsNoTracking()
+            .Where(u => u.IsActive && u.Role == AdminRoles.Driver)
+            .OrderBy(u => u.DisplayName ?? u.Login)
+            .Select(u => new DriverItem(u.Id, u.DisplayName ?? u.Login)).ToListAsync();
+        cities = await db.Cities.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync();
+        driverId = drivers.FirstOrDefault()?.Id ?? 0;
+        await LoadAsync();
+    }
+
+    private Task ShiftAsync(int days)
+    {
+        date = date.AddDays(days);
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var day = date.Date;
+            routeCounts = await db.Requests.AsNoTracking()
+                .Where(r => r.RouteDate == day && r.RouteDriverId != null)
+                .GroupBy(r => r.RouteDriverId!.Value)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count);
+
+            route = driverId > 0
+                ? await AdminReporting.Rows(db.Requests.AsNoTracking().Where(r => r.RouteDriverId == driverId && r.RouteDate == day))
+                    .OrderBy(r => r.RouteOrder).ThenBy(r => r.Id).ToListAsync()
+                : new();
+
+            var free = AdminReporting.Rows(db.Requests.AsNoTracking()
+                .Where(r => r.Status == RequestStatus.New && r.RouteDriverId == null));
+            if (poolCityId.HasValue) free = free.Where(r => r.CityId == poolCityId.Value);
+            pool = await free.OrderBy(r => r.Date).Take(300).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot load routes");
+            error = "Не удалось загрузить данные маршрута.";
+        }
+    }
+
+    private async Task RunAsync(Func<AppDBContext, Task> action)
+    {
+        if (busy) return;
+        busy = true;
+        error = null;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            await action(db);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Route change failed");
+            error = "Не удалось сохранить изменения маршрута.";
+        }
+        finally { busy = false; }
+        await LoadAsync();
+    }
+
+    /// <summary>Сохраняет порядок 1..N для текущего списка точек.</summary>
+    private static async Task SaveOrderAsync(AppDBContext db, IReadOnlyList<long> ids)
+    {
+        var items = await db.Requests.Where(r => ids.Contains(r.Id)).ToListAsync();
+        for (var i = 0; i < ids.Count; i++)
+        {
+            var item = items.FirstOrDefault(x => x.Id == ids[i]);
+            if (item is not null) item.RouteOrder = i + 1;
+        }
+        await db.SaveChangesAsync();
+    }
+
+    private Task AddManyAsync(List<long> ids) => RunAsync(async db =>
+    {
+        if (driverId <= 0) return;
+        var day = date.Date;
+        var next = route.Count;
+        // Назначаем только тех, кто ещё свободен (вдруг другой администратор успел раньше).
+        var items = await db.Requests.Where(r => ids.Contains(r.Id) && r.RouteDriverId == null && r.Status == RequestStatus.New).ToListAsync();
+        foreach (var id in ids)
+        {
+            var r = items.FirstOrDefault(x => x.Id == id);
+            if (r is null) continue;
+            r.RouteDriverId = driverId;
+            r.RouteDate = day;
+            r.RouteOrder = ++next;
+            r.PickupDate ??= day;
+        }
+        await db.SaveChangesAsync();
+    });
+
+    private Task RemoveAsync(long id) => RunAsync(async db =>
+    {
+        await db.Requests.Where(r => r.Id == id)
+            .ExecuteUpdateAsync(u => u.SetProperty(r => r.RouteDriverId, (long?)null)
+                .SetProperty(r => r.RouteDate, (DateTime?)null)
+                .SetProperty(r => r.RouteOrder, 0));
+        await SaveOrderAsync(db, route.Where(r => r.Id != id).Select(r => r.Id).ToList());
+    });
+
+    private Task MoveAsync(int index, int delta) => RunAsync(async db =>
+    {
+        var ids = route.Select(r => r.Id).ToList();
+        var target = index + delta;
+        if (target < 0 || target >= ids.Count) return;
+        (ids[index], ids[target]) = (ids[target], ids[index]);
+        await SaveOrderAsync(db, ids);
+    });
+
+    private Task SortRouteByTimeAsync() => RunAsync(async db =>
+    {
+        // Города остаются в текущем порядке, внутри города — по времени вывоза (без времени — в конце).
+        var cityFirst = route.Select((r, i) => (r.City, i)).GroupBy(x => x.City).ToDictionary(g => g.Key, g => g.Min(x => x.i));
+        var ids = route.Select((r, i) => (r, i))
+            .OrderBy(x => cityFirst[x.r.City])
+            .ThenBy(x => x.r.PickupTime ?? TimeSpan.MaxValue)
+            .ThenBy(x => x.i)
+            .Select(x => x.r.Id).ToList();
+        await SaveOrderAsync(db, ids);
+    });
+
+    private Task GroupByCityAsync() => RunAsync(async db =>
+    {
+        // Города идут в порядке первой встречи в маршруте: поставьте первой точку Жлобина — и весь Жлобин соберётся в начале.
+        var cityFirst = route.Select((r, i) => (r.City, i)).GroupBy(x => x.City).ToDictionary(g => g.Key, g => g.Min(x => x.i));
+        var ids = route.Select((r, i) => (r, i)).OrderBy(x => cityFirst[x.r.City]).ThenBy(x => x.i).Select(x => x.r.Id).ToList();
+        await SaveOrderAsync(db, ids);
+    });
+}

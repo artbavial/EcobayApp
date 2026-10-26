@@ -1,0 +1,331 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@implements IDisposable
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject RequestFileStore Files
+@inject IJSRuntime JS
+@inject ILogger<AdminRequestCreate> Logger
+
+<div class="admin-card mb-3 req-create">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="admin-card-title mb-0">@(EditId.HasValue ? $"Изменить заявку №{EditId}" : "Новая заявка вручную")</h2>
+        <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => OnClose.InvokeAsync(false)">Закрыть</button>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <label class="admin-label" for="reqShot">Скриншот (необязательно)</label>
+            <div class="req-dropzone @(previewUrl is null ? "" : "has-file")">
+                <InputFile id="reqShot" accept="image/png,image/jpeg,image/webp" OnChange="OnFileAsync" disabled="@busy" />
+                @if (previewUrl is null && hasStoredShot)
+                {
+                    <img src="@($"/admin/files/requests/{EditId}")" alt="Текущий скриншот" />
+                }
+                else if (previewUrl is null)
+                {
+                    <div class="req-dropzone-hint">
+                        <i class="fa-solid fa-image"></i>
+                        <span>Выберите или перетащите скриншот переписки/звонка</span>
+                        <small>PNG, JPG, WEBP до 10 МБ. Телефон со скриншота подставится автоматически.</small>
+                    </div>
+                }
+                else
+                {
+                    <img src="@previewUrl" alt="Предпросмотр скриншота" />
+                }
+            </div>
+            @if (ocrState is not null) { <p class="admin-muted mt-2 mb-0">@ocrState</p> }
+            @if (foundPhones.Count > 1)
+            {
+                <div class="req-phone-chips">
+                    <span class="admin-muted">Найдено несколько номеров:</span>
+                    @foreach (var p in foundPhones)
+                    {
+                        <button type="button" class="btn btn-sm @(model.Phone == p ? "btn-success" : "btn-outline-success")" @onclick="() => model.Phone = p">@p</button>
+                    }
+                </div>
+            }
+            @if (file is not null)
+            {
+                <button class="btn btn-link btn-sm px-0" disabled="@busy" @onclick="RemoveFile">Убрать скриншот</button>
+            }
+        </div>
+
+        <div class="col-lg-7">
+            <div class="row g-2">
+                <div class="col-sm-6">
+                    <label class="admin-label" for="reqPhone">Телефон *</label>
+                    <input id="reqPhone" class="form-control" inputmode="tel" @bind="model.Phone" placeholder="+375 29 123-45-67" disabled="@busy" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="admin-label" for="reqName">Имя</label>
+                    <input id="reqName" class="form-control" maxlength="100" @bind="model.Name" disabled="@busy" />
+                </div>
+                <div class="col-sm-6">
+                    <label class="admin-label" for="reqCity">Город *</label>
+                    <select id="reqCity" class="form-select" @bind="model.CityId" disabled="@busy">
+                        <option value="">Выберите город</option>
+                        @foreach (var c in cities) { <option value="@c.Id">@c.Name</option> }
+                    </select>
+                </div>
+                <div class="col-sm-6">
+                    <label class="admin-label" for="reqAddress">Адрес</label>
+                    <input id="reqAddress" class="form-control" maxlength="300" @bind="model.Address" placeholder="Улица, дом, населённый пункт района" disabled="@busy" />
+                </div>
+                <div class="col-7 col-sm-6">
+                    <label class="admin-label" for="reqPickupDate">Когда забрать</label>
+                    <input id="reqPickupDate" class="form-control" type="date" @bind="model.PickupDate" disabled="@busy" />
+                </div>
+                <div class="col-5 col-sm-6">
+                    <label class="admin-label" for="reqPickupTime">Время (необязательно)</label>
+                    <input id="reqPickupTime" class="form-control" type="time" @bind="model.PickupTime" disabled="@busy" />
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-1">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => model.PickupDate = DateTime.Today">Сегодня</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => model.PickupDate = DateTime.Today.AddDays(1)">Завтра</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => model.PickupDate = DateTime.Today.AddDays(2)">Послезавтра</button>
+                    @if (model.PickupDate.HasValue)
+                    {
+                        <button type="button" class="btn btn-link btn-sm" disabled="@busy" @onclick="() => { model.PickupDate = null; model.PickupTime = null; }">Без даты</button>
+                    }
+                </div>
+                <div class="col-12">
+                    <label class="admin-label" for="reqText">Описание</label>
+                    <textarea id="reqText" class="form-control" rows="3" maxlength="500" @bind="model.Message"
+                              placeholder="Что вывозим, этаж, удобное время" disabled="@busy"></textarea>
+                </div>
+            </div>
+            @if (error is not null) { <div class="admin-alert admin-alert-error mt-3" role="alert">@error</div> }
+            <button class="admin-btn admin-btn-primary mt-3" disabled="@busy" @onclick="SaveAsync">
+                @(busy ? "Сохранение..." : EditId.HasValue ? "Сохранить изменения" : "Добавить заявку")
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public long CurrentUserId { get; set; }
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+    /// <summary>Номер заявки для редактирования; null — новая заявка.</summary>
+    [Parameter] public long? EditId { get; set; }
+
+    private bool hasStoredShot;
+
+    private sealed class Model
+    {
+        public string? Phone { get; set; }
+        public string? Name { get; set; }
+        public long? CityId { get; set; }
+        public string? Address { get; set; }
+        public string? Message { get; set; }
+        public DateTime? PickupDate { get; set; }
+        public TimeOnly? PickupTime { get; set; }
+    }
+
+    private readonly Model model = new();
+    private List<City> cities = new();
+    private IBrowserFile? file;
+    private string? previewUrl, ocrState, error;
+    private List<string> foundPhones = new();
+    private bool busy;
+    private DotNetObjectReference<AdminRequestCreate>? selfRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        cities = await db.Cities.AsNoTracking().Where(c => c.IsActive && c.Pages.Any())
+            .OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync();
+        if (cities.Count == 1) model.CityId = cities[0].Id;
+
+        if (EditId.HasValue)
+        {
+            var r = await db.Requests.AsNoTracking().Include(x => x.Client).Include(x => x.PageCity)
+                .FirstOrDefaultAsync(x => x.Id == EditId.Value);
+            if (r is null) { error = "Заявка не найдена."; return; }
+            model.Phone = r.Client.Phone;
+            model.Name = r.Client.Name;
+            model.CityId = r.PageCity?.CityId ?? r.Client.CityId;
+            model.Address = r.Address;
+            model.Message = r.Message;
+            model.PickupDate = r.PickupDate;
+            model.PickupTime = r.PickupTime.HasValue ? TimeOnly.FromTimeSpan(r.PickupTime.Value) : null;
+            hasStoredShot = r.ScreenshotPath != null;
+            // В списке городов может не быть выключенного города заявки — добавим его, чтобы не потерять.
+            if (model.CityId.HasValue && cities.All(c => c.Id != model.CityId))
+            {
+                var c = await db.Cities.AsNoTracking().FirstOrDefaultAsync(x => x.Id == model.CityId);
+                if (c is not null) cities.Add(c);
+            }
+        }
+    }
+
+    private async Task OnFileAsync(InputFileChangeEventArgs e)
+    {
+        try { await HandleFileAsync(e); }
+        catch (Exception ex)
+        {
+            // Ни одна ошибка со скриншотом не должна обрывать работу панели.
+            Logger.LogError(ex, "Screenshot handling failed");
+            ocrState = null;
+            error = "Не удалось обработать скриншот: " + ex.GetBaseException().Message;
+        }
+    }
+
+    private async Task HandleFileAsync(InputFileChangeEventArgs e)
+    {
+        error = null;
+        foundPhones.Clear();
+        var f = e.File;
+        var invalid = RequestFileStore.Validate(f);
+        if (invalid is not null) { error = invalid; file = null; previewUrl = null; return; }
+        file = f;
+
+        try
+        {
+            // Предпросмотр — уменьшенная копия, чтобы не гонять 10 МБ через SignalR.
+            var preview = await f.RequestImageFileAsync("image/jpeg", 640, 640);
+            await using var s = preview.OpenReadStream(RequestFileStore.MaxBytes);
+            using var ms = new MemoryStream();
+            await s.CopyToAsync(ms);
+            previewUrl = "data:image/jpeg;base64," + Convert.ToBase64String(ms.ToArray());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Preview failed");
+            previewUrl = null;
+        }
+
+        // Распознавание текста — в браузере (Tesseract.js), сервер не нагружается.
+        ocrState = "Ищем номер телефона на скриншоте...";
+        StateHasChanged();
+        try
+        {
+            selfRef ??= DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("ecobayOcr.findPhones", "reqShot", selfRef);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "OCR start failed");
+            ocrState = "Не удалось запустить распознавание. Введите телефон вручную.";
+        }
+    }
+
+    [JSInvokable]
+    public Task OnPhonesFound(string[]? phones, string? errorText)
+    {
+        if (disposed) return Task.CompletedTask;
+        if (errorText is not null) Logger.LogWarning("OCR error: {Error}", errorText);
+        foundPhones = phones?.Distinct().Take(5).ToList() ?? new();
+        if (errorText is not null)
+            ocrState = "Не удалось распознать текст. Введите телефон вручную.";
+        else if (foundPhones.Count == 0)
+            ocrState = "Номер на скриншоте не найден. Введите его вручную.";
+        else
+        {
+            if (string.IsNullOrWhiteSpace(model.Phone)) model.Phone = foundPhones[0];
+            ocrState = foundPhones.Count == 1
+                ? $"Найден номер {foundPhones[0]} — проверьте его."
+                : "Найдено несколько номеров — выберите нужный.";
+        }
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void RemoveFile()
+    {
+        file = null;
+        previewUrl = null;
+        ocrState = null;
+        foundPhones.Clear();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (busy) return;
+        error = null;
+        var phone = PhoneUtil.Normalize(model.Phone);
+        if (!PhoneUtil.IsValid(phone)) { error = "Укажите телефон (9–15 цифр)."; return; }
+        if (model.CityId is null) { error = "Выберите город."; return; }
+        if (model.PickupTime.HasValue && model.PickupDate is null) { error = "Укажите дату, к которой относится время."; return; }
+        TimeSpan? pickupTime = model.PickupTime.HasValue ? new TimeSpan(model.PickupTime.Value.Hour, model.PickupTime.Value.Minute, 0) : null;
+
+        busy = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var page = await db.PageCities.AsNoTracking().Where(p => p.CityId == model.CityId).OrderBy(p => p.Id).FirstOrDefaultAsync();
+            if (page is null) { error = "У выбранного города нет страницы. Сохраните город во вкладке «Города»."; return; }
+
+            var last9 = PhoneUtil.Last9(phone);
+            var client = await db.Clients.FirstOrDefaultAsync(c => c.Phone.EndsWith(last9));
+            if (client is null)
+            {
+                client = new Client { Name = model.Name?.Trim() ?? "", Phone = phone, CityId = model.CityId };
+                db.Clients.Add(client);
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(model.Name)) client.Name = model.Name.Trim();
+                client.CityId ??= model.CityId;
+            }
+            await db.SaveChangesAsync();
+
+            string? shot = null;
+            if (file is not null) shot = await Files.SaveAsync(file);
+
+            if (EditId.HasValue)
+            {
+                var r = await db.Requests.FirstOrDefaultAsync(x => x.Id == EditId.Value);
+                if (r is null) { error = "Заявка не найдена."; return; }
+                r.ClientId = client.Id;
+                r.PageCityId = page.Id;
+                r.Message = string.IsNullOrWhiteSpace(model.Message) ? null : model.Message.Trim();
+                r.Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address.Trim();
+                r.PickupDate = model.PickupDate?.Date;
+                r.PickupTime = pickupTime;
+                if (shot is not null) r.ScreenshotPath = shot;
+                await db.SaveChangesAsync();
+                busy = false;
+                await OnClose.InvokeAsync(true);
+                return;
+            }
+
+            db.Requests.Add(new Request
+            {
+                ClientId = client.Id,
+                PageCityId = page.Id,
+                DateCreate = DateTime.Now,
+                Message = string.IsNullOrWhiteSpace(model.Message) ? null : model.Message.Trim(),
+                Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address.Trim(),
+                Source = "admin:manual",
+                IsManual = true,
+                CreatedByUserId = CurrentUserId,
+                ScreenshotPath = shot,
+                PickupDate = model.PickupDate?.Date,
+                PickupTime = pickupTime
+            });
+            await db.SaveChangesAsync();
+
+            // Как и заявка с сайта, ручная заявка увеличивает факт активной цели.
+            var year = DateTime.Now.Year;
+            await db.Goals.Where(g => g.IsActive && g.Year == year)
+                .ExecuteUpdateAsync(u => u
+                    .SetProperty(g => g.ActualClients, g => g.ActualClients + 1)
+                    .SetProperty(g => g.ActualItems, g => g.ActualItems + 1));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot create manual request");
+            error = "Не удалось сохранить заявку. Повторите попытку.";
+            return;
+        }
+        finally { busy = false; }
+
+        await OnClose.InvokeAsync(true);
+    }
+
+    private bool disposed;
+
+    public void Dispose() { disposed = true; selfRef?.Dispose(); }
+}

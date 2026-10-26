@@ -1,0 +1,67 @@
+@page "/driver"
+@attribute [Authorize(Roles = AdminRoles.AdminOrDriver)]
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using EcobayApp.Models
+@using EcobayApp.Components.Shared
+
+<PageTitle>Заявки водителя | Ecobay.by</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex, nofollow" />
+</HeadContent>
+
+<div class="admin-shell">
+    <header class="admin-topbar">
+        <div class="container d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            <a class="admin-brand text-decoration-none" href="/driver">
+                <img src="images/hero/icon.png" alt="" />Ecobay<span>.by</span>
+                <small>заявки</small>
+                <span class="admin-engine">ArtBavial Engine CMS v0.9</span>
+            </a>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                @if (isAdmin) { <a class="admin-link" href="/adminpanel">Панель управления</a> }
+                <span class="admin-user"><i class="fa-solid fa-truck"></i> @userName</span>
+                <form method="post" action="/admin/logout" class="m-0">
+                    <AntiforgeryToken />
+                    <button type="submit" class="admin-btn admin-btn-ghost">Выйти</button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <div class="container my-3">
+        @if (userId != 0)
+        {
+            <ul class="admin-tabs mb-3">
+                <li><button class="@(tab == 0 ? "active" : "")" @onclick="() => tab = 0"><i class="fa-solid fa-route"></i> Маршрут</button></li>
+                <li><button class="@(tab == 1 ? "active" : "")" @onclick="() => tab = 1"><i class="fa-solid fa-inbox"></i> Все заявки</button></li>
+            </ul>
+            @if (tab == 0)
+            {
+                <AdminRequests IsAdmin="false" RouteDriverId="userId" CurrentUserId="userId" CurrentUserName="@userName" />
+            }
+            else
+            {
+                <AdminRequests IsAdmin="false" CurrentUserId="userId" CurrentUserName="@userName" />
+            }
+        }
+    </div>
+    <footer class="admin-footer">© 2026 Разработка ArtBavial Software. Все права защищены.</footer>
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    private long userId;
+    private string userName = "";
+    private bool isAdmin;
+    private int tab;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is null) return;
+        var user = (await AuthState).User;
+        long.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
+        userName = user.FindFirstValue("ecobay:display") ?? user.Identity?.Name ?? "";
+        isAdmin = user.IsInRole(AdminRoles.Admin);
+    }
+}

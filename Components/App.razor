@@ -74,7 +74,16 @@
     <script src="/js/custom/custom.js?v=2"></script>
 
     <!-- Blazor подключаем последним: к моменту запуска интерактивных компонентов все функции custom.js уже определены -->
-    <script src="/_framework/blazor.web.js"></script>
+    <script src="/_framework/blazor.web.js" autostart="false"></script>
+    <script>
+        // Увеличенный таймаут: если браузер занят (например, распознаёт скриншот), соединение не рвётся.
+        Blazor.start({
+            circuit: {
+                configureSignalR: function (b) { b.withServerTimeout(120000).withKeepAliveInterval(15000); },
+                reconnectionOptions: { maxRetries: 30, retryIntervalMilliseconds: 2000 }
+            }
+        });
+    </script>
 
 <!-- Yandex.Metrika counter -->
     <script type="text/javascript">

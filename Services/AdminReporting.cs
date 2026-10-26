@@ -21,6 +21,19 @@ public static class AdminReporting
             Name = r.Client.Name,
             Phone = r.Client.Phone,
             Message = r.Message,
+            Status = r.Status,
+            Address = r.Address,
+            PaidAmount = r.PaidAmount,
+            DriverComment = r.DriverComment,
+            ProcessedAt = r.ProcessedAt,
+            ProcessedByName = r.ProcessedByName,
+            HasScreenshot = r.ScreenshotPath != null,
+            IsManual = r.IsManual,
+            PickupDate = r.PickupDate,
+            PickupTime = r.PickupTime,
+            RouteDriverId = r.RouteDriverId,
+            RouteDate = r.RouteDate,
+            RouteOrder = r.RouteOrder,
             CityId = r.PageCity != null ? (long?)r.PageCity.CityId : r.Client.CityId,
             City = r.PageCity != null ? r.PageCity.City.Name
                 : r.Client.City != null ? r.Client.City.Name : "Город не указан"
@@ -51,4 +64,32 @@ public sealed class AdminRequestRow
     public string? Message { get; set; }
     public long? CityId { get; set; }
     public string City { get; set; } = "";
+    public RequestStatus Status { get; set; }
+    public string? Address { get; set; }
+    public decimal? PaidAmount { get; set; }
+    public string? DriverComment { get; set; }
+    public DateTime? ProcessedAt { get; set; }
+    public string? ProcessedByName { get; set; }
+    public bool HasScreenshot { get; set; }
+    public bool IsManual { get; set; }
+    public DateTime? PickupDate { get; set; }
+    public TimeSpan? PickupTime { get; set; }
+    public long? RouteDriverId { get; set; }
+    public DateTime? RouteDate { get; set; }
+    public int RouteOrder { get; set; }
+
+    /// <summary>«26.10 (пн) к 14:00» или «26.10 (пн)».</summary>
+    public string? PickupText => AdminRequestRowFormat.Pickup(PickupDate, PickupTime);
+}
+
+public static class AdminRequestRowFormat
+{
+    private static readonly System.Globalization.CultureInfo Ru = new("ru-RU");
+
+    public static string? Pickup(DateTime? date, TimeSpan? time)
+    {
+        if (!date.HasValue) return null;
+        var d = date.Value.ToString("dd.MM (ddd)", Ru);
+        return time.HasValue ? $"{d} к {time.Value:hh\\:mm}" : d;
+    }
 }

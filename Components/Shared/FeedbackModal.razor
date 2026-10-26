@@ -1,0 +1,154 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject IEmailSender EmailSender
+@inject NavigationManager Nav
+@inject ILogger<FeedbackModal> Logger
+
+@if (Visible)
+{
+    <div class="city-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="feedbackTitle" @onclick="CloseAsync">
+        <div class="city-modal feedback-modal" @onclick:stopPropagation="true">
+            <button type="button" class="city-modal-close" aria-label="Закрыть" @onclick="CloseAsync"><i class="fa-solid fa-xmark"></i></button>
+
+            @if (sent)
+            {
+                <div class="city-modal-icon"><i class="fa-solid fa-check"></i></div>
+                <h2 id="feedbackTitle" class="city-modal-title">Спасибо, мы получили ваше сообщение</h2>
+                <p class="city-modal-text">
+                    @(type == FeedbackType.Complaint ? "Разберёмся с ситуацией" : "Мы обязательно его прочитаем")@(string.IsNullOrWhiteSpace(phone) ? "." : " и при необходимости перезвоним.")
+                </p>
+                <button type="button" class="starta-button w-100" @onclick="CloseAsync"><span class="position-relative">Закрыть</span><span class="starta-button-hover"></span></button>
+            }
+            else
+            {
+                <div class="city-modal-icon"><i class="fa-solid fa-comment-dots"></i></div>
+                <h2 id="feedbackTitle" class="city-modal-title">Отзыв или жалоба</h2>
+                <p class="city-modal-text">Сообщение увидит только администрация компании, на сайте оно не публикуется.</p>
+
+                <div class="feedback-types" role="radiogroup" aria-label="Тип сообщения">
+                    @foreach (var (t, title) in Types)
+                    {
+                        <button type="button" role="radio" aria-checked="@(type == t ? "true" : "false")" class="@(type == t ? "active" : "")" @onclick="() => type = t">@title</button>
+                    }
+                </div>
+
+                <div class="feedback-grid">
+                    <label class="feedback-field">
+                        <span>Город</span>
+                        <select @bind="cityId">
+                            <option value="0">Не указан</option>
+                            @foreach (var c in Cities)
+                            {
+                                <option value="@c.Id">@c.Name</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="feedback-field">
+                        <span>Имя</span>
+                        <input type="text" maxlength="100" autocomplete="name" @bind="name" placeholder="Необязательно" />
+                    </label>
+                    <label class="feedback-field feedback-field-wide">
+                        <span>Телефон для связи</span>
+                        <input type="tel" maxlength="30" autocomplete="tel" inputmode="tel" @bind="phone" placeholder="Необязательно, +375..." />
+                    </label>
+                    <label class="feedback-field feedback-field-wide">
+                        <span>@(type == FeedbackType.Complaint ? "Опишите, что произошло *" : "Ваше сообщение *")</span>
+                        <textarea rows="5" maxlength="2000" @bind="text" @bind:event="oninput"
+                                  placeholder="@(type == FeedbackType.Complaint ? "Когда был вывоз, адрес, что пошло не так" : "Что понравилось или что улучшить")"></textarea>
+                        <small>@((text ?? "").Length)/2000</small>
+                    </label>
+                    @* Ловушка для ботов: человек это поле не видит. *@
+                    <input class="feedback-hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" @bind="website" />
+                </div>
+
+                @if (error is not null) { <p class="feedback-error">@error</p> }
+
+                <button type="button" class="starta-button w-100" disabled="@busy" @onclick="SubmitAsync">
+                    <span class="position-relative">@(busy ? "Отправляем..." : "Отправить")</span><span class="starta-button-hover"></span>
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback<bool> VisibleChanged { get; set; }
+    [Parameter] public IReadOnlyList<City> Cities { get; set; } = Array.Empty<City>();
+    [Parameter] public long? DefaultCityId { get; set; }
+
+    private static readonly (FeedbackType, string)[] Types =
+    {
+        (FeedbackType.Review, "Отзыв"), (FeedbackType.Complaint, "Жалоба"), (FeedbackType.Suggestion, "Предложение")
+    };
+
+    private FeedbackType type = FeedbackType.Review;
+    private long cityId;
+    private string? name, phone, text, website, error;
+    private bool busy, sent, wasVisible;
+    private DateTime openedAt;
+
+    protected override void OnParametersSet()
+    {
+        if (Visible && !wasVisible)
+        {
+            sent = false; error = null; openedAt = DateTime.UtcNow;
+            if (cityId == 0 && DefaultCityId.HasValue) cityId = DefaultCityId.Value;
+        }
+        wasVisible = Visible;
+    }
+
+    private async Task CloseAsync()
+    {
+        if (sent) { text = null; type = FeedbackType.Review; }
+        await VisibleChanged.InvokeAsync(false);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (busy) return;
+        error = null;
+        var body = text?.Trim() ?? "";
+        if (body.Length < 10) { error = "Напишите, пожалуйста, хотя бы пару слов (от 10 символов)."; return; }
+        var ph = string.IsNullOrWhiteSpace(phone) ? null : PhoneUtil.Normalize(phone);
+        if (ph is not null && !PhoneUtil.IsValid(ph)) { error = "Проверьте номер телефона или оставьте поле пустым."; return; }
+
+        // Бот: заполнил скрытое поле или отправил быстрее, чем за 3 секунды. Делаем вид, что всё хорошо.
+        if (!string.IsNullOrEmpty(website) || DateTime.UtcNow - openedAt < TimeSpan.FromSeconds(3)) { sent = true; return; }
+
+        busy = true;
+        try
+        {
+            var city = Cities.FirstOrDefault(c => c.Id == cityId);
+            var fb = new Feedback
+            {
+                Type = type,
+                CityId = city?.Id,
+                Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim(),
+                Phone = ph,
+                Text = body.Length > 2000 ? body[..2000] : body,
+                SourcePage = Truncate(Nav.Uri, 300),
+                CreatedAt = DateTime.Now
+            };
+            await using (var db = await DbFactory.CreateDbContextAsync())
+            {
+                db.Feedbacks.Add(fb);
+                await db.SaveChangesAsync();
+            }
+            sent = true;
+            try { await EmailSender.SendFeedbackAsync(fb, city?.Name); }
+            catch (Exception ex) { Logger.LogWarning(ex, "Feedback email not sent, id {Id}", fb.Id); }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot save feedback");
+            error = "Не удалось отправить. Попробуйте позже или позвоните нам.";
+        }
+        finally { busy = false; }
+    }
+
+    private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
+}

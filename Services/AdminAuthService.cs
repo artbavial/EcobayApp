@@ -115,7 +115,7 @@ namespace EcobayApp.Services
 				new(ClaimTypes.Name, user.Login),
 				new("ecobay:display", string.IsNullOrWhiteSpace(user.DisplayName) ? user.Login : user.DisplayName!),
 				new(SecurityStampClaim, user.SecurityStamp),
-				new(ClaimTypes.Role, "Admin")
+				new(ClaimTypes.Role, user.Role == AdminRoles.Driver ? AdminRoles.Driver : AdminRoles.Admin)
 			};
 
 			return new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme));

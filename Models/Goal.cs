@@ -30,5 +30,22 @@ namespace EcobayApp.Models
 
 		/// <summary>Используем ли эту цель сейчас.</summary>
 		public bool IsActive { get; set; } = true;
+
+		// ---------- Автодобавка к прогрессу (фоновая задача на сервере) ----------
+
+		/// <summary>Каждый час автоматически прибавлять AutoIncrementPerHour к InactiveRequests.</summary>
+		public bool AutoIncrementEnabled { get; set; }
+
+		/// <summary>Сколько добавлять за каждый час.</summary>
+		public int AutoIncrementPerHour { get; set; } = 1;
+
+		/// <summary>С какого часа (включительно) начислять, 0–23.</summary>
+		public int AutoIncrementFromHour { get; set; } = 8;
+
+		/// <summary>По какой час (включительно) начислять, 0–23.</summary>
+		public int AutoIncrementToHour { get; set; } = 21;
+
+		/// <summary>Последняя учтённая отметка часа. Нужна, чтобы после перезапуска сервера досчитать пропущенные часы.</summary>
+		public DateTime? AutoIncrementLastAt { get; set; }
 	}
 }

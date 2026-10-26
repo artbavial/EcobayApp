@@ -84,18 +84,22 @@
         <div class="container d-flex flex-column flex-grow-1 position-relative z-index-3">
             <!-- hero section -->
             <section class="starta-hero my-5 d-flex flex-column justify-content-center flex-grow-1">
-                <div class="row mt-5 pt-4">
-                    <!-- ТЕКСТОВАЯ КОЛОНКА ВВЕРХУ (на мобиле и десктопе) -->
-                    <div class="col-12 col-md-7 text-md-start text-center">
-                        @if (activeCities.Count > 0)
-                        {
-                            <div class="hero-city-bar">
+                @* Выбор города — отдельной строкой над текстом и формой, чтобы первый экран был компактнее. *@
+                @if (activeCities.Count > 0)
+                {
+                    <div class="row mt-4 pt-2">
+                        <div class="col-12 text-md-start text-center">
+                            <div class="hero-city-bar hero-city-bar-top">
                                 <i class="fa-solid fa-location-dot"></i>
                                 <span class="hero-city-name">@(currentCity?.Name ?? "Города и районы")</span>
                                 <a class="hero-city-change" href="/?choose-city=1" @onclick="OpenCitySelector" @onclick:preventDefault="true">Сменить город</a>
                             </div>
-                        }
-
+                        </div>
+                    </div>
+                }
+                <div class="row @(activeCities.Count > 0 ? "mt-1" : "mt-5 pt-4")">
+                    <!-- ТЕКСТОВАЯ КОЛОНКА ВВЕРХУ (на мобиле и десктопе) -->
+                    <div class="col-12 col-md-7 text-md-start text-center">
                         <h1 class="heroHeading">
                             @if (currentCity is not null)
                             {
@@ -169,26 +173,31 @@
                             <p class="heroDesc d-block d-md-none heroDesc-mobile">
                                 @(HeroTextOverride ?? "Заберём технику в любом состоянии по вашему адресу, сами вынесем и погрузим.")
                             </p>
-                            <p class="heroPrice-mobile d-block d-md-none">
-                                <strong>МЫ платим на месте — <br />@heroPriceText за килограмм</strong>
+                            <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
+                                @(HeroTextOverride ?? "Мы сами приедем по вашему адресу, вынесем и погрузим технику в любом состоянии. Без хлопот для вас и с пользой для экологии.")
                             </p>
 
-                            @if (HeroTextOverride is not null)
-                            {
-                                <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
-                                    @HeroTextOverride
-                                    <span class="heroPrice-desktop"><strong>МЫ платим @heroPriceText за килограмм.</strong></span>
-                                </p>
-                            }
-                            else
-                            {
-                                <p class="heroDesc heroDesc-desktopLarge d-none d-md-block">
-                                    Мы сами приедем по вашему адресу, вынесем и погрузим технику в любом состоянии.
-                                    Сразу рассчитаем вес и оплатим на месте —
-                                    <span class="heroPrice-desktop"><strong>МЫ платим @heroPriceText за килограмм.</strong></span>
-                                    Без хлопот для вас и с пользой для экологии.
-                                </p>
-                            }
+                            <div class="heroPayBadge" aria-label="@($"Мы платим {heroPriceText} за килограмм")">
+                                <div class="heroPayBadge-label">МЫ ПЛАТИМ</div>
+                                <div class="heroPayBadge-value">
+                                    @if (HasPriceRange)
+                                    {
+                                        <span class="heroPayBadge-num">@((int)price)</span>
+                                        <span class="heroPayBadge-dash">–</span>
+                                        <span class="heroPayBadge-num">@priceToKopeks</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="heroPayBadge-prefix">от</span>
+                                        <span class="heroPayBadge-num">@((int)price)</span>
+                                    }
+                                    <span class="heroPayBadge-unit">коп.<br />за кг</span>
+                                </div>
+                                <div class="heroPayBadge-note">
+                                    <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>
+                                    Взвесим и оплатим сразу на месте
+                                </div>
+                            </div>
                         }
 
                         <div class="hero-primary-contact">
@@ -196,7 +205,7 @@
                                 <span class="position-relative"><i class="fa-solid fa-phone" aria-hidden="true"></i> @phone</span>
                                 <span class="starta-button-hover"></span>
                             </a>
-                            <span>Позвоните и согласуйте вывоз. Заявки принимаем и в воскресенье.</span>
+                            <span>Позвоните и согласуйте вывоз. Заявки принимаем ежедневно.</span>
                         </div>
 
                         @if (!isCityMode)
@@ -223,24 +232,6 @@
                                 <span class="hero-cities-note">Населённые пункты районов этих городов также обслуживаем. В остальных городах и районах вывоз не выполняем.</span>
                             </div>
                         }
-
-                        <!-- Иконки (ТОЛЬКО на десктопе) -->
-                        <div class="col-md-8 mt-5 d-none d-md-block">
-                            <div class="row">
-                                <div class="col-md-3 col-3">
-                                    <img src="images/hero/services/1.png" alt="Утилизация" class="hero-service w-100" />
-                                </div>
-                                <div class="col-md-3 col-3">
-                                    <img src="images/hero/services/2.png" alt="Утилизация" class="hero-service w-100" />
-                                </div>
-                                <div class="col-md-3 col-3">
-                                    <img src="images/hero/services/3.png" alt="Утилизация" class="hero-service w-100" />
-                                </div>
-                                <div class="col-md-3 col-3">
-                                    <img src="images/hero/services/4.png" alt="Утилизация" class="hero-service w-100" />
-                                </div>
-                            </div>
-                        </div>
 
                     </div>
 
@@ -447,7 +438,7 @@
                             Выполнение цели <span>@ProgresPercent%</span>
                         </h5>
                         <div class="bar">
-                            <div class="fill" data-progress="@ProgressClamped" style="width:@(ProgressClamped)%;"></div>
+                            <div class="fill" data-progress="@ProgressClamped" style="--p:@(ProgressClamped)%;"></div>
                         </div>
                     </div>
 
@@ -694,7 +685,7 @@
                 <!-- Текстовый блок -->
                 <div class="col-md-6">
                     <h1 class="starta-heading">Наши будние дни</h1>
-                    <h1 class="starta-h1">Вывозим технику с понедельника по субботу. Заявки принимаем и в воскресенье.</h1>
+                    <h1 class="starta-h1">Заявки принимаем ежедневно. Вывозим технику с понедельника по субботу.</h1>
                     <p class="starta-desc">
                         Начиная с 9 утра и до позднего вечера, наша служба принимает заявки и вывозит технику по согласованному времени.
                     </p>
@@ -972,8 +963,8 @@
                                         Да, но заявки принимаем каждый день.
                                     </h3>
                                     <p class="starta-desc">
-                                        В воскресенье мы принимаем заявки, но технику не собираем и не вывозим.
-                                        Выезд согласуем на рабочий день; график в праздники уточняйте по телефону.
+                                        Заявки принимаем ежедневно, включая воскресенье. Вывоз — с понедельника по субботу,
+                                        выезд согласуем на ближайший рабочий день; график в праздники уточняйте по телефону.
                                     </p>
                                     <p class="starta-desc">
                                         Заявки принимаются ежедневно — по телефону и через сайт.
@@ -1082,6 +1073,13 @@
                     </div>
                 </div>
             </div>
+            <div class="feedback-cta">
+                <p class="starta-desc mb-0">Были у нас? Расскажите, как всё прошло — или сообщите, если что-то пошло не так.</p>
+                <button type="button" class="starta-button" @onclick="OpenFeedback">
+                    <span class="position-relative"><i class="fa-regular fa-comment-dots" aria-hidden="true"></i> Оставить отзыв или жалобу</span>
+                    <span class="starta-button-hover"></span>
+                </button>
+            </div>
         </div>
     </section>
 
@@ -1145,7 +1143,7 @@
                     </p>
 
                     <p class="starta-desc">
-                        В воскресенье принимаем заявки, но не собираем и не вывозим технику.
+                        Заявки принимаем ежедневно, вывоз — с понедельника по субботу.
                         Заявку через сайт можно оставить круглосуточно.
                     </p>
                 </div>
@@ -1208,7 +1206,7 @@
                                     <a class="menu-animation" href="@(string.IsNullOrWhiteSpace(slug) ? "/contacts#top" : $"/{slug}/contacts#top")">Контакты</a>
                                 </li>
                                 <li>
-                                    <a class="menu-animation" href="#">Жалобы и предложения</a>
+                                    <a class="menu-animation" href="#" @onclick="OpenFeedback" @onclick:preventDefault="true">Жалобы и предложения</a>
                                 </li>
                             </ul>
                         </div>
@@ -1233,7 +1231,7 @@
                     <div>
                         <p class="mb-1 starta-desc"><strong>Время работы:</strong></p>
                         <p class="mb-0 starta-desc">Пон–Сб: 9:00–20:00</p>
-                        <p class="mb-0 starta-desc">Воскресенье: приём заявок, без вывоза</p>
+                        <p class="mb-0 starta-desc">Заявки — ежедневно, вывоз — Пн–Сб</p>
                     </div>
                 </div>
 
@@ -1243,11 +1241,14 @@
         <!-- copyright -->
         <div class="copyright pt-5 pb-5">
             © Ecobay.by 2018-@thisYear. ООО "ЭКОТЕХБЕЛК" УНП 491508819 | Разработка и поддержка Artbavial Software
+            <div class="mt-2"><a class="staff-login-link" href="/admin/login" rel="nofollow"><i class="fa-solid fa-lock"></i> Вход для сотрудников</a></div>
         </div>
     </footer>
 </div>
 
 @* Модальные окна — вне #scroll-content, чтобы position: fixed всегда считалось от окна браузера. *@
+
+<FeedbackModal @bind-Visible="isFeedbackVisible" Cities="activeCities" DefaultCityId="currentCity?.Id" />
 
 @if (isCitySelectorVisible)
 {
@@ -1335,6 +1336,8 @@
 
     /// <summary>Активные города с сохранённой страницей — для окна выбора, футера и списка на первом экране.</summary>
     private List<City> activeCities = new();
+    private bool isFeedbackVisible;
+    private void OpenFeedback() => isFeedbackVisible = true;
 
     /// <summary>Настройки страницы «Вся Беларусь» (из панели управления).</summary>
     private MainPageSettings mainPage = DbSeeder.CreateDefaultMainPage();
@@ -1359,6 +1362,8 @@
 
     private string? HeroTextOverride =>
         !isCityMode && !string.IsNullOrWhiteSpace(mainPage.HeroText) ? mainPage.HeroText : null;
+
+    private bool HasPriceRange => priceToKopeks.HasValue && priceToKopeks.Value > (int)price;
 
     private int ProgressClamped => Math.Clamp(ProgresPercent, 0, 100);
 

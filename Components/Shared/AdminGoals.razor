@@ -59,6 +59,46 @@
     }
 </div>
 
+@if (edit is not null && edit.Id != 0)
+{
+    <div class="admin-card mt-3">
+        <h2 class="admin-card-title">Автодобавка каждый час</h2>
+        <p class="admin-muted">
+            Сервер сам раз в час прибавляет указанное количество к «ручной добавке» (InactiveRequests) активной цели.
+            Если сервер или пул IIS был остановлен, пропущенные часы досчитаются при следующем запуске (не более чем за 30 дней).
+        </p>
+        @if (autoError is not null) { <div class="admin-alert admin-alert-error mb-3" role="alert">@autoError</div> }
+        @if (autoMessage is not null) { <div class="admin-alert admin-alert-ok mb-3" role="status">@autoMessage</div> }
+        <div class="form-check form-switch mb-3 admin-switch">
+            <input class="form-check-input" id="autoEnabled" type="checkbox" @bind="autoEnabled" disabled="@busy" />
+            <label class="form-check-label" for="autoEnabled">Включить автодобавку</label>
+        </div>
+        <div class="row g-3">
+            <div class="col-sm-4">
+                <label class="admin-label" for="autoPer">Добавлять за час</label>
+                <input class="form-control" id="autoPer" type="number" min="1" max="1000" @bind="autoPer" disabled="@busy" />
+            </div>
+            <div class="col-sm-4">
+                <label class="admin-label" for="autoFrom">С часа (включительно)</label>
+                <input class="form-control" id="autoFrom" type="number" min="0" max="23" @bind="autoFrom" disabled="@busy" />
+            </div>
+            <div class="col-sm-4">
+                <label class="admin-label" for="autoTo">По час (включительно)</label>
+                <input class="form-control" id="autoTo" type="number" min="0" max="23" @bind="autoTo" disabled="@busy" />
+            </div>
+        </div>
+        <p class="admin-muted mt-2 mb-3">
+            Это примерно <strong>+@AutoPerDay в день</strong> (@HoursPerDay начислений по @autoPer).
+            @if (edit.AutoIncrementEnabled && edit.AutoIncrementLastAt.HasValue)
+            {
+                <span>Последнее учтённое время: @edit.AutoIncrementLastAt.Value.ToString("dd.MM.yyyy HH:mm").</span>
+            }
+        </p>
+        <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="SaveAutoAsync">Сохранить автодобавку</button>
+        @if (!edit.IsActive) { <p class="admin-muted mt-2 mb-0">Цель неактивна — автодобавка для неё работать не будет.</p> }
+    </div>
+}
+
 @code {
     private int selectedYear = DateTime.Today.Year;
     private Goal? edit, original;
@@ -67,6 +107,57 @@
     private decimal ClientPercent => edit is null ? 0 : AdminReporting.Percent(AdminReporting.Completed(edit), edit.TargetClients);
     private decimal ItemPercent => edit is null ? 0 : AdminReporting.Percent(edit.ActualItems, edit.TargetItems);
     private static string Width(decimal n) => $"width:{Math.Clamp(n, 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)}%";
+
+    private bool autoEnabled;
+    private int autoPer = 1, autoFrom = 8, autoTo = 21;
+    private string? autoError, autoMessage;
+    private int HoursPerDay => Math.Clamp(autoFrom, 0, 23) <= Math.Clamp(autoTo, 0, 23)
+        ? Math.Clamp(autoTo, 0, 23) - Math.Clamp(autoFrom, 0, 23) + 1
+        : 24 - Math.Clamp(autoFrom, 0, 23) + Math.Clamp(autoTo, 0, 23) + 1;
+    private int AutoPerDay => HoursPerDay * Math.Max(0, autoPer);
+
+    private void FillAuto()
+    {
+        if (edit is null) return;
+        autoEnabled = edit.AutoIncrementEnabled;
+        autoPer = edit.AutoIncrementPerHour <= 0 ? 1 : edit.AutoIncrementPerHour;
+        autoFrom = edit.AutoIncrementFromHour;
+        autoTo = edit.AutoIncrementToHour;
+    }
+
+    private async Task SaveAutoAsync()
+    {
+        if (busy || edit is null || edit.Id == 0) return;
+        autoError = autoMessage = null;
+        if (autoPer is < 1 or > 1000) { autoError = "Количество за час: от 1 до 1000."; return; }
+        if (autoFrom is < 0 or > 23 || autoTo is < 0 or > 23) { autoError = "Часы указываются от 0 до 23."; return; }
+        busy = true;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var now = DateTime.Now;
+            var hourStart = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
+            var wasEnabled = edit.AutoIncrementEnabled;
+            // При включении начинаем отсчёт с текущего часа — без начислений «задним числом».
+            DateTime? lastAt = autoEnabled ? (wasEnabled ? edit.AutoIncrementLastAt ?? hourStart : hourStart) : null;
+            await db.Goals.Where(g => g.Id == edit.Id).ExecuteUpdateAsync(u => u
+                .SetProperty(g => g.AutoIncrementEnabled, autoEnabled)
+                .SetProperty(g => g.AutoIncrementPerHour, autoPer)
+                .SetProperty(g => g.AutoIncrementFromHour, autoFrom)
+                .SetProperty(g => g.AutoIncrementToHour, autoTo)
+                .SetProperty(g => g.AutoIncrementLastAt, lastAt));
+            edit.AutoIncrementEnabled = autoEnabled;
+            edit.AutoIncrementPerHour = autoPer;
+            edit.AutoIncrementFromHour = autoFrom;
+            edit.AutoIncrementToHour = autoTo;
+            edit.AutoIncrementLastAt = lastAt;
+            autoMessage = autoEnabled
+                ? $"Автодобавка включена: +{autoPer} каждый час с {autoFrom}:00 по {autoTo}:00."
+                : "Автодобавка выключена.";
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot save auto increment"); autoError = "Не удалось сохранить настройки."; }
+        finally { busy = false; }
+    }
 
     protected override Task OnInitializedAsync() => LoadAsync();
     private async Task LoadAsync()
@@ -82,7 +173,9 @@
                 .OrderByDescending(g => g.IsActive).ThenByDescending(g => g.StartDate).ThenByDescending(g => g.Id)
                 .FirstOrDefaultAsync();
             original = edit is null ? null : Clone(edit);
+            autoError = autoMessage = null;
             edit ??= new Goal { Year = selectedYear, StartDate = new DateTime(selectedYear, 1, 1), TargetClients = 5000, TargetItems = 12000 };
+            FillAuto();
         }
         catch (Exception ex) { Logger.LogError(ex, "Cannot load goal"); error = "Не удалось загрузить цели."; }
         finally { busy = false; }
@@ -126,7 +219,7 @@
                         .SetProperty(g => g.InactiveRequests, edit.InactiveRequests)
                         .SetProperty(g => g.StartDate, edit.StartDate)
                         .SetProperty(g => g.IsActive, edit.IsActive));
-                if (count == 0) { error = "Данные изменились: возможно, пришла новая заявка. Нажмите «Загрузить» и повторите правку."; return; }
+                if (count == 0) { error = "Данные изменились: пришла новая заявка или сработала автодобавка. Нажмите «Загрузить» и повторите правку."; return; }
             }
             if (edit.IsActive)
                 await db.Goals.Where(g => g.Year == edit.Year && g.Id != edit.Id && g.IsActive)
@@ -143,6 +236,9 @@
     {
         Id = g.Id, Year = g.Year, TargetClients = g.TargetClients, TargetItems = g.TargetItems,
         ActualClients = g.ActualClients, ActualItems = g.ActualItems, InactiveRequests = g.InactiveRequests,
-        StartDate = g.StartDate, IsActive = g.IsActive
+        StartDate = g.StartDate, IsActive = g.IsActive,
+        AutoIncrementEnabled = g.AutoIncrementEnabled, AutoIncrementPerHour = g.AutoIncrementPerHour,
+        AutoIncrementFromHour = g.AutoIncrementFromHour, AutoIncrementToHour = g.AutoIncrementToHour,
+        AutoIncrementLastAt = g.AutoIncrementLastAt
     };
 }

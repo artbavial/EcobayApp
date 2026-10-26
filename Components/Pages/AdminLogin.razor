@@ -2,6 +2,7 @@
 @* Страница входа рендерится на сервере без SignalR: cookie можно выставить только в обычном HTTP-ответе. *@
 @using System.ComponentModel.DataAnnotations
 @using EcobayApp.Services
+@using EcobayApp.Models
 @using Microsoft.AspNetCore.Authentication
 @inject AdminAuthService Auth
 @inject NavigationManager Nav
@@ -87,9 +88,15 @@
         if (HttpMethods.IsGet(HttpContext.Request.Method) && HttpContext.User.Identity?.IsAuthenticated == true
             && await Auth.IsPrincipalValidAsync(HttpContext.User))
         {
-            Nav.NavigateTo(SafeReturnUrl);
+            Nav.NavigateTo(HttpContext.User.IsInRole(AdminRoles.Driver) ? TargetFor(AdminRoles.Driver) : SafeReturnUrl);
         }
     }
+
+    /// <summary>Водителя всегда ведём на его страницу заявок, администратора — по returnUrl.</summary>
+    private string TargetFor(string role) =>
+        role == AdminRoles.Driver && !SafeReturnUrl.StartsWith("/driver", StringComparison.OrdinalIgnoreCase)
+            ? "/driver"
+            : SafeReturnUrl;
 
     private async Task LoginAsync()
     {
@@ -105,7 +112,7 @@
                     AllowRefresh = true
                 };
                 await HttpContext.SignInAsync(AdminAuthService.Scheme, Auth.CreatePrincipal(result.User!), props);
-                Nav.NavigateTo(SafeReturnUrl);
+                Nav.NavigateTo(TargetFor(result.User!.Role));
                 return;
 
             case AdminLoginStatus.LockedOut:

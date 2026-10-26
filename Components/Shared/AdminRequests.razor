@@ -3,81 +3,311 @@
 @using EcobayApp.Services
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDBContext> DbFactory
+@inject RequestWorkflow Workflow
 @inject IJSRuntime JS
 @inject ILogger<AdminRequests> Logger
 
+@* Общий список заявок: вкладка «Заявки» администратора и страница водителя /driver. *@
+
+@if (IsAdmin && creating)
+{
+    <AdminRequestCreate CurrentUserId="CurrentUserId" OnClose="CloseCreateAsync" />
+}
+@if (IsAdmin && editId.HasValue)
+{
+    <AdminRequestCreate @key="editId" CurrentUserId="CurrentUserId" EditId="editId" OnClose="CloseEditAsync" />
+}
+
 <div class="admin-card">
-    <h2 class="admin-card-title">Заявки</h2>
-    <p class="admin-muted">Период до 30 дней включительно. Фильтры применяются ко всей базе, а не только к открытой странице.</p>
-    <div class="row g-3 mb-3">
-        <div class="col-sm-6 col-lg-2">
-            <label class="admin-label" for="requestsFrom">С даты</label>
-            <input id="requestsFrom" class="form-control" type="date" @bind="from" disabled="@busy" />
-        </div>
-        <div class="col-sm-6 col-lg-2">
-            <label class="admin-label" for="requestsTo">По дату включительно</label>
-            <input id="requestsTo" class="form-control" type="date" @bind="to" disabled="@busy" />
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <label class="admin-label" for="requestsSearch">Имя или телефон</label>
-            <input id="requestsSearch" class="form-control" @bind="search" maxlength="100" disabled="@busy" />
-        </div>
-        <div class="col-sm-6 col-lg-3">
-            <label class="admin-label" for="requestsCity">Город</label>
-            <select id="requestsCity" class="form-select" @bind="cityId" disabled="@busy">
-                <option value="">Все города</option>
-                <option value="0">Город не указан</option>
-                @foreach (var city in cities) { <option value="@city.Id">@city.Name</option> }
-            </select>
-        </div>
-        <div class="col-sm-6 col-lg-2">
-            <label class="admin-label" for="requestsSize">На странице</label>
-            <select id="requestsSize" class="form-select" @bind="pageSize" disabled="@busy">
-                <option value="20">20 заявок</option><option value="30">30 заявок</option><option value="50">50 заявок</option>
-            </select>
-        </div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h2 class="admin-card-title mb-0">@(RouteMode ? "Маршрутный лист" : "Заявки")</h2>
+        @if (IsAdmin && !creating && !RouteMode)
+        {
+            <button class="admin-btn admin-btn-primary" @onclick="() => creating = true"><i class="fa-solid fa-plus"></i> Новая заявка</button>
+        }
     </div>
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="ApplyAsync">Применить</button>
-        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(1)">Сегодня</button>
-        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(7)">7 дней</button>
-        <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(30)">30 дней</button>
-    </div>
+
+    @if (RouteMode)
+    {
+        <div class="route-day-switch">
+            <button type="button" class="btn btn-outline-secondary" disabled="@busy" aria-label="Предыдущий день" @onclick="() => ShiftDayAsync(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+            <input type="date" class="form-control" @bind="routeDate" @bind:after="LoadRouteAsync" disabled="@busy" />
+            <button type="button" class="btn btn-outline-secondary" disabled="@busy" aria-label="Следующий день" @onclick="() => ShiftDayAsync(1)"><i class="fa-solid fa-chevron-right"></i></button>
+            @if (routeDate != DateTime.Today)
+            {
+                <button type="button" class="btn btn-link" disabled="@busy" @onclick="() => { routeDate = DateTime.Today; return LoadRouteAsync(); }">Сегодня</button>
+            }
+        </div>
+        <p class="admin-muted mb-3">
+            @AdminRequestRowFormat.Pickup(routeDate, null): точек <strong>@rows.Count</strong>,
+            отработано <strong>@rows.Count(r => r.Status == RequestStatus.Done)</strong>,
+            осталось <strong>@rows.Count(r => r.Status == RequestStatus.New)</strong>.
+            @if (paidSum > 0) { <span>Выплачено: <strong>@paidSum.ToString("N2") руб.</strong></span> }
+        </p>
+    }
+    else
+    {
+        <div class="req-status-tabs" role="tablist">
+            @foreach (var (value, title) in StatusOptions)
+            {
+                <button type="button" class="@(statusFilter == value ? "active" : "")" disabled="@busy"
+                        @onclick="() => SetStatusAsync(value)">@title</button>
+            }
+        </div>
+
+        <div class="row g-2 mb-2">
+            <div class="col-6 col-lg-2">
+                <label class="admin-label" for="requestsFrom">С даты</label>
+                <input id="requestsFrom" class="form-control" type="date" @bind="from" disabled="@busy" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="admin-label" for="requestsTo">По дату</label>
+                <input id="requestsTo" class="form-control" type="date" @bind="to" disabled="@busy" />
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <label class="admin-label" for="requestsCity">Город</label>
+                <select id="requestsCity" class="form-select" @bind="cityId" disabled="@busy">
+                    <option value="">Все города</option>
+                    <option value="0">Город не указан</option>
+                    @foreach (var city in cities) { <option value="@city.Id">@city.Name</option> }
+                </select>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <label class="admin-label" for="requestsSearch">Имя, телефон, адрес</label>
+                <input id="requestsSearch" class="form-control" @bind="search" maxlength="100" disabled="@busy" />
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="admin-label" for="requestsSource">Источник</label>
+                <select id="requestsSource" class="form-select" @bind="sourceFilter" disabled="@busy">
+                    <option value="">Все</option>
+                    <option value="site">С сайта</option>
+                    <option value="manual">Звонки (вручную)</option>
+                </select>
+            </div>
+            <div class="col-6 col-lg-2">
+                <label class="admin-label" for="requestsSize">На странице</label>
+                <select id="requestsSize" class="form-select" @bind="pageSize" disabled="@busy">
+                    <option value="20">20</option><option value="30">30</option><option value="50">50</option>
+                </select>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="ApplyAsync">Применить</button>
+            <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(1)">Сегодня</button>
+            <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(7)">7 дней</button>
+            <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(30)">30 дней</button>
+        </div>
+    }
+
     @if (error is not null) { <div class="admin-alert admin-alert-error mb-3" role="alert">@error</div> }
+    @if (notice is not null) { <div class="admin-alert admin-alert-ok mb-3" role="status">@notice</div> }
+
     @if (hasResult)
     {
-        <p class="admin-muted">Период: @appliedFrom.ToString("dd.MM.yyyy") — @appliedTo.ToString("dd.MM.yyyy"). Найдено: @total.</p>
-        <AdminRequestTable Rows="rows" AllowDelete="true" Busy="busy" OnDelete="DeleteAsync" />
+        @if (!RouteMode)
+        {
+            <p class="admin-muted">
+                @appliedFrom.ToString("dd.MM.yyyy") — @appliedTo.ToString("dd.MM.yyyy"). Найдено: <strong>@total</strong>.
+                @if (paidSum > 0) { <span> Выплачено по найденным: <strong>@paidSum.ToString("N2") руб.</strong></span> }
+            </p>
+        }
+
+        <div class="req-list">
+            @foreach (var r in rows)
+            {
+                <article class="req-card req-card-@r.Status.ToString().ToLowerInvariant()" @key="r.Id">
+                    <header class="req-card-head">
+                        @if (RouteMode) { <span class="route-point-no" title="Порядок в маршруте">@(rows.IndexOf(r) + 1)</span> }
+                        <span class="req-status req-status-@r.Status.ToString().ToLowerInvariant()">@RequestWorkflow.StatusTitle(r.Status)</span>
+                        <span class="req-card-city"><i class="fa-solid fa-location-dot"></i> @r.City</span>
+                        <span class="req-card-date">№@r.Id · @r.Date.ToString("dd.MM.yyyy HH:mm")</span>
+                        @if (r.IsManual) { <span class="admin-badge admin-badge-off">звонок</span> }
+                        @if (r.PickupText is not null) { <span class="req-pickup"><i class="fa-regular fa-calendar"></i> забрать @r.PickupText</span> }
+                        @if (IsAdmin && !RouteMode && r.RouteDriverId.HasValue && r.RouteDate.HasValue)
+                        {
+                            <span class="admin-badge admin-badge-on" title="В маршрутном листе"><i class="fa-solid fa-truck"></i> @DriverName(r.RouteDriverId.Value), @r.RouteDate.Value.ToString("dd.MM")</span>
+                        }
+                    </header>
+
+                    <div class="req-card-body">
+                        <div class="req-card-client">
+                            <strong>@(string.IsNullOrWhiteSpace(r.Name) ? "Без имени" : r.Name)</strong>
+                            <a class="req-card-phone" href="@($"tel:{r.Phone}")"><i class="fa-solid fa-phone"></i> @r.Phone</a>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(r.Address))
+                        {
+                            <div class="req-card-line"><i class="fa-solid fa-map-pin"></i> @r.Address</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(r.Message))
+                        {
+                            <div class="req-card-message">@r.Message</div>
+                        }
+                        @if (r.HasScreenshot)
+                        {
+                            <a class="req-card-shot" href="@($"/admin/files/requests/{r.Id}")" target="_blank" rel="noopener">
+                                <img src="@($"/admin/files/requests/{r.Id}")" alt="Скриншот заявки" loading="lazy" />
+                                <span>Открыть скриншот</span>
+                            </a>
+                        }
+
+                        @if (r.Status != RequestStatus.New && r.ProcessedAt.HasValue)
+                        {
+                            <div class="req-card-result">
+                                @if (r.Status == RequestStatus.Done)
+                                {
+                                    <div><strong>Заплачено клиенту: @((r.PaidAmount ?? 0).ToString("N2")) руб.</strong></div>
+                                }
+                                <div class="admin-muted">
+                                    @(r.Status == RequestStatus.Done ? "Отработал" : "Отменил"): @(r.ProcessedByName ?? "—"),
+                                    @r.ProcessedAt.Value.ToString("dd.MM.yyyy HH:mm")
+                                    (через @RequestWorkflow.Duration(r.Date, r.ProcessedAt.Value) после поступления)
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(r.DriverComment)) { <div class="req-card-comment">«@r.DriverComment»</div> }
+                            </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(r.DriverComment))
+                        {
+                            <div class="req-card-comment">Последний комментарий: «@r.DriverComment»</div>
+                        }
+                    </div>
+
+                    @if (actionId == r.Id)
+                    {
+                        <div class="req-action-panel">
+                            @if (actionKind == RequestStatus.Done)
+                            {
+                                <label class="admin-label" for="@($"paid{r.Id}")">Сколько заплатили клиенту, руб.</label>
+                                <input id="@($"paid{r.Id}")" class="form-control mb-2" type="number" inputmode="decimal" min="0" step="0.01"
+                                       @bind="actionPaid" placeholder="Например, 25.60" />
+                            }
+                            <label class="admin-label" for="@($"comment{r.Id}")">
+                                @(actionKind switch { RequestStatus.Cancelled => "Причина отмены (обязательно)", RequestStatus.New => "Почему возвращаете в работу (обязательно)", _ => "Комментарий (необязательно)" })
+                            </label>
+                            <textarea id="@($"comment{r.Id}")" class="form-control mb-2" rows="2" maxlength="1000" @bind="actionComment"></textarea>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="() => ConfirmActionAsync(r.Id)">Подтвердить</button>
+                                <button class="btn btn-outline-secondary" disabled="@busy" @onclick="CancelAction">Не сейчас</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <footer class="req-card-actions">
+                            @if (r.Status == RequestStatus.New)
+                            {
+                                <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="() => StartAction(r.Id, RequestStatus.Done)"><i class="fa-solid fa-check"></i> Отработать</button>
+                                <button class="btn btn-outline-danger" disabled="@busy" @onclick="() => StartAction(r.Id, RequestStatus.Cancelled)">Отменить</button>
+                            }
+                            else if (r.Status == RequestStatus.Cancelled || IsAdmin)
+                            {
+                                <button class="btn btn-outline-secondary" disabled="@busy" @onclick="() => StartAction(r.Id, RequestStatus.New)"><i class="fa-solid fa-rotate-left"></i> Вернуть в работу</button>
+                            }
+                            <button class="btn btn-link btn-sm" disabled="@busy" @onclick="() => ToggleHistoryAsync(r.Id)">
+                                @(historyId == r.Id ? "Скрыть историю" : "История")
+                            </button>
+                            @if (IsAdmin)
+                            {
+                                <button class="btn btn-link btn-sm" disabled="@busy" @onclick="() => { editId = r.Id; creating = false; }">Изменить</button>
+                                <button class="btn btn-link btn-sm text-danger ms-auto" disabled="@busy" @onclick="() => DeleteAsync(r.Id)">Удалить</button>
+                            }
+                        </footer>
+                    }
+
+                    @if (historyId == r.Id)
+                    {
+                        <ul class="req-history">
+                            @if (history.Count == 0) { <li class="admin-muted">Действий по заявке ещё не было.</li> }
+                            @foreach (var e in history)
+                            {
+                                <li>
+                                    <span class="admin-muted">@e.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                                    <strong>@(e.UserName ?? "—")</strong>:
+                                    @RequestWorkflow.StatusTitle(e.FromStatus) → @RequestWorkflow.StatusTitle(e.ToStatus)
+                                    @if (e.PaidAmount.HasValue) { <span>, заплачено @e.PaidAmount.Value.ToString("N2") руб.</span> }
+                                    @if (!string.IsNullOrWhiteSpace(e.Comment)) { <span> — «@e.Comment»</span> }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </article>
+            }
+            @if (rows.Count == 0)
+            {
+                <p class="text-center py-4 admin-muted">@(RouteMode ? "На этот день маршрут пуст. Его формирует администратор." : "Заявок по выбранным условиям нет.")</p>
+            }
+        </div>
+
+        @if (!RouteMode)
+        {
         <div class="admin-pagination">
             <span>Показано @(total == 0 ? 0 : (page - 1) * appliedSize + 1)–@Math.Min(page * appliedSize, total) из @total</span>
             <div class="d-flex align-items-center gap-2">
                 <button class="btn btn-outline-secondary" disabled="@(busy || page <= 1)" @onclick="() => MoveAsync(page - 1)">Назад</button>
-                <span>Страница @(page) из @Pages</span>
+                <span>@(page) / @Pages</span>
                 <button class="btn btn-outline-secondary" disabled="@(busy || page >= Pages)" @onclick="() => MoveAsync(page + 1)">Далее</button>
             </div>
         </div>
+        }
     }
 </div>
 
 @code {
     [Parameter] public bool TodayOnly { get; set; }
+    /// <summary>Администратор: создание, удаление, возврат отработанной заявки.</summary>
+    [Parameter] public bool IsAdmin { get; set; } = true;
+    [Parameter] public long CurrentUserId { get; set; }
+    [Parameter] public string CurrentUserName { get; set; } = "";
+    /// <summary>Маршрутный лист водителя: заявки этого водителя на выбранный день в заданном порядке.</summary>
+    [Parameter] public long? RouteDriverId { get; set; }
+    private bool RouteMode => RouteDriverId.HasValue;
+    private DateTime routeDate = DateTime.Today;
+    private string sourceFilter = "", appliedSource = "";
+    private long? editId;
+    private Dictionary<long, string> drivers = new();
+    private string DriverName(long id) => drivers.TryGetValue(id, out var n) ? n : "водитель";
+
+    private static readonly (int? Value, string Title)[] StatusOptions =
+    {
+        ((int)RequestStatus.New, "Не отработанные"),
+        ((int)RequestStatus.Done, "Отработанные"),
+        ((int)RequestStatus.Cancelled, "Отменённые"),
+        (null, "Все")
+    };
+
     private DateTime from = DateTime.Today.AddDays(-29), to = DateTime.Today;
-    private string? search, error;
+    private string? search, error, notice;
     private long? cityId;
+    private int? statusFilter = (int)RequestStatus.New, appliedStatus;
     private int pageSize = 20, appliedSize = 20, page = 1, total;
+    private decimal paidSum;
     private DateTime appliedFrom, appliedTo;
     private string? appliedSearch;
     private long? appliedCityId;
-    private bool busy, hasResult;
+    private bool busy, hasResult, creating;
     private int Pages => Math.Max(1, (int)Math.Ceiling((double)total / appliedSize));
     private List<City> cities = new();
     private List<AdminRequestRow> rows = new();
 
+    private long actionId, historyId;
+    private RequestStatus actionKind;
+    private decimal? actionPaid;
+    private string? actionComment;
+    private List<RequestEvent> history = new();
+
     protected override async Task OnInitializedAsync()
     {
-        if (TodayOnly) from = to = DateTime.Today;
+        if (TodayOnly) { from = to = DateTime.Today; statusFilter = null; }
         await using var db = await DbFactory.CreateDbContextAsync();
-        cities = await db.Cities.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
+        cities = await db.Cities.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync();
+        if (IsAdmin)
+            drivers = await db.AdminUsers.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.Login);
+        if (RouteMode) { await LoadRouteAsync(); return; }
+        await ApplyAsync();
+    }
+
+    private async Task SetStatusAsync(int? value)
+    {
+        statusFilter = value;
         await ApplyAsync();
     }
 
@@ -92,16 +322,56 @@
     {
         if (busy) return;
         error = AdminReporting.ValidateRange(from, to);
-        if (error is not null) return; // Leave the previously applied rows and their period untouched.
+        if (error is not null) return;
         appliedFrom = from.Date;
         appliedTo = to.Date;
         appliedSearch = search?.Trim();
         appliedCityId = cityId;
+        appliedStatus = statusFilter;
+        appliedSource = sourceFilter;
         appliedSize = pageSize is 20 or 30 or 50 ? pageSize : 20;
         await LoadAsync(1);
     }
 
     private Task MoveAsync(int target) => LoadAsync(Math.Clamp(target, 1, Pages));
+
+    private Task ShiftDayAsync(int days)
+    {
+        routeDate = routeDate.AddDays(days);
+        return LoadRouteAsync();
+    }
+
+    private async Task LoadRouteAsync()
+    {
+        if (busy || !RouteDriverId.HasValue) return;
+        busy = true;
+        error = null;
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var day = routeDate.Date;
+            var source = db.Requests.AsNoTracking().Where(r => r.RouteDriverId == RouteDriverId && r.RouteDate == day);
+            rows = await AdminReporting.Rows(source).OrderBy(r => r.RouteOrder).ThenBy(r => r.Id).Take(300).ToListAsync();
+            paidSum = rows.Where(r => r.PaidAmount.HasValue).Sum(r => r.PaidAmount!.Value);
+            total = rows.Count;
+            hasResult = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot load route");
+            error = "Не удалось загрузить маршрут. Повторите попытку.";
+            hasResult = false;
+        }
+        finally { busy = false; }
+    }
+
+    private Task ReloadAsync() => RouteMode ? LoadRouteAsync() : LoadAsync(page);
+
+    private async Task CloseEditAsync(bool saved)
+    {
+        editId = null;
+        if (saved) { notice = "Заявка сохранена."; await ReloadAsync(); }
+    }
 
     private async Task LoadAsync(int target)
     {
@@ -112,17 +382,30 @@
         {
             await using var db = await DbFactory.CreateDbContextAsync();
             var endExclusive = appliedTo.AddDays(1);
-            var query = AdminReporting.Rows(db.Requests.AsNoTracking()
-                .Where(r => r.DateCreate >= appliedFrom && r.DateCreate < endExclusive));
+            var source = db.Requests.AsNoTracking().Where(r => r.DateCreate >= appliedFrom && r.DateCreate < endExclusive);
+            if (appliedStatus.HasValue)
+            {
+                var st = (RequestStatus)appliedStatus.Value;
+                source = source.Where(r => r.Status == st);
+            }
+            if (appliedSource == "site") source = source.Where(r => !r.IsManual);
+            else if (appliedSource == "manual") source = source.Where(r => r.IsManual);
+            var query = AdminReporting.Rows(source);
             if (!string.IsNullOrEmpty(appliedSearch))
-                query = query.Where(r => r.Name.Contains(appliedSearch) || r.Phone.Contains(appliedSearch));
+                query = query.Where(r => r.Name.Contains(appliedSearch) || r.Phone.Contains(appliedSearch)
+                                         || (r.Address != null && r.Address.Contains(appliedSearch)));
             if (appliedCityId == 0) query = query.Where(r => r.CityId == null);
             else if (appliedCityId.HasValue) query = query.Where(r => r.CityId == appliedCityId.Value);
 
             total = await query.CountAsync();
+            // Сумма считается в памяти: диапазон не больше 30 дней, а так запрос одинаково работает на любой СУБД.
+            paidSum = (await query.Where(r => r.PaidAmount != null).Select(r => r.PaidAmount!.Value).ToListAsync()).Sum();
             page = Math.Clamp(target, 1, Pages);
-            rows = await query.OrderByDescending(r => r.Date).ThenByDescending(r => r.Id)
-                .Skip((page - 1) * appliedSize).Take(appliedSize).ToListAsync();
+            // Новые — сначала самые старые (их нужно отработать раньше), остальные — сначала свежие.
+            var ordered = appliedStatus == (int)RequestStatus.New
+                ? query.OrderBy(r => r.Date).ThenBy(r => r.Id)
+                : query.OrderByDescending(r => r.Date).ThenByDescending(r => r.Id);
+            rows = await ordered.Skip((page - 1) * appliedSize).Take(appliedSize).ToListAsync();
             hasResult = true;
         }
         catch (Exception ex)
@@ -134,6 +417,72 @@
         finally { busy = false; }
     }
 
+    private void StartAction(long id, RequestStatus kind)
+    {
+        actionId = id;
+        actionKind = kind;
+        actionPaid = null;
+        actionComment = null;
+        notice = error = null;
+    }
+
+    private void CancelAction() => actionId = 0;
+
+    private async Task ConfirmActionAsync(long id)
+    {
+        if (busy) return;
+        busy = true;
+        string? result;
+        try
+        {
+            result = actionKind switch
+            {
+                RequestStatus.Done => await Workflow.CompleteAsync(id, actionPaid, actionComment, CurrentUserId, CurrentUserName),
+                RequestStatus.Cancelled => await Workflow.CancelAsync(id, actionComment, CurrentUserId, CurrentUserName),
+                _ => await Workflow.ReopenAsync(id, actionComment, CurrentUserId, CurrentUserName)
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Cannot change request {RequestId}", id);
+            result = "Не удалось сохранить. Повторите попытку.";
+        }
+        finally { busy = false; }
+
+        if (result is not null) { error = result; return; }
+
+        notice = actionKind switch
+        {
+            RequestStatus.Done => $"Заявка №{id} отработана.",
+            RequestStatus.Cancelled => $"Заявка №{id} отменена.",
+            _ => $"Заявка №{id} возвращена в работу."
+        };
+        actionId = 0;
+        if (historyId == id) historyId = 0;
+        await ReloadAsync();
+    }
+
+    private async Task ToggleHistoryAsync(long id)
+    {
+        if (historyId == id) { historyId = 0; return; }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        history = await db.RequestEvents.AsNoTracking().Where(e => e.RequestId == id)
+            .OrderBy(e => e.CreatedAt).ThenBy(e => e.Id).ToListAsync();
+        historyId = id;
+    }
+
+    private async Task CloseCreateAsync(bool created)
+    {
+        creating = false;
+        if (created)
+        {
+            notice = "Заявка добавлена.";
+            to = DateTime.Today;
+            if (from > to) from = to;
+            await ApplyAsync();
+        }
+    }
+
     private async Task DeleteAsync(long id)
     {
         if (busy || !await JS.InvokeAsync<bool>("confirm", "Удалить заявку? Счётчики целей автоматически не изменятся.")) return;
@@ -142,6 +491,7 @@
         try
         {
             await using var db = await DbFactory.CreateDbContextAsync();
+            await db.RequestEvents.Where(e => e.RequestId == id).ExecuteDeleteAsync();
             await db.Requests.Where(r => r.Id == id).ExecuteDeleteAsync();
             success = true;
         }
@@ -151,6 +501,6 @@
             error = "Не удалось удалить заявку.";
         }
         finally { busy = false; }
-        if (success) await LoadAsync(page);
+        if (success) await ReloadAsync();
     }
 }

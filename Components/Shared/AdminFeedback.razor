@@ -1,0 +1,120 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+
+<div class="admin-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="admin-card-title mb-0">Отзывы, жалобы и предложения</h2>
+        <span class="admin-muted">Новых: <strong>@newCount</strong></span>
+    </div>
+    <div class="req-filters mb-3">
+        <select class="form-select" @bind="typeFilter" @bind:after="LoadAsync">
+            <option value="">Все типы</option>
+            <option value="@FeedbackType.Review">Отзывы</option>
+            <option value="@FeedbackType.Complaint">Жалобы</option>
+            <option value="@FeedbackType.Suggestion">Предложения</option>
+        </select>
+        <select class="form-select" @bind="stateFilter" @bind:after="LoadAsync">
+            <option value="new">Не обработанные</option>
+            <option value="done">Обработанные</option>
+            <option value="all">Все</option>
+        </select>
+    </div>
+
+    @if (items.Count == 0)
+    {
+        <p class="admin-muted">Обращений нет.</p>
+    }
+    <div class="req-list">
+        @foreach (var f in items)
+        {
+            <article class="req-card @(f.IsProcessed ? "req-card-done" : f.Type == FeedbackType.Complaint ? "req-card-cancelled" : "req-card-new")" @key="f.Id">
+                <div class="req-card-head">
+                    <span class="admin-badge @(f.Type == FeedbackType.Complaint ? "admin-badge-warn" : "admin-badge-on")">@TypeTitle(f.Type)</span>
+                    <span class="admin-muted">@f.CreatedAt.ToString("dd.MM.yyyy HH:mm")@(f.City is null ? "" : " · " + f.City.Name)</span>
+                    @if (f.IsProcessed) { <span class="admin-badge admin-badge-off ms-auto">обработано</span> }
+                </div>
+                <p class="req-card-text">@f.Text</p>
+                <div class="admin-muted small">
+                    @(f.Name ?? "Без имени")
+                    @if (!string.IsNullOrEmpty(f.Phone)) { <text> · </text><a href="tel:@f.Phone">@f.Phone</a> }
+                </div>
+                @if (editId == f.Id)
+                {
+                    <div class="req-action-panel">
+                        <textarea class="form-control" rows="2" maxlength="1000" placeholder="Комментарий: что сделали" @bind="comment"></textarea>
+                        <div class="d-flex gap-2 mt-2">
+                            <button class="admin-btn admin-btn-primary admin-btn-sm" @onclick="() => SetProcessedAsync(f.Id, true)">Отметить обработанным</button>
+                            <button class="admin-btn admin-btn-ghost admin-btn-sm" @onclick="() => editId = null">Отмена</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    @if (!string.IsNullOrEmpty(f.AdminComment)) { <div class="req-history">Комментарий: @f.AdminComment</div> }
+                    <div class="req-card-actions">
+                        @if (f.IsProcessed)
+                        {
+                            <button class="admin-btn admin-btn-ghost admin-btn-sm" @onclick="() => SetProcessedAsync(f.Id, false)">Вернуть в работу</button>
+                        }
+                        else
+                        {
+                            <button class="admin-btn admin-btn-primary admin-btn-sm" @onclick="() => { editId = f.Id; comment = f.AdminComment; }">Обработать</button>
+                        }
+                    </div>
+                }
+            </article>
+        }
+    </div>
+    @if (hasMore)
+    {
+        <button class="admin-btn admin-btn-ghost mt-3" @onclick="MoreAsync">Показать ещё</button>
+    }
+</div>
+
+@code {
+    private List<Feedback> items = new();
+    private string typeFilter = "", stateFilter = "new";
+    private string? comment;
+    private long? editId;
+    private int take = 30, newCount;
+    private bool hasMore;
+
+    private static string TypeTitle(FeedbackType t) => t switch
+    {
+        FeedbackType.Complaint => "Жалоба",
+        FeedbackType.Suggestion => "Предложение",
+        _ => "Отзыв"
+    };
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task MoreAsync() { take += 30; await LoadAsync(); }
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var q = db.Feedbacks.AsNoTracking().Include(f => f.City).AsQueryable();
+        if (Enum.TryParse<FeedbackType>(typeFilter, out var t)) q = q.Where(f => f.Type == t);
+        if (stateFilter == "new") q = q.Where(f => !f.IsProcessed);
+        else if (stateFilter == "done") q = q.Where(f => f.IsProcessed);
+        var list = await q.OrderByDescending(f => f.CreatedAt).Take(take + 1).ToListAsync();
+        hasMore = list.Count > take;
+        items = list.Take(take).ToList();
+        newCount = await db.Feedbacks.CountAsync(f => !f.IsProcessed);
+    }
+
+    private async Task SetProcessedAsync(long id, bool processed)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var f = await db.Feedbacks.FindAsync(id);
+        if (f is null) return;
+        f.IsProcessed = processed;
+        f.ProcessedAt = processed ? DateTime.Now : null;
+        if (processed) f.AdminComment = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
+        await db.SaveChangesAsync();
+        editId = null; comment = null;
+        await LoadAsync();
+    }
+}

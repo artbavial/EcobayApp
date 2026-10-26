@@ -1,0 +1,84 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+
+@* Окно с полной информацией о заявке. Администратор может изменить заявку здесь же. *@
+<div class="req-modal-overlay" role="dialog" aria-modal="true" @onclick="() => CloseAsync()">
+    <div class="req-modal" @onclick:stopPropagation="true">
+        <button type="button" class="req-modal-close" aria-label="Закрыть" @onclick="() => CloseAsync()"><i class="fa-solid fa-xmark"></i></button>
+
+        @if (editing)
+        {
+            <AdminRequestCreate EditId="RequestId" CurrentUserId="CurrentUserId" OnClose="OnEditClosedAsync" />
+        }
+        else if (row is null)
+        {
+            <p class="admin-muted py-4 mb-0">@(loaded ? "Заявка не найдена." : "Загрузка...")</p>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2 pe-4">
+                <h2 class="admin-card-title mb-0">Заявка №@row.Id</h2>
+                <span class="req-status req-status-@row.Status.ToString().ToLowerInvariant()">@RequestWorkflow.StatusTitle(row.Status)</span>
+                <span class="admin-badge admin-badge-off">@(row.IsManual ? "звонок" : "с сайта")</span>
+            </div>
+            <dl class="req-modal-grid">
+                <dt>Клиент</dt><dd>@(string.IsNullOrWhiteSpace(row.Name) ? "Без имени" : row.Name)</dd>
+                <dt>Телефон</dt><dd><a class="req-card-phone" href="tel:@row.Phone">@row.Phone</a></dd>
+                <dt>Город</dt><dd>@row.City</dd>
+                <dt>Адрес</dt><dd>@(string.IsNullOrWhiteSpace(row.Address) ? "не указан" : row.Address)</dd>
+                <dt>Когда забрать</dt><dd>@(row.PickupText ?? "не указано")</dd>
+                <dt>Поступила</dt><dd>@row.Date.ToString("dd.MM.yyyy HH:mm")</dd>
+                @if (!string.IsNullOrWhiteSpace(row.Message)) { <dt>Описание</dt><dd class="req-card-message">@row.Message</dd> }
+                @if (row.Status != RequestStatus.New && row.ProcessedAt.HasValue)
+                {
+                    <dt>Обработал</dt><dd>@row.ProcessedByName, @row.ProcessedAt.Value.ToString("dd.MM.yyyy HH:mm")</dd>
+                }
+                @if (row.PaidAmount.HasValue) { <dt>Выплачено</dt><dd><strong>@row.PaidAmount.Value.ToString("N2") руб.</strong></dd> }
+                @if (!string.IsNullOrWhiteSpace(row.DriverComment)) { <dt>Комментарий</dt><dd>@row.DriverComment</dd> }
+            </dl>
+            @if (row.HasScreenshot)
+            {
+                <a class="req-card-shot mb-3" href="@($"/admin/files/requests/{row.Id}")" target="_blank" rel="noopener">
+                    <img src="@($"/admin/files/requests/{row.Id}")" alt="Скриншот заявки" loading="lazy" />
+                    <span>Открыть скриншот</span>
+                </a>
+            }
+            <div class="d-flex flex-wrap gap-2">
+                <a class="admin-btn admin-btn-primary" href="tel:@row.Phone"><i class="fa-solid fa-phone"></i> Позвонить</a>
+                @if (IsAdmin) { <button class="btn btn-outline-secondary" @onclick="() => editing = true"><i class="fa-solid fa-pen"></i> Изменить</button> }
+                <button class="btn btn-link ms-auto" @onclick="() => CloseAsync()">Закрыть</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public long RequestId { get; set; }
+    [Parameter] public bool IsAdmin { get; set; }
+    [Parameter] public long CurrentUserId { get; set; }
+    /// <summary>Закрытие окна; true — заявку изменили, список нужно обновить.</summary>
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+    private AdminRequestRow? row;
+    private bool loaded, editing, changed;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        row = await AdminReporting.Rows(db.Requests.AsNoTracking().Where(r => r.Id == RequestId)).FirstOrDefaultAsync();
+        loaded = true;
+    }
+
+    private async Task OnEditClosedAsync(bool saved)
+    {
+        editing = false;
+        if (saved) { changed = true; await LoadAsync(); }
+    }
+
+    private Task CloseAsync() => OnClose.InvokeAsync(changed);
+}

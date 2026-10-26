@@ -28,6 +28,56 @@ namespace EcobayApp.Models
 		[MaxLength(300)]
 		public string? Source { get; set; }
 
+		// ---------- Обработка заявки ----------
+
+		/// <summary>Статус: новая, отработана, отменена.</summary>
+		public RequestStatus Status { get; set; } = RequestStatus.New;
+
+		/// <summary>Адрес вывоза (для ручных заявок или уточнённый водителем).</summary>
+		[MaxLength(300)]
+		public string? Address { get; set; }
+
+		/// <summary>Сколько заплатили клиенту, руб.</summary>
+		public decimal? PaidAmount { get; set; }
+
+		/// <summary>Комментарий водителя/администратора к последнему действию.</summary>
+		[MaxLength(1000)]
+		public string? DriverComment { get; set; }
+
+		/// <summary>Когда заявку отработали или отменили.</summary>
+		public DateTime? ProcessedAt { get; set; }
+
+		public long? ProcessedByUserId { get; set; }
+
+		[MaxLength(100)]
+		public string? ProcessedByName { get; set; }
+
+		/// <summary>Заявка добавлена вручную в панели управления.</summary>
+		public bool IsManual { get; set; }
+
+		public long? CreatedByUserId { get; set; }
+
+		/// <summary>Путь к скриншоту относительно App_Data (не публичный каталог).</summary>
+		[MaxLength(260)]
+		public string? ScreenshotPath { get; set; }
+
+		/// <summary>Когда забрать: дата (без времени).</summary>
+		[Column(TypeName = "date")]
+		public DateTime? PickupDate { get; set; }
+
+		/// <summary>Когда забрать: время (необязательно).</summary>
+		public TimeSpan? PickupTime { get; set; }
+
+		/// <summary>Маршрутный лист: водитель, дата маршрута и порядковый номер точки.</summary>
+		public long? RouteDriverId { get; set; }
+
+		[Column(TypeName = "date")]
+		public DateTime? RouteDate { get; set; }
+
+		public int RouteOrder { get; set; }
+
+		public List<RequestEvent> Events { get; set; } = new();
+
 		// Удобный доступ к городу
 		[NotMapped]
 		public City? City => PageCity?.City ?? Client?.City;

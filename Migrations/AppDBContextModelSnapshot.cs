@@ -62,6 +62,11 @@ namespace EcobayApp.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("SecurityStamp")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -148,6 +153,59 @@ namespace EcobayApp.Migrations
                     b.ToTable("Clients");
                 });
 
+            modelBuilder.Entity("EcobayApp.Models.Feedback", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AdminComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<long?>("CityId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsProcessed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SourcePage")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CityId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("Feedbacks");
+                });
+
             modelBuilder.Entity("EcobayApp.Models.Goal", b =>
                 {
                     b.Property<long>("Id")
@@ -160,6 +218,21 @@ namespace EcobayApp.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("ActualItems")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("AutoIncrementEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("AutoIncrementFromHour")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("AutoIncrementLastAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("AutoIncrementPerHour")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AutoIncrementToHour")
                         .HasColumnType("int");
 
                     b.Property<int>("InactiveRequests")
@@ -361,11 +434,25 @@ namespace EcobayApp.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
                     b.Property<long>("ClientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CreatedByUserId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime>("DateCreate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("DriverComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsManual")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Message")
                         .HasMaxLength(500)
@@ -374,9 +461,45 @@ namespace EcobayApp.Migrations
                     b.Property<long?>("PageCityId")
                         .HasColumnType("bigint");
 
+                    b.Property<decimal?>("PaidAmount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<DateTime?>("PickupDate")
+                        .HasColumnType("date");
+
+                    b.Property<TimeSpan?>("PickupTime")
+                        .HasColumnType("time");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProcessedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long?>("ProcessedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("RouteDate")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("RouteDriverId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("RouteOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ScreenshotPath")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
                     b.Property<string>("Source")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -386,13 +509,68 @@ namespace EcobayApp.Migrations
 
                     b.HasIndex("DateCreate", "Id");
 
+                    b.HasIndex("RouteDriverId", "RouteDate");
+
+                    b.HasIndex("Status", "DateCreate");
+
                     b.ToTable("Requests");
+                });
+
+            modelBuilder.Entity("EcobayApp.Models.RequestEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FromStatus")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("PaidAmount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<long>("RequestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestId");
+
+                    b.ToTable("RequestEvents");
                 });
 
             modelBuilder.Entity("EcobayApp.Models.Client", b =>
                 {
                     b.HasOne("EcobayApp.Models.City", "City")
                         .WithMany("Clients")
+                        .HasForeignKey("CityId");
+
+                    b.Navigation("City");
+                });
+
+            modelBuilder.Entity("EcobayApp.Models.Feedback", b =>
+                {
+                    b.HasOne("EcobayApp.Models.City", "City")
+                        .WithMany()
                         .HasForeignKey("CityId");
 
                     b.Navigation("City");
@@ -435,6 +613,17 @@ namespace EcobayApp.Migrations
                     b.Navigation("PageCity");
                 });
 
+            modelBuilder.Entity("EcobayApp.Models.RequestEvent", b =>
+                {
+                    b.HasOne("EcobayApp.Models.Request", "Request")
+                        .WithMany("Events")
+                        .HasForeignKey("RequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Request");
+                });
+
             modelBuilder.Entity("EcobayApp.Models.City", b =>
                 {
                     b.Navigation("Clients");
@@ -445,6 +634,11 @@ namespace EcobayApp.Migrations
             modelBuilder.Entity("EcobayApp.Models.Client", b =>
                 {
                     b.Navigation("Requests");
+                });
+
+            modelBuilder.Entity("EcobayApp.Models.Request", b =>
+                {
+                    b.Navigation("Events");
                 });
 #pragma warning restore 612, 618
         }

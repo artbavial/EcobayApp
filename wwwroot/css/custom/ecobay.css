@@ -732,3 +732,341 @@ button.menuIcon {
   .admin-goal-summary { grid-template-columns: 1fr; }
   .admin-pagination > div { flex-wrap: wrap; }
 }
+
+/* =====================================================================
+   v3: цена «МЫ ПЛАТИМ» на первом экране
+   ===================================================================== */
+.heroPayBadge {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 6px;
+  margin: 18px 0 22px;
+  padding: 14px 22px 14px 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--primary-color, #2e7d32) 0%, #1f6b2a 100%);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(31, 107, 42, 0.28);
+  max-width: 100%;
+}
+.heroPayBadge-label {
+  grid-row: span 2;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  opacity: 0.9;
+  border-left: 2px solid rgba(255, 255, 255, 0.35);
+  padding-left: 10px;
+}
+.heroPayBadge-value { display: flex; align-items: baseline; gap: 6px; line-height: 1; white-space: nowrap; }
+.heroPayBadge-prefix { font-size: 22px; font-weight: 700; opacity: 0.9; }
+.heroPayBadge-num { font-size: 64px; font-weight: 900; letter-spacing: -0.02em; }
+.heroPayBadge-dash { font-size: 40px; font-weight: 700; opacity: 0.8; }
+.heroPayBadge-unit { font-size: 15px; font-weight: 700; line-height: 1.1; margin-left: 4px; opacity: 0.95; }
+.heroPayBadge-note { font-size: 14px; font-weight: 600; opacity: 0.92; }
+.heroPayBadge-note i { margin-right: 6px; }
+
+@media (max-width: 767.98px) {
+  .heroPayBadge {
+    display: grid;
+    width: 100%;
+    margin: 12px 0 18px;
+    padding: 12px 16px 12px 12px;
+    column-gap: 14px;
+  }
+  .heroPayBadge-num { font-size: 52px; }
+  .heroPayBadge-dash { font-size: 32px; }
+  .heroPayBadge-prefix { font-size: 19px; }
+  .heroPayBadge-label { font-size: 12px; }
+  .heroPayBadge-note { font-size: 13px; }
+}
+
+/* =====================================================================
+   v3: отзывы и жалобы
+   ===================================================================== */
+.feedback-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px 24px;
+  margin-top: 24px;
+  text-align: center;
+}
+.feedback-cta .starta-button i { margin-right: 8px; }
+.feedback-modal { max-width: 560px; text-align: left; }
+.feedback-modal .city-modal-title, .feedback-modal .city-modal-text, .feedback-modal .city-modal-icon { text-align: center; }
+.feedback-types { display: flex; gap: 6px; background: rgb(240, 243, 240); border-radius: 12px; padding: 4px; margin: 14px 0; }
+.feedback-types button {
+  flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 9px 6px;
+  font-weight: 700; color: rgb(60, 60, 60); cursor: pointer;
+}
+.feedback-types button.active { background: #fff; color: var(--primary-color, #2e7d32); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); }
+.feedback-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.feedback-field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 600; color: rgb(60, 60, 60); }
+.feedback-field-wide { grid-column: 1 / -1; }
+.feedback-field input, .feedback-field select, .feedback-field textarea {
+  width: 100%; border: 1px solid rgb(215, 220, 215); border-radius: 10px; padding: 10px 12px;
+  font-size: 16px; font-weight: 400; background: #fff; color: rgb(25, 25, 25);
+}
+.feedback-field textarea { resize: vertical; min-height: 110px; }
+.feedback-field small { align-self: flex-end; font-weight: 400; color: rgb(130, 130, 130); }
+.feedback-field input:focus, .feedback-field select:focus, .feedback-field textarea:focus { outline: 2px solid var(--primary-color, #2e7d32); border-color: transparent; }
+.feedback-hp { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; opacity: 0; }
+.feedback-error { color: #c62828; font-weight: 600; margin-bottom: 10px; }
+.feedback-modal .starta-button[disabled] { opacity: 0.6; pointer-events: none; }
+@media (max-width: 575.98px) {
+  .feedback-grid { grid-template-columns: 1fr; }
+  .feedback-modal { max-height: calc(100vh - 24px); overflow-y: auto; }
+}
+
+/* =====================================================================
+   v3: заявки — карточки, статусы, действия
+   ===================================================================== */
+.req-status-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+.req-status-tabs button {
+  border: 1px solid rgb(220, 225, 220); background: #fff; border-radius: 999px; padding: 7px 14px;
+  font-weight: 700; font-size: 14px; color: rgb(60, 60, 60);
+}
+.req-status-tabs button.active { background: var(--primary-color, #2e7d32); border-color: transparent; color: #fff; }
+.req-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.req-filters .form-select { width: auto; min-width: 180px; }
+
+.req-list { display: grid; gap: 12px; }
+.req-card {
+  border: 1px solid rgb(230, 233, 230); border-left: 5px solid #9e9e9e; border-radius: 14px;
+  padding: 14px 16px; background: #fff;
+}
+.req-card-new { border-left-color: #f9a825; }
+.req-card-done { border-left-color: #2e7d32; }
+.req-card-cancelled { border-left-color: #c62828; background: rgb(253, 248, 248); }
+.req-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.req-card-city { font-weight: 800; }
+.req-card-date { color: rgb(120, 120, 120); font-size: 13px; }
+.req-status { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; border-radius: 6px; padding: 3px 8px; }
+.req-status-new { background: #fff3cd; color: #8a6100; }
+.req-status-done { background: #e3f3e4; color: #1f6b2a; }
+.req-status-cancelled { background: #fde2e2; color: #a61b1b; }
+.req-card-body { display: grid; gap: 6px; }
+.req-card-client { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.req-card-phone { font-weight: 800; font-size: 17px; color: rgb(25, 25, 25); text-decoration: none; }
+.req-card-line { color: rgb(70, 70, 70); }
+.req-card-message, .req-card-text { white-space: pre-line; color: rgb(40, 40, 40); margin: 0 0 6px; }
+.req-card-shot { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.req-card-result { background: rgb(244, 248, 244); border-radius: 10px; padding: 8px 12px; }
+.req-card-comment { font-style: normal; color: rgb(80, 80, 80); }
+.req-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.req-action-panel { margin-top: 10px; padding: 12px; border-radius: 12px; background: rgb(246, 248, 246); display: grid; gap: 8px; }
+.req-history { margin-top: 8px; font-size: 13px; color: rgb(100, 100, 100); border-top: 1px dashed rgb(225, 225, 225); padding-top: 8px; }
+.req-history ul { margin: 0; padding-left: 18px; }
+
+.req-create { border: 2px solid rgba(46, 125, 50, 0.25); }
+.req-dropzone {
+  position: relative; border: 2px dashed rgb(190, 205, 190); border-radius: 14px; min-height: 150px;
+  display: flex; align-items: center; justify-content: center; text-align: center; padding: 14px;
+  background: rgb(248, 250, 248); overflow: hidden;
+}
+.req-dropzone:hover { border-color: var(--primary-color, #2e7d32); }
+.req-dropzone input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2; }
+.req-dropzone-hint { display: grid; gap: 4px; color: rgb(90, 90, 90); }
+.req-dropzone-hint i { font-size: 30px; color: var(--primary-color, #2e7d32); }
+.req-dropzone img { max-width: 100%; max-height: 260px; border-radius: 8px; }
+.req-phone-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.req-phone-chips button { border: 1px solid var(--primary-color, #2e7d32); background: #fff; color: var(--primary-color, #2e7d32); border-radius: 999px; padding: 4px 12px; font-weight: 700; }
+
+@media (max-width: 575.98px) {
+  .req-card { padding: 12px; }
+  .req-card-actions .admin-btn { flex: 1 1 auto; }
+  .req-filters .form-select { flex: 1 1 140px; min-width: 0; }
+}
+
+/* =====================================================================
+   v3: города в панели — список + редактор
+   ===================================================================== */
+.city-admin { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+.city-admin-list { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; height: auto; }
+.city-admin-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.city-admin-item {
+  width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; border: 0; background: transparent;
+  border-radius: 10px; padding: 9px 10px;
+}
+.city-admin-item:hover { background: rgb(243, 246, 243); }
+.city-admin-items li.selected .city-admin-item { background: rgba(46, 125, 50, 0.1); }
+.city-admin-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.city-admin-item-main small { color: rgb(120, 120, 120); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.city-admin-chevron { color: rgb(170, 170, 170); display: none; }
+.city-admin-editor .admin-card { height: auto; }
+.city-admin-empty { text-align: center; color: rgb(120, 120, 120); padding: 50px 20px; }
+.city-admin-empty i { font-size: 40px; margin-bottom: 10px; color: rgb(190, 205, 190); }
+.city-admin-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.city-admin-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.city-admin-back { display: none; padding: 0; font-weight: 700; text-decoration: none; color: var(--primary-color, #2e7d32); }
+.city-admin-tabs { display: flex; gap: 4px; border-bottom: 1px solid rgb(228, 232, 228); margin-bottom: 16px; overflow-x: auto; }
+.city-admin-tabs button {
+  border: 0; background: transparent; padding: 10px 14px; font-weight: 700; color: rgb(100, 100, 100);
+  border-bottom: 3px solid transparent; white-space: nowrap;
+}
+.city-admin-tabs button.active { color: var(--primary-color, #2e7d32); border-bottom-color: var(--primary-color, #2e7d32); }
+.city-admin-savebar {
+  position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 18px -22px -22px; padding: 12px 22px; background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgb(228, 232, 228); border-radius: 0 0 16px 16px; z-index: 3;
+}
+
+@media (max-width: 991.98px) {
+  .city-admin { grid-template-columns: 1fr; }
+  .city-admin-list { position: static; max-height: none; }
+  .city-admin-chevron { display: inline; }
+  .city-admin.is-editing .city-admin-list { display: none; }
+  .city-admin:not(.is-editing) .city-admin-editor { display: none; }
+  .city-admin-back { display: inline-flex; gap: 6px; align-items: center; width: 100%; }
+  .city-admin-savebar .admin-btn { width: 100%; }
+}
+.req-list > * { min-width: 0; }
+.req-card { min-width: 0; overflow-wrap: anywhere; }
+.req-card-shot { flex-direction: column; align-items: flex-start; }
+.req-card-shot img { display: block; max-width: 100%; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 8px; border: 1px solid rgb(230, 233, 230); }
+/* Плашка цены в стиле «стекла», как плашка выбора города */
+.heroPayBadge {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(10, 0, 40, 0.25);
+}
+.heroPayBadge-label { border-left-color: rgba(255, 255, 255, 0.3); color: #8fe594; }
+.heroPayBadge-num { color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.15); }
+.heroPayBadge-dash, .heroPayBadge-prefix { color: rgba(255, 255, 255, 0.85); }
+.heroPayBadge-unit { color: rgba(255, 255, 255, 0.9); }
+.heroPayBadge-note { color: rgba(255, 255, 255, 0.88); }
+.heroPayBadge-note i { color: #8fe594; }
+/* Запас снизу первого экрана: список городов не уходит под белую волну фона */
+@media (min-width: 768px) {
+  .starta-hero { padding-bottom: 110px; }
+}
+.city-admin-list.admin-card { padding: 18px 14px; }
+
+/* =====================================================================
+   v3.1: маршрутные листы
+   ===================================================================== */
+.route-day-switch { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.route-day-switch input[type=date] { max-width: 190px; }
+.route-point-no {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--primary-color, #2e7d32); color: #fff;
+  font-weight: 800; font-size: 14px;
+}
+.req-pickup { color: #8a4b00; font-weight: 700; font-size: 13px; }
+.route-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.route-grid .admin-card { height: auto; }
+.route-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.route-city-sep { font-weight: 800; color: var(--primary-color, #2e7d32); margin-top: 6px; }
+.route-item, .route-pool-item {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid rgb(230, 233, 230); background: #fff;
+}
+.route-item-done { background: rgb(244, 250, 244); }
+.route-item-done .route-point-no { background: #9e9e9e; }
+.route-item-cancelled { background: rgb(253, 246, 246); opacity: 0.8; }
+.route-item-cancelled .route-point-no { background: #c62828; }
+.route-item-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.route-item-actions { display: flex; gap: 4px; flex: none; }
+.route-pool-group { margin-bottom: 12px; }
+.route-pool-head { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid rgb(235, 238, 235); margin-bottom: 6px; }
+.route-pool-item { margin-bottom: 6px; align-items: center; }
+.route-pool-item.is-today { border-color: rgba(46, 125, 50, 0.55); box-shadow: inset 3px 0 0 var(--primary-color, #2e7d32); }
+@media (max-width: 991.98px) {
+  .route-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 575.98px) {
+  .route-item { flex-wrap: wrap; }
+  .route-item-actions { width: 100%; justify-content: flex-end; }
+  .route-pool-item { flex-wrap: wrap; }
+  .route-pool-item .admin-btn { width: 100%; }
+  .route-day-switch input[type=date] { max-width: none; flex: 1; }
+}
+/* Печать маршрутного листа: только лист, без панели и списка свободных заявок */
+@media print {
+  .admin-topbar, .admin-tabs, .route-toolbar, .route-pool, .route-item-actions, .admin-alert { display: none !important; }
+  .route-grid { display: block; }
+  .admin-shell, .admin-card { box-shadow: none !important; background: #fff !important; }
+  .route-item { break-inside: avoid; }
+}
+
+/* Прогресс цели: толще, с градиентом и бегущим бликом — анимация видна даже при малом проценте */
+.starta-performance .bar, .bar { height: 12px; border-radius: 8px; overflow: hidden; position: relative; background-color: rgb(233, 236, 233); }
+.bar .fill {
+  position: relative; min-width: 12px; overflow: hidden;
+  background: linear-gradient(90deg, var(--primary-color, #4caf50) 0%, #7fd683 100%);
+  box-shadow: 0 0 12px rgba(76, 175, 80, 0.45);
+}
+.bar .fill::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.65) 50%, transparent 75%);
+  background-size: 250% 100%;
+  animation: ecoBarShine 2.4s linear infinite;
+}
+@keyframes ecoBarShine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .bar .fill::after { animation: none; } }
+
+/* Метка «когда забрать» в маршрутах */
+.pickup-chip {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 78px;
+  padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: 800; line-height: 1.2; text-align: center;
+}
+.pickup-day { background: #e3f3e4; color: #1f6b2a; }
+.pickup-overdue { background: #fde2e2; color: #a61b1b; }
+.pickup-later { background: #eef1f6; color: #3d4a5c; }
+.pickup-none { background: #f3f3f3; color: #8a8a8a; font-weight: 600; }
+.route-pool-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.route-pool-controls .form-select { width: auto; }
+@media (max-width: 575.98px) {
+  .route-pool-controls .form-select { flex: 1 1 100%; }
+  .pickup-chip { min-width: 0; }
+}
+/* Плашка города над текстом и формой */
+.hero-city-bar-top { margin-bottom: 14px; }
+@media (min-width: 768px) { .hero-city-bar-top { margin-bottom: 22px; } }
+/* Заполнение прогресса: старт с нуля, плавно до --p и остаётся там */
+.bar .fill { width: 0; transition: width 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s; }
+.bar.is-filled .fill { width: max(var(--p, 0%), 12px); }
+@media (prefers-reduced-motion: reduce) { .bar .fill { transition: none; } }
+/* Подписи панели: версия движка и копирайт */
+.admin-engine {
+  margin-left: 10px; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.75); border: 1px solid rgba(255, 255, 255, 0.25);
+  vertical-align: middle; white-space: nowrap;
+}
+.admin-shell { display: flex; flex-direction: column; }
+.admin-footer { margin-top: auto; padding: 18px 12px; text-align: center; font-size: 13px; color: rgb(120, 120, 120); }
+.staff-login-link { color: inherit; opacity: 0.7; font-size: 13px; text-decoration: none; }
+.staff-login-link:hover { opacity: 1; text-decoration: underline; }
+@media (max-width: 575.98px) { .admin-engine { display: none; } }
+@media print { .admin-footer { display: none; } }
+
+/* Окно заявки */
+.req-modal-overlay {
+  position: fixed; inset: 0; z-index: 1050; background: rgba(15, 20, 15, 0.55);
+  display: flex; align-items: flex-start; justify-content: center; padding: 40px 12px; overflow-y: auto;
+}
+.req-modal {
+  position: relative; width: 100%; max-width: 720px; background: #fff; border-radius: 16px; padding: 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.req-modal .admin-card { box-shadow: none; padding: 0; }
+.req-modal-close { position: absolute; top: 12px; right: 12px; border: 0; background: rgb(240, 243, 240); width: 34px; height: 34px; border-radius: 50%; z-index: 2; }
+.req-modal-grid { display: grid; grid-template-columns: 140px 1fr; gap: 6px 14px; margin: 12px 0 16px; }
+.req-modal-grid dt { font-weight: 600; color: rgb(110, 110, 110); }
+.req-modal-grid dd { margin: 0; overflow-wrap: anywhere; }
+.route-item-main.is-clickable { cursor: pointer; border-radius: 8px; }
+.route-item-main.is-clickable:hover strong { color: var(--primary-color, #2e7d32); text-decoration: underline; }
+@media (max-width: 575.98px) {
+  .req-modal-overlay { padding: 0; }
+  .req-modal { border-radius: 0; min-height: 100%; padding: 18px 14px; }
+  .req-modal-grid { grid-template-columns: 1fr; gap: 2px; }
+  .req-modal-grid dd { margin-bottom: 8px; }
+}
