@@ -1,0 +1,147 @@
+/* Users mobile cards. Higher specificity keeps this independent of stylesheet order.
+   Apply after the accepted mobile-menu and users-modal patches. */
+@media (max-width: 991.98px) {
+    .admin-panel-shell .users-page,
+    .admin-panel-shell .users-page .users-table-wrap {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .admin-panel-shell .users-page .users-table-wrap {
+        overflow: visible;
+    }
+
+    .admin-panel-shell .users-page .users-table,
+    .admin-panel-shell .users-page .users-table tbody {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        margin: 0;
+    }
+
+    .admin-panel-shell .users-page .users-table thead {
+        display: none;
+    }
+
+    .admin-panel-shell .users-page .users-table tbody {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .admin-panel-shell .users-page .users-table tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        padding: 16px;
+        border: 1px solid #e4e9e4;
+        border-radius: 14px;
+        background: #fff;
+    }
+
+    .admin-panel-shell .users-page .users-table tbody td {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+        line-height: 1.45;
+        text-align: left;
+    }
+
+    .admin-panel-shell .users-page .users-table td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin: 0 0 4px;
+        padding: 0;
+        color: #788078;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .admin-panel-shell .users-page .users-table td:first-child {
+        padding-bottom: 10px;
+        border-bottom: 1px solid #edf0ed;
+        font-size: 17px;
+    }
+
+    .admin-panel-shell .users-page .users-table td:first-child::before {
+        display: none;
+    }
+
+    .admin-panel-shell .users-page .users-table td:first-child strong {
+        overflow-wrap: anywhere;
+    }
+
+    .admin-panel-shell .users-page .users-table .admin-badge {
+        box-sizing: border-box;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        vertical-align: middle;
+    }
+
+    .admin-panel-shell .users-page .users-table td.users-actions-cell {
+        display: block;
+        padding-top: 12px;
+        border-top: 1px solid #edf0ed;
+    }
+
+    .admin-panel-shell .users-page .users-table td.users-actions-cell::before {
+        display: none;
+    }
+
+    .admin-panel-shell .users-page .users-table .users-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .admin-panel-shell .users-page .users-actions .users-icon {
+        flex: 0 0 44px;
+        width: 44px;
+        min-width: 44px;
+        max-width: 44px;
+        height: 44px;
+        padding: 0;
+    }
+
+    .admin-panel-shell .users-page .users-toolbar {
+        min-width: 0;
+        max-width: 100%;
+        gap: 12px;
+    }
+
+    .admin-panel-shell .users-page .users-toolbar > div:first-child {
+        flex: 1 1 170px;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-panel-shell .users-page .users-toolbar > .users-actions {
+        flex: 0 1 auto;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+}

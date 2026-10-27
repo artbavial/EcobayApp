@@ -1,10 +1,12 @@
 @using EcobayApp.Services
+@inject AdminAuthService AdminAuth
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="table-responsive">
     <table class="table table-hover align-middle admin-table">
         <thead>
             <tr><th>Дата</th><th>Статус</th><th>Клиент</th><th>Телефон</th><th>Сообщение</th><th>Город</th>
-                @if (AllowDelete) { <th><span class="visually-hidden">Действия</span></th> }
+                @if (CanShowDelete) { <th><span class="visually-hidden">Действия</span></th> }
             </tr>
         </thead>
         <tbody>
@@ -17,16 +19,16 @@
                     <td class="text-nowrap"><a href="@($"tel:{row.Phone}")">@row.Phone</a></td>
                     <td class="admin-request-message">@row.Message</td>
                     <td>@row.City</td>
-                    @if (AllowDelete)
+                    @if (CanShowDelete)
                     {
                         <td><button type="button" class="btn btn-sm btn-outline-danger"
-                                    disabled="@Busy" @onclick="() => OnDelete.InvokeAsync(row.Id)">Удалить</button></td>
+                                    disabled="@(Busy || deleting)" @onclick="() => DeleteRowAsync(row.Id)">Удалить</button></td>
                     }
                 </tr>
             }
             @if (Rows.Count == 0)
             {
-                <tr><td colspan="@(AllowDelete ? 7 : 6)" class="text-center py-4 admin-muted">Заявок за выбранный период нет.</td></tr>
+                <tr><td colspan="@(CanShowDelete ? 7 : 6)" class="text-center py-4 admin-muted">Заявок за выбранный период нет.</td></tr>
             }
         </tbody>
     </table>
@@ -37,4 +39,27 @@
     [Parameter] public bool AllowDelete { get; set; }
     [Parameter] public bool Busy { get; set; }
     [Parameter] public EventCallback<long> OnDelete { get; set; }
+    private bool canDeleteRequests;
+    private bool CanShowDelete => AllowDelete && canDeleteRequests;
+    private bool deleting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        canDeleteRequests = await AdminAuth.CanDeleteRequestsAsync(
+            (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User);
+    }
+
+    private async Task DeleteRowAsync(long id)
+    {
+        if (Busy || deleting || !AllowDelete) return;
+        deleting = true;
+        try
+        {
+            canDeleteRequests = await AdminAuth.CanDeleteRequestsAsync(
+                (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User);
+            if (!canDeleteRequests) return;
+            await OnDelete.InvokeAsync(id);
+        }
+        finally { deleting = false; }
+    }
 }

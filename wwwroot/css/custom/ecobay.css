@@ -1070,3 +1070,82 @@ button.menuIcon {
   .req-modal-grid { grid-template-columns: 1fr; gap: 2px; }
   .req-modal-grid dd { margin-bottom: 8px; }
 }
+
+/* Mobile admin patch: scoped to the administrator panel. */
+.admin-panel-shell { --admin-topbar-height: 64px; width: 100%; min-width: 0; max-width: 100%; }
+.admin-panel-shell .admin-topbar { flex: none; height: var(--admin-topbar-height); padding: 0; width: 100%; max-width: 100%; }
+.admin-topbar-inner { display: flex; align-items: center; flex-wrap: nowrap; gap: 16px; height: 100%; min-width: 0; }
+.admin-panel-shell .admin-brand { flex: none; white-space: nowrap; line-height: 1; }
+.admin-panel-shell .admin-brand:hover { color: #fff; }
+.admin-panel-shell .admin-brand img { flex: none; width: 32px; height: 32px; object-fit: contain; }
+.admin-topbar-actions { display: flex; align-items: center; gap: 16px; min-width: 0; margin-left: auto; }
+.admin-topbar-actions > a, .admin-topbar-actions > form { flex: none; white-space: nowrap; }
+.admin-topbar-actions .admin-user { min-width: 0; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-menu-toggle, .admin-current-section, .admin-navigation-account { display: none; }
+.admin-content, .admin-content > *, .admin-content .row > *, .admin-content .admin-card,
+.admin-content .city-admin > *, .admin-content .route-grid > * { min-width: 0; }
+.admin-content .table-responsive { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.admin-content .admin-card-title, .admin-content .admin-hint, .admin-content .admin-alert,
+.admin-content .admin-status-error, .admin-content .admin-status-ok { overflow-wrap: anywhere; }
+.admin-content .form-control, .admin-content .form-select { min-width: 0; max-width: 100%; }
+.admin-content .city-admin { grid-template-columns: 320px minmax(0, 1fr); }
+.admin-content .city-admin-list { top: calc(var(--admin-topbar-height) + 12px); max-height: calc(100dvh - var(--admin-topbar-height) - 24px); }
+.admin-footer-version { display: block; margin-bottom: 4px; font-size: 11px; }
+.admin-panel-shell button:focus-visible, .admin-panel-shell a:focus-visible { outline: 3px solid #4caf50; outline-offset: 3px; }
+@media (min-width: 992px) {
+  .admin-navigation { min-width: 0; }
+  .admin-navigation .admin-navigation-body { display: block; padding: 0; }
+}
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .admin-panel-shell .admin-brand small { display: none; }
+}
+@media (max-width: 991.98px) {
+  .admin-panel-shell { --admin-topbar-height: 56px; }
+  .admin-topbar-inner { gap: 10px; }
+  .admin-panel-shell .admin-brand { font-size: 22px; }
+  .admin-panel-shell .admin-brand img { width: 27px; height: 27px; margin-right: 6px; }
+  .admin-panel-shell .admin-brand small, .admin-topbar-actions { display: none; }
+  .admin-current-section { display: block; flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgba(255,255,255,.75); font-size: 13px; text-align: right; }
+  .admin-menu-toggle { display: inline-flex; flex: 0 0 44px; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 10px; background: transparent; color: #fff; }
+  .admin-menu-toggle:hover { background: rgba(255,255,255,.1); }
+  .admin-burger { display: grid; gap: 5px; width: 22px; }
+  .admin-burger > span { display: block; height: 2px; background: currentColor; border-radius: 2px; }
+  .admin-navigation { --bs-offcanvas-width: min(340px, calc(100vw - 32px)); background: #fff; color: #1e1e1e; }
+  .admin-navigation-head { gap: 12px; padding: 16px; border-bottom: 1px solid #e7ebe7; }
+  .admin-navigation-head h2 { margin: 0; font-size: 18px; font-weight: 800; }
+  .admin-navigation-head .btn-close { flex: none; width: 24px; height: 24px; padding: 10px; margin: -6px; }
+  .admin-navigation .admin-navigation-body { display: flex; flex-direction: column; gap: 16px; padding: 12px 12px max(16px, env(safe-area-inset-bottom)); overflow-x: hidden; }
+  .admin-navigation .admin-tabs { display: grid; flex: none; gap: 4px; padding: 0; margin: 0; box-shadow: none; border-radius: 0; }
+  .admin-navigation .admin-tabs li { min-width: 0; }
+  .admin-navigation .admin-tabs button { display: flex; align-items: center; width: 100%; min-height: 48px; padding: 12px; text-align: left; font-size: 15px; }
+  .admin-navigation .admin-tabs button i { flex: 0 0 24px; margin-right: 8px; text-align: center; }
+  .admin-navigation-account { display: grid; gap: 12px; margin-top: auto; padding: 16px 4px 0; border-top: 1px solid #e7ebe7; }
+  .admin-navigation-user { font-size: 14px; overflow-wrap: anywhere; }
+  .admin-navigation-account .admin-link { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+  .admin-navigation-logout { width: 100%; min-height: 44px; background: #f0f3f0; color: #333; }
+  .admin-content.my-4 { margin-top: 16px !important; margin-bottom: 16px !important; }
+  .admin-content .city-admin { grid-template-columns: minmax(0, 1fr); }
+  .admin-content .city-admin-list { position: static; max-height: none; }
+}
+@media (max-width: 575.98px) {
+  .admin-content { padding-left: 12px; padding-right: 12px; }
+  .admin-content .admin-card { padding: 16px; border-radius: 12px; }
+  .admin-content .admin-card-title { font-size: 18px; }
+  .admin-content .admin-stat { padding: 14px; }
+  .admin-content .form-control, .admin-content .form-select { font-size: 16px; min-height: 44px; }
+  .admin-content .admin-btn, .admin-content .btn:not(.btn-link) { min-height: 44px; white-space: normal; }
+  .admin-content .req-status-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-content .req-status-tabs button { min-height: 44px; padding: 8px; }
+  .admin-content .admin-pagination > div { width: 100%; min-width: 0; }
+  .admin-content .admin-pagination button { min-height: 44px; }
+  .admin-content .route-day-switch { flex-wrap: wrap; }
+  .admin-content .route-day-switch input[type=date] { flex: 1 1 120px; width: 0; }
+  .admin-content .city-admin-savebar { margin: 16px -16px -16px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
+  .admin-content .city-admin-tabs { max-width: 100%; }
+  .admin-content .city-admin-tabs button { padding: 10px; min-height: 44px; }
+  .admin-content .route-item-main { flex-basis: 100%; }
+  .admin-content .route-item-actions .btn { min-width: 44px; }
+}
+@media print {
+  .admin-panel-shell .admin-topbar, .admin-navigation, .admin-panel-shell .admin-footer { display: none !important; }
+}

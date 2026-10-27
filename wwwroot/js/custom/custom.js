@@ -660,3 +660,30 @@
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", autoInit);
     else autoInit();
 })();
+
+// Admin mobile menu: Bootstrap handles focus, backdrop, Escape and scroll locking.
+(function () {
+    "use strict";
+    if (window.ecobayAdminMobileBound) return;
+    window.ecobayAdminMobileBound = true;
+    var mobile = window.matchMedia("(max-width: 991.98px)");
+    function setExpanded(expanded) {
+        var toggle = document.querySelector('.admin-menu-toggle[data-bs-target="#adminNavigation"]');
+        if (!toggle) return;
+        toggle.setAttribute("aria-expanded", String(expanded));
+        toggle.setAttribute("aria-label", expanded ? "Закрыть меню" : "Открыть меню");
+    }
+    document.addEventListener("show.bs.offcanvas", function (event) {
+        if (event.target.id === "adminNavigation") setExpanded(true);
+    });
+    document.addEventListener("hidden.bs.offcanvas", function (event) {
+        if (event.target.id === "adminNavigation") setExpanded(false);
+    });
+    document.addEventListener("click", function (event) {
+        if (!(event.target instanceof Element)) return;
+        if (!mobile.matches || !event.target.closest("#adminNavigation [data-admin-section]") || !window.bootstrap) return;
+        var menu = document.getElementById("adminNavigation");
+        var instance = window.bootstrap.Offcanvas.getInstance(menu);
+        if (instance) instance.hide();
+    });
+})();

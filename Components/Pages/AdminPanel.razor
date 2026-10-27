@@ -19,26 +19,30 @@
     <meta name="robots" content="noindex, nofollow" />
 </HeadContent>
 
-<div class="admin-shell">
+<div class="admin-shell admin-panel-shell">
     <header class="admin-topbar">
-        <div class="container d-flex align-items-center justify-content-between gap-3 flex-wrap">
-            <a class="admin-brand text-decoration-none" href="/adminpanel">
+        <div class="container admin-topbar-inner">
+            <a class="admin-brand text-decoration-none" href="/adminpanel" aria-label="Ecobay — панель управления">
                 <img src="images/hero/icon.png" alt="" />Ecobay<span>.by</span>
                 <small>панель управления</small>
-                <span class="admin-engine">ArtBavial Engine CMS v0.9</span>
             </a>
-            <div class="d-flex align-items-center gap-3 flex-wrap">
-                <a class="admin-link" href="/?all=1" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть сайт</a>
+            <span class="admin-current-section" title="@ActiveTabTitle">@ActiveTabTitle</span>
+            <div class="admin-topbar-actions">
+                <a class="admin-link" href="/?all=1" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть сайт</a>
                 <span class="admin-user"><i class="fa-solid fa-user-shield"></i> @currentUserDisplay</span>
                 <form method="post" action="/admin/logout" class="m-0">
                     <AntiforgeryToken />
                     <button type="submit" class="admin-btn admin-btn-ghost">Выйти</button>
                 </form>
             </div>
+            <button type="button" class="admin-menu-toggle" data-bs-toggle="offcanvas" data-bs-target="#adminNavigation"
+                    aria-controls="adminNavigation" aria-expanded="false" aria-label="Открыть меню">
+                <span class="admin-burger" aria-hidden="true"><span></span><span></span><span></span></span>
+            </button>
         </div>
     </header>
 
-    <div class="container my-4">
+    <div class="container my-4 admin-content">
         @if (mustChangePassword)
         {
             <div class="admin-alert admin-alert-warn mb-3">
@@ -46,16 +50,32 @@
             </div>
         }
 
+        <nav id="adminNavigation" class="offcanvas-lg offcanvas-start admin-navigation" tabindex="-1" aria-labelledby="adminNavigationTitle">
+            <div class="offcanvas-header admin-navigation-head">
+                <h2 class="offcanvas-title" id="adminNavigationTitle">Меню управления</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#adminNavigation" aria-label="Закрыть меню"></button>
+            </div>
+            <div class="offcanvas-body admin-navigation-body">
         <ul class="admin-tabs">
-            <li><button class="@(activeTab == AdminTab.Dashboard ? "active" : "")" @onclick="() => SetTab(AdminTab.Dashboard)"><i class="fa-solid fa-chart-line"></i> Дашборд</button></li>
-            <li><button class="@(activeTab == AdminTab.Requests ? "active" : "")" @onclick="() => OpenRequests(false)"><i class="fa-solid fa-inbox"></i> Заявки</button></li>
-            <li><button class="@(activeTab == AdminTab.Goals ? "active" : "")" @onclick="() => SetTab(AdminTab.Goals)"><i class="fa-solid fa-bullseye"></i> Цели</button></li>
-            <li><button class="@(activeTab == AdminTab.Routes ? "active" : "")" @onclick="() => SetTab(AdminTab.Routes)"><i class="fa-solid fa-route"></i> Маршруты</button></li>
-            <li><button class="@(activeTab == AdminTab.Feedback ? "active" : "")" @onclick="() => SetTab(AdminTab.Feedback)"><i class="fa-solid fa-comment-dots"></i> Обращения</button></li>
-            <li><button class="@(activeTab == AdminTab.Cities ? "active" : "")" @onclick="() => SetTab(AdminTab.Cities)"><i class="fa-solid fa-city"></i> Города</button></li>
-            <li><button class="@(activeTab == AdminTab.MainPage ? "active" : "")" @onclick="() => SetTab(AdminTab.MainPage)"><i class="fa-solid fa-flag"></i> Главная сайта</button></li>
-            <li><button class="@(activeTab == AdminTab.Users ? "active" : "")" @onclick="() => SetTab(AdminTab.Users)"><i class="fa-solid fa-users-gear"></i> Пользователи</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Dashboard ? "active" : "")" @onclick="() => SetTab(AdminTab.Dashboard)"><i class="fa-solid fa-chart-line"></i> Дашборд</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Requests ? "active" : "")" @onclick="() => OpenRequests(false)"><i class="fa-solid fa-inbox"></i> Заявки</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Goals ? "active" : "")" @onclick="() => SetTab(AdminTab.Goals)"><i class="fa-solid fa-bullseye"></i> Цели</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Routes ? "active" : "")" @onclick="() => SetTab(AdminTab.Routes)"><i class="fa-solid fa-route"></i> Маршруты</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Feedback ? "active" : "")" @onclick="() => SetTab(AdminTab.Feedback)"><i class="fa-solid fa-comment-dots"></i> Обращения</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Cities ? "active" : "")" @onclick="() => SetTab(AdminTab.Cities)"><i class="fa-solid fa-city"></i> Города</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.MainPage ? "active" : "")" @onclick="() => SetTab(AdminTab.MainPage)"><i class="fa-solid fa-flag"></i> Главная сайта</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Users ? "active" : "")" @onclick="() => SetTab(AdminTab.Users)"><i class="fa-solid fa-users-gear"></i> Пользователи</button></li>
         </ul>
+            <div class="admin-navigation-account">
+                <a class="admin-link" href="/?all=1" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть сайт</a>
+                <span class="admin-navigation-user"><i class="fa-solid fa-user-shield"></i> @currentUserDisplay</span>
+                <form method="post" action="/admin/logout" class="m-0">
+                    <AntiforgeryToken />
+                    <button type="submit" class="admin-btn admin-navigation-logout">Выйти</button>
+                </form>
+            </div>
+            </div>
+        </nav>
 
         @switch (activeTab)
         {
@@ -87,7 +107,7 @@
                 break;
         }
     </div>
-    <footer class="admin-footer">© 2026 Разработка ArtBavial Software. Все права защищены.</footer>
+    <footer class="admin-footer"><span class="admin-footer-version">ArtBavial Engine CMS v0.9</span>© 2026 Разработка ArtBavial Software. Все права защищены.</footer>
 </div>
 
 @code {
@@ -109,6 +129,19 @@
     {
         "admin", "adminpanel", "contacts", "user-agreement", "error", "login", "logout",
         "css", "js", "images", "font", "bootstrap", "_framework", "_blazor"
+    };
+
+    private string ActiveTabTitle => activeTab switch
+    {
+        AdminTab.Dashboard => "Дашборд",
+        AdminTab.Requests => "Заявки",
+        AdminTab.Goals => "Цели",
+        AdminTab.Routes => "Маршруты",
+        AdminTab.Feedback => "Обращения",
+        AdminTab.Cities => "Города",
+        AdminTab.MainPage => "Главная сайта",
+        AdminTab.Users => "Пользователи",
+        _ => "Панель управления"
     };
 
     private void SetTab(AdminTab tab) => activeTab = tab;
@@ -135,7 +168,6 @@
             activeTab = AdminTab.Users;
 
         await LoadMainPageAsync(db);
-        await LoadUsersAsync(db);
     }
 
     // ---------- Общие фрагменты разметки ----------
@@ -359,363 +391,9 @@
     // USERS
     // =====================================================================
 
-    private List<AdminUser> users = new();
-
-    private string? pwdCurrent, pwdNew, pwdConfirm;
-    private string? pwdMessage; private bool pwdError;
-
-    private string? newLogin, newDisplayName, newPassword;
-    private string newRole = AdminRoles.Driver;
-    private string? newUserMessage; private bool newUserError;
-
-    private long resetUserId;
-    private string? resetPassword;
-    private string? usersMessage; private bool usersError;
-
-    private async Task LoadUsersAsync(AppDBContext db)
-    {
-        users = await db.AdminUsers.AsNoTracking().OrderBy(u => u.Login).ToListAsync();
-    }
-
     private RenderFragment UsersTab() => __builder =>
     {
-        <div class="row g-3">
-            <div class="col-lg-4">
-                <div class="admin-card">
-                    <h2 class="admin-card-title">Сменить мой пароль</h2>
-                    <div class="mb-3">
-                        <label class="admin-label">Текущий пароль</label>
-                        <input class="form-control" type="password" autocomplete="current-password" @bind="pwdCurrent" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="admin-label">Новый пароль</label>
-                        <input class="form-control" type="password" autocomplete="new-password" @bind="pwdNew" />
-                        <small class="admin-muted">Не короче @AdminAuthService.MinPasswordLength символов, буквы и цифры.</small>
-                    </div>
-                    <div class="mb-3">
-                        <label class="admin-label">Повторите новый пароль</label>
-                        <input class="form-control" type="password" autocomplete="new-password" @bind="pwdConfirm" />
-                    </div>
-                    <button class="admin-btn admin-btn-primary w-100" @onclick="ChangeOwnPasswordAsync" disabled="@saving">Сменить пароль</button>
-                    @StatusMessage(pwdMessage, pwdError)
-                    <small class="admin-muted d-block mt-2">После смены пароля все сессии (в том числе на других устройствах) будут завершены — войдите заново.</small>
-                </div>
-            </div>
-
-            <div class="col-lg-8">
-                <div class="admin-card mb-3">
-                    <h2 class="admin-card-title">Пользователи панели</h2>
-                    <div class="table-responsive">
-                        <table class="table align-middle admin-table mb-0">
-                            <thead><tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Последний вход</th><th>Статус</th><th></th></tr></thead>
-                            <tbody>
-                                @foreach (var u in users)
-                                {
-                                    var isMe = u.Id == currentUserId;
-                                    <tr>
-                                        <td><strong>@u.Login</strong> @if (isMe) { <span class="admin-badge admin-badge-on">это вы</span> }</td>
-                                        <td>@u.DisplayName</td>
-                                        <td><span class="admin-badge @(u.Role == AdminRoles.Driver ? "admin-badge-warn" : "admin-badge-on")">@AdminRoles.Title(u.Role)</span></td>
-                                        <td class="text-nowrap">@(u.LastLoginAt?.ToString("dd.MM.yyyy HH:mm") ?? "—")</td>
-                                        <td>
-                                            @if (!u.IsActive) { <span class="admin-badge admin-badge-off">отключён</span> }
-                                            else if (u.LockoutUntil > DateTime.Now) { <span class="admin-badge admin-badge-warn">заблокирован до @u.LockoutUntil?.ToString("HH:mm")</span> }
-                                            else { <span class="admin-badge admin-badge-on">активен</span> }
-                                        </td>
-                                        <td class="text-end text-nowrap">
-                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => StartEditUser(u)">Изменить</button>
-                                            @if (!isMe)
-                                            {
-                                                <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => ToggleRoleAsync(u.Id)">
-                                                    @(u.Role == AdminRoles.Driver ? "Сделать админом" : "Сделать водителем")
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => { resetUserId = u.Id; resetPassword = null; usersMessage = null; }">Новый пароль</button>
-                                                <button class="btn btn-sm @(u.IsActive ? "btn-outline-danger" : "btn-outline-success")" @onclick="() => ToggleUserActiveAsync(u.Id)">
-                                                    @(u.IsActive ? "Отключить" : "Включить")
-                                                </button>
-                                            }
-                                        </td>
-                                    </tr>
-                                    @if (editUserId == u.Id)
-                                    {
-                                        <tr class="admin-row-edit">
-                                            <td colspan="6">
-                                                <div class="row g-2 align-items-end">
-                                                    <div class="col-sm-6 col-lg-3">
-                                                        <label class="admin-label">Логин</label>
-                                                        <input class="form-control" autocomplete="off" @bind="editLogin" disabled="@isMe" />
-                                                    </div>
-                                                    <div class="col-sm-6 col-lg-3">
-                                                        <label class="admin-label">Имя (видно в заявках и маршрутах)</label>
-                                                        <input class="form-control" maxlength="100" @bind="editDisplayName" />
-                                                    </div>
-                                                    <div class="col-sm-6 col-lg-3">
-                                                        <label class="admin-label">Роль</label>
-                                                        <select class="form-select" @bind="editRole" disabled="@isMe">
-                                                            <option value="@AdminRoles.Admin">Администратор</option>
-                                                            <option value="@AdminRoles.Driver">Водитель</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-sm-6 col-lg-3 d-flex gap-2 flex-wrap">
-                                                        <button class="btn btn-success" disabled="@saving" @onclick="SaveUserAsync">Сохранить</button>
-                                                        <button class="btn btn-link" @onclick="() => editUserId = 0">Отмена</button>
-                                                    </div>
-                                                    @if (!isMe && u.LockoutUntil > DateTime.Now)
-                                                    {
-                                                        <div class="col-12">
-                                                            <div class="form-check">
-                                                                <input class="form-check-input" type="checkbox" id="unlockUser" @bind="editUnlock" />
-                                                                <label class="form-check-label" for="unlockUser">Снять блокировку за неверные пароли</label>
-                                                            </div>
-                                                        </div>
-                                                    }
-                                                    @if (isMe) { <div class="col-12 admin-muted small">Свой логин и роль изменить нельзя — только имя.</div> }
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                    @if (resetUserId == u.Id)
-                                    {
-                                        <tr class="admin-row-edit">
-                                            <td colspan="6">
-                                                <div class="d-flex gap-2 flex-wrap align-items-center">
-                                                    <span>Новый пароль для <strong>@u.Login</strong>:</span>
-                                                    <input class="form-control w-auto" type="password" autocomplete="new-password" @bind="resetPassword" />
-                                                    <button class="btn btn-sm btn-success" @onclick="ResetUserPasswordAsync">Сохранить</button>
-                                                    <button class="btn btn-sm btn-link" @onclick="() => resetUserId = 0">Отмена</button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                    @StatusMessage(usersMessage, usersError)
-                </div>
-
-                <div class="admin-card">
-                    <h2 class="admin-card-title">Добавить пользователя</h2>
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <label class="admin-label">Логин</label>
-                            <input class="form-control" autocomplete="off" @bind="newLogin" />
-                        </div>
-                        <div class="col-md-4">
-                            <label class="admin-label">Имя</label>
-                            <input class="form-control" autocomplete="off" @bind="newDisplayName" />
-                        </div>
-                        <div class="col-md-4">
-                            <label class="admin-label">Пароль</label>
-                            <input class="form-control" type="password" autocomplete="new-password" @bind="newPassword" />
-                        </div>
-                        <div class="col-md-4">
-                            <label class="admin-label">Роль</label>
-                            <select class="form-select" @bind="newRole">
-                                <option value="@AdminRoles.Driver">Водитель — только заявки</option>
-                                <option value="@AdminRoles.Admin">Администратор — вся панель</option>
-                            </select>
-                        </div>
-                    </div>
-                    <small class="admin-muted d-block mt-2">Водитель входит по тому же адресу /admin/login и видит только страницу заявок: отработка, отмена, возврат, сумма выплаты и комментарий.</small>
-                    <button class="admin-btn admin-btn-primary mt-3" @onclick="CreateUserAsync" disabled="@saving"><i class="fa-solid fa-user-plus"></i> Добавить</button>
-                    @StatusMessage(newUserMessage, newUserError)
-                </div>
-            </div>
-</div>
+        <AdminUsers CurrentUserId="currentUserId" MustChangePassword="mustChangePassword"
+                    OnDisplayNameChanged="@(name => currentUserDisplay = name)" />
     };
-
-    private async Task ChangeOwnPasswordAsync()
-    {
-        pwdMessage = null; pwdError = false;
-
-        if (pwdNew != pwdConfirm) { pwdMessage = "Новые пароли не совпадают."; pwdError = true; return; }
-        var weak = AdminAuthService.ValidatePasswordStrength(pwdNew);
-        if (weak is not null) { pwdMessage = weak; pwdError = true; return; }
-
-        saving = true;
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            var me = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == currentUserId);
-            if (me is null) { pwdMessage = "Пользователь не найден."; pwdError = true; return; }
-            if (string.IsNullOrEmpty(pwdCurrent) || !Auth.VerifyPassword(me, pwdCurrent)) { pwdMessage = "Текущий пароль указан неверно."; pwdError = true; return; }
-            if (pwdCurrent == pwdNew) { pwdMessage = "Новый пароль должен отличаться от текущего."; pwdError = true; return; }
-
-            me.PasswordHash = Auth.HashPassword(me, pwdNew!);
-            me.SecurityStamp = Guid.NewGuid().ToString("N");
-            me.MustChangePassword = false;
-            await db.SaveChangesAsync();
-        }
-        finally
-        {
-            saving = false;
-            pwdCurrent = pwdNew = pwdConfirm = null;
-        }
-
-        // Метка безопасности сменилась — текущая cookie больше недействительна, нужен повторный вход.
-        Nav.NavigateTo("/admin/login?returnUrl=%2Fadminpanel", forceLoad: true);
-    }
-
-    private async Task CreateUserAsync()
-    {
-        newUserMessage = null; newUserError = false;
-        var login = AdminAuthService.NormalizeLogin(newLogin);
-
-        if (!Regex.IsMatch(login, "^[a-z0-9._-]{3,64}$")) { newUserMessage = "Логин: 3–64 символа, латиница, цифры, точка, дефис, подчёркивание."; newUserError = true; return; }
-        var weak = AdminAuthService.ValidatePasswordStrength(newPassword);
-        if (weak is not null) { newUserMessage = weak; newUserError = true; return; }
-
-        saving = true;
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            if (await db.AdminUsers.AnyAsync(u => u.Login == login)) { newUserMessage = "Такой логин уже есть."; newUserError = true; return; }
-
-            var user = new AdminUser
-            {
-                Login = login,
-                DisplayName = string.IsNullOrWhiteSpace(newDisplayName) ? null : newDisplayName.Trim(),
-                IsActive = true,
-                Role = newRole == AdminRoles.Admin ? AdminRoles.Admin : AdminRoles.Driver,
-                PasswordHash = ""
-            };
-            user.PasswordHash = Auth.HashPassword(user, newPassword!);
-            db.AdminUsers.Add(user);
-            await db.SaveChangesAsync();
-            await LoadUsersAsync(db);
-
-            newLogin = newDisplayName = newPassword = null;
-            newUserMessage = $"{AdminRoles.Title(user.Role)} «{login}» добавлен.";
-        }
-        finally
-        {
-            saving = false;
-        }
-    }
-
-    private long editUserId;
-    private string? editLogin, editDisplayName;
-    private string editRole = AdminRoles.Driver;
-    private bool editUnlock;
-
-    private void StartEditUser(AdminUser u)
-    {
-        usersMessage = null; usersError = false;
-        resetUserId = 0;
-        editUserId = u.Id;
-        editLogin = u.Login;
-        editDisplayName = u.DisplayName;
-        editRole = u.Role;
-        editUnlock = false;
-    }
-
-    private async Task SaveUserAsync()
-    {
-        usersMessage = null; usersError = false;
-        var isMe = editUserId == currentUserId;
-        saving = true;
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == editUserId);
-            if (user is null) { editUserId = 0; return; }
-
-            var login = AdminAuthService.NormalizeLogin(editLogin);
-            var role = editRole == AdminRoles.Admin ? AdminRoles.Admin : AdminRoles.Driver;
-            var sessionsReset = false;
-            if (!isMe)
-            {
-                if (!Regex.IsMatch(login, "^[a-z0-9._-]{3,64}$")) { usersMessage = "Логин: 3–64 символа, латиница, цифры, точка, дефис, подчёркивание."; usersError = true; return; }
-                if (login != user.Login && await db.AdminUsers.AnyAsync(u => u.Login == login && u.Id != user.Id)) { usersMessage = "Такой логин уже есть."; usersError = true; return; }
-                if (role == AdminRoles.Driver && user.Role == AdminRoles.Admin && user.IsActive &&
-                    await db.AdminUsers.CountAsync(u => u.IsActive && u.Role == AdminRoles.Admin) <= 1)
-                { usersMessage = "Нельзя понизить последнего активного администратора."; usersError = true; return; }
-
-                sessionsReset = login != user.Login || role != user.Role;
-                user.Login = login;
-                user.Role = role;
-                if (editUnlock) { user.LockoutUntil = null; user.FailedLoginCount = 0; }
-                if (sessionsReset) user.SecurityStamp = Guid.NewGuid().ToString("N"); // новые логин/роль — после повторного входа
-            }
-            user.DisplayName = string.IsNullOrWhiteSpace(editDisplayName) ? null : editDisplayName.Trim();
-            await db.SaveChangesAsync();
-            await LoadUsersAsync(db);
-            if (isMe) currentUserDisplay = user.DisplayName ?? user.Login;
-            editUserId = 0;
-            usersMessage = $"Пользователь «{user.Login}» сохранён." + (sessionsReset ? " Его текущие сессии завершены — нужно войти заново." : "");
-        }
-        finally { saving = false; }
-    }
-
-    private async Task ToggleRoleAsync(long userId)
-    {
-        usersMessage = null; usersError = false;
-        if (userId == currentUserId) return;
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user is null) return;
-
-        var toDriver = user.Role != AdminRoles.Driver;
-        if (toDriver && user.IsActive &&
-            await db.AdminUsers.CountAsync(u => u.IsActive && u.Role == AdminRoles.Admin) <= 1)
-        {
-            usersMessage = "Нельзя понизить последнего активного администратора."; usersError = true;
-            return;
-        }
-
-        user.Role = toDriver ? AdminRoles.Driver : AdminRoles.Admin;
-        user.SecurityStamp = Guid.NewGuid().ToString("N"); // новая роль применится после повторного входа
-        await db.SaveChangesAsync();
-        await LoadUsersAsync(db);
-        usersMessage = $"«{user.Login}» теперь {AdminRoles.Title(user.Role).ToLowerInvariant()}. Его текущие сессии завершены.";
-    }
-
-    private async Task ToggleUserActiveAsync(long userId)
-    {
-        usersMessage = null; usersError = false;
-        if (userId == currentUserId) return;
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user is null) return;
-
-        if (user.IsActive && user.Role == AdminRoles.Admin &&
-            await db.AdminUsers.CountAsync(u => u.IsActive && u.Role == AdminRoles.Admin) <= 1)
-        {
-            usersMessage = "Нельзя отключить последнего активного администратора."; usersError = true;
-            return;
-        }
-
-        user.IsActive = !user.IsActive;
-        user.SecurityStamp = Guid.NewGuid().ToString("N"); // завершаем его активные сессии
-        if (user.IsActive) { user.LockoutUntil = null; user.FailedLoginCount = 0; }
-        await db.SaveChangesAsync();
-        await LoadUsersAsync(db);
-        usersMessage = user.IsActive ? $"«{user.Login}» включён." : $"«{user.Login}» отключён, его сессии завершены.";
-    }
-
-    private async Task ResetUserPasswordAsync()
-    {
-        usersMessage = null; usersError = false;
-        var weak = AdminAuthService.ValidatePasswordStrength(resetPassword);
-        if (weak is not null) { usersMessage = weak; usersError = true; return; }
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == resetUserId);
-        if (user is null || user.Id == currentUserId) return;
-
-        user.PasswordHash = Auth.HashPassword(user, resetPassword!);
-        user.SecurityStamp = Guid.NewGuid().ToString("N");
-        user.MustChangePassword = true;
-        user.LockoutUntil = null;
-        user.FailedLoginCount = 0;
-        await db.SaveChangesAsync();
-        await LoadUsersAsync(db);
-
-        usersMessage = $"Пароль для «{user.Login}» изменён. При входе ему будет предложено сменить пароль.";
-        resetUserId = 0;
-        resetPassword = null;
-    }
 }

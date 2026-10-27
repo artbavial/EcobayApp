@@ -26,6 +26,9 @@ namespace EcobayApp.Services
 		public const string Scheme = CookieAuthenticationDefaults.AuthenticationScheme;
 		public const string SecurityStampClaim = "ecobay:stamp";
 
+		/// <summary>Главная учётная запись: только она может удалять заявки.</summary>
+		public const string MainAdminLogin = "admin";
+
 		/// <summary>Сколько неудачных попыток подряд разрешено до блокировки.</summary>
 		public const int MaxFailedAttempts = 5;
 
@@ -140,6 +143,26 @@ namespace EcobayApp.Services
 				.AsNoTracking()
 				.AnyAsync(u => u.Id == id && u.IsActive && u.SecurityStamp == stamp);
 		}
+
+        /// <summary>
+        /// Проверяет право удаления по серверному principal и актуальной записи в БД.
+        /// Параметры компонентов, отображаемое имя и одни только claims не дают это право.
+        /// </summary>
+        public async Task<bool> CanDeleteRequestsAsync(ClaimsPrincipal? principal)
+        {
+            if (principal?.Identity?.IsAuthenticated != true || !principal.IsInRole(AdminRoles.Admin))
+                return false;
+
+            var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            var stamp = principal.FindFirstValue(SecurityStampClaim);
+            if (!long.TryParse(idValue, out var id) || string.IsNullOrEmpty(stamp))
+                return false;
+
+            await using var db = await _dbFactory.CreateDbContextAsync();
+            return await db.AdminUsers.AsNoTracking().AnyAsync(u =>
+                u.Id == id && u.Login == MainAdminLogin && u.Role == AdminRoles.Admin &&
+                u.IsActive && u.SecurityStamp == stamp);
+        }
 
 		public static string? ValidatePasswordStrength(string? password)
 		{
