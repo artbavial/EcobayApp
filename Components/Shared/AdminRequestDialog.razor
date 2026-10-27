@@ -1,0 +1,30 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject ILogger<AdminRequestDialog> Logger
+
+<dialog id="@id" @ref="element" class="admin-request-dialog" aria-label="@Label">
+    <div class="admin-request-dialog-content">@ChildContent</div>
+</dialog>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    private ElementReference element;
+    private readonly string id = "request-dialog-" + Guid.NewGuid().ToString("N");
+    private DotNetObjectReference<AdminRequestDialog>? reference;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        reference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("ecobayRequestDialogs.open", element, reference);
+    }
+    [JSInvokable] public Task CancelRequestDialog() => OnCancel.InvokeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        try { if (reference is not null) await JS.InvokeVoidAsync("ecobayRequestDialogs.close", id); }
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException or InvalidOperationException)
+        { Logger.LogDebug(ex, "Request dialog disposed after disconnect"); }
+        finally { reference?.Dispose(); }
+    }
+}

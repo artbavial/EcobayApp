@@ -25,10 +25,21 @@ namespace EcobayApp.Contex
         public DbSet<RequestSubmission> RequestSubmissions { get; set; } = null!;
         public DbSet<RequestEmailOutbox> RequestEmailOutbox { get; set; } = null!;
         public DbSet<PhoneClick> PhoneClicks { get; set; } = null!;
+        public DbSet<AnalyticsVisit> AnalyticsVisits { get; set; } = null!;
+        public DbSet<AnalyticsEvent> AnalyticsEvents { get; set; } = null!;
+        public DbSet<AnalyticsState> AnalyticsStates { get; set; } = null!;
+        public DbSet<RequestContactEvent> RequestContactEvents { get; set; } = null!;
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
             base.OnModelCreating(modelBuilder);
+            AnalyticsSchema.Configure(modelBuilder);
+            modelBuilder.Entity<Request>().Property(r => r.WeightKg).HasPrecision(12, 2);
+            modelBuilder.Entity<RequestEvent>().Property(e => e.WeightKg).HasPrecision(12, 2);
+            modelBuilder.Entity<Request>().HasIndex(r => new { r.Status, r.ProcessedAt });
+            modelBuilder.Entity<RequestContactEvent>().HasOne<Request>().WithMany()
+                .HasForeignKey(e => e.RequestId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<RequestContactEvent>().HasIndex(e => new { e.RequestId, e.CreatedAtUtc });
             modelBuilder.Entity<RequestSubmission>().HasIndex(x => new { x.Fingerprint, x.CreatedAtUtc });
             modelBuilder.Entity<RequestEmailOutbox>().HasIndex(x => x.RequestId).IsUnique();
             modelBuilder.Entity<RequestEmailOutbox>().HasIndex(x => new { x.SentAtUtc, x.AvailableAtUtc });

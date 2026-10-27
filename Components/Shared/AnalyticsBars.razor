@@ -1,0 +1,23 @@
+@using EcobayApp.Services
+@using System.Globalization
+@if (Items.Count == 0 || Items.All(i => i.Count == 0))
+{
+    <div class="analytics-empty">Пока нет данных.</div>
+}
+else
+{
+    <div class="analytics-bars">
+        @foreach (var item in Items.Take(Limit))
+        {
+            <div class="analytics-bar-item">
+                <div><span>@item.Name</span><strong>@item.Count.ToString("N0")</strong></div>
+                <div class="analytics-bar-track"><span style="@Width(item.Count)"></span></div>
+            </div>
+        }
+    </div>
+}
+@code {
+    [Parameter] public List<TrafficCount> Items { get; set; } = new();
+    [Parameter] public int Limit { get; set; } = 12;
+    private string Width(int n) => $"width:{(100d * n / Math.Max(1, Items.Max(x => x.Count))).ToString("0.##", CultureInfo.InvariantCulture)}%";
+}

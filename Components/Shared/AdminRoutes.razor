@@ -78,6 +78,8 @@
                             @r.City@(string.IsNullOrWhiteSpace(r.Address) ? "" : ", " + r.Address)
                         </div>
                         @if (!string.IsNullOrWhiteSpace(r.Message)) { <div class="small">@r.Message</div> }
+                        @if (r.CustomerCalledAtUtc.HasValue) { <div class="small text-success">Звонили @r.CustomerCalledAtUtc.Value.AddHours(3).ToString("dd.MM HH:mm") · @r.CustomerCalledByName</div> }
+                        @if (r.WeightKg.HasValue) { <div class="small">Вес @r.WeightKg.Value.ToString("N2") кг</div> }
                     </div>
                     <div class="route-item-actions">
                         <button class="btn btn-outline-secondary btn-sm" disabled="@(busy || index == 0)" aria-label="Выше" @onclick="() => MoveAsync(index, -1)"><i class="fa-solid fa-arrow-up"></i></button>

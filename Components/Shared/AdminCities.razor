@@ -16,7 +16,7 @@
             <button class="admin-btn admin-btn-primary admin-btn-sm" disabled="@busy" @onclick="CreateNew"><i class="fa-solid fa-plus"></i> Добавить</button>
             }
         </div>
-        <p class="admin-muted mb-2">На сайте: <strong>@cities.Count(c => c.IsActive && c.HasPage)</strong> из @cities.Count. Только активные города показываются посетителям.</p>
+        <p class="admin-muted city-admin-summary mb-2" title="Посетителям показываются только активные города со страницей.">На сайте: <strong>@cities.Count(c => c.IsActive && c.HasPage)</strong> из @cities.Count</p>
         @if (cities.Count > 6)
         {
             <input class="form-control mb-2" placeholder="Поиск города" @bind="filter" @bind:event="oninput" />
@@ -27,13 +27,17 @@
                 <li class="@(editCity?.Id == c.Id && c.Id != 0 ? "selected" : "")" @key="c.Id">
                     <button type="button" class="city-admin-item" disabled="@busy" @onclick="() => SelectAsync(c.Id)">
                         <span class="city-admin-item-main">
-                            <strong>@c.Name</strong>
-                            <small>/@c.Slug · уникальный текст @c.Filled/@FillTotal</small>
+                            <span class="city-admin-item-heading">
+                                <strong>@c.Name</strong>
+                                @if (!c.IsActive) { <span class="admin-badge admin-badge-off">выключен</span> }
+                                else if (!c.HasPage) { <span class="admin-badge admin-badge-warn">нет страницы</span> }
+                                else { <span class="admin-badge admin-badge-on">на сайте</span> }
+                            </span>
+                            <small class="city-admin-item-meta">
+                                <span class="city-admin-item-path">/@c.Slug</span>
+                                <span class="city-admin-item-fill" title="Заполненные блоки уникального текста">Тексты @c.Filled/@FillTotal</span>
+                            </small>
                         </span>
-                        @if (!c.IsActive) { <span class="admin-badge admin-badge-off">выключен</span> }
-                        else if (!c.HasPage) { <span class="admin-badge admin-badge-warn">нет страницы</span> }
-                        else { <span class="admin-badge admin-badge-on">на сайте</span> }
-                        <i class="fa-solid fa-chevron-right city-admin-chevron" aria-hidden="true"></i>
                     </button>
                 </li>
             }

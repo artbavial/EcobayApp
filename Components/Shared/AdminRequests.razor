@@ -13,11 +13,36 @@
 
 @if (IsAdmin && creating)
 {
-    <AdminRequestCreate CurrentUserId="CurrentUserId" OnClose="CloseCreateAsync" />
+    <AdminRequestEditorDialog CurrentUserId="CurrentUserId" OnClose="CloseCreateAsync" />
 }
 @if (IsAdmin && editId.HasValue)
 {
-    <AdminRequestCreate @key="editId" CurrentUserId="CurrentUserId" EditId="editId" OnClose="CloseEditAsync" />
+    <AdminRequestEditorDialog @key="editId" CurrentUserId="CurrentUserId" EditId="editId" OnClose="CloseEditAsync" />
+}
+@if (actionId > 0)
+{
+    <AdminRequestDialog Label="@($"Обработка заявки №{actionId}")" OnCancel="CancelAction">
+        <div class="req-create-head d-flex justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="admin-card-title mb-0">@(actionKind == RequestStatus.Done ? "Отработать" : actionKind == RequestStatus.Cancelled ? "Отменить" : "Вернуть в работу") заявку №@actionId</h2>
+            <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="CancelAction">Закрыть</button>
+        </div>
+        @if (actionKind == RequestStatus.Done)
+        {
+            <label class="admin-label" for="actionPaid">Сколько заплатили клиенту, руб.</label>
+            <input id="actionPaid" class="form-control mb-3" type="number" inputmode="decimal" min="0" max="1000000" step="0.01" @bind="actionPaid" disabled="@busy" placeholder="Например, 25.60" />
+            <label class="admin-label" for="actionWeight">Фактический вес, кг *</label>
+            <input id="actionWeight" class="form-control mb-3" type="number" inputmode="decimal" min="0.01" max="1000000" step="0.01" @bind="actionWeightKg" disabled="@busy" placeholder="Например, 125.50" />
+        }
+        <label class="admin-label" for="actionComment">
+            @(actionKind switch { RequestStatus.Cancelled => "Причина отмены (обязательно)", RequestStatus.New => "Почему возвращаете в работу (обязательно)", _ => "Комментарий (необязательно)" })
+        </label>
+        <textarea id="actionComment" class="form-control mb-3" rows="3" maxlength="1000" @bind="actionComment" disabled="@busy"></textarea>
+        @if (actionError is not null) { <div class="admin-alert admin-alert-error" role="alert">@actionError</div> }
+        <div class="req-create-actions">
+            <button type="button" class="admin-btn admin-btn-primary" disabled="@busy" @onclick="() => ConfirmActionAsync(actionId)">Подтвердить</button>
+            <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="CancelAction">Не сейчас</button>
+        </div>
+    </AdminRequestDialog>
 }
 
 @if (IsAdmin && clientHistoryPhone is not null)
@@ -152,6 +177,7 @@
                                 <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:44px;min-height:44px" title="История клиента" aria-label="История клиента @r.Phone" @onclick="() => clientHistoryPhone = r.Phone"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></button>
                             }
                         </div>
+                        <RequestCallButton Row="r" OnChanged="CallChangedAsync" />
                         @if (!string.IsNullOrWhiteSpace(r.Address))
                         {
                             <div class="req-card-line"><i class="fa-solid fa-map-pin"></i> @r.Address</div>
@@ -174,6 +200,7 @@
                                 @if (r.Status == RequestStatus.Done)
                                 {
                                     <div><strong>Заплачено клиенту: @((r.PaidAmount ?? 0).ToString("N2")) руб.</strong></div>
+                                    <div>Вес: <strong>@(r.WeightKg.HasValue ? r.WeightKg.Value.ToString("N2") + " кг" : "не указан")</strong></div>
                                 }
                                 <div class="admin-muted">
                                     @(r.Status == RequestStatus.Done ? "Отработал" : "Отменил"): @(r.ProcessedByName ?? "—"),
@@ -189,27 +216,6 @@
                         }
                     </div>
 
-                    @if (actionId == r.Id)
-                    {
-                        <div class="req-action-panel">
-                            @if (actionKind == RequestStatus.Done)
-                            {
-                                <label class="admin-label" for="@($"paid{r.Id}")">Сколько заплатили клиенту, руб.</label>
-                                <input id="@($"paid{r.Id}")" class="form-control mb-2" type="number" inputmode="decimal" min="0" step="0.01"
-                                       @bind="actionPaid" placeholder="Например, 25.60" />
-                            }
-                            <label class="admin-label" for="@($"comment{r.Id}")">
-                                @(actionKind switch { RequestStatus.Cancelled => "Причина отмены (обязательно)", RequestStatus.New => "Почему возвращаете в работу (обязательно)", _ => "Комментарий (необязательно)" })
-                            </label>
-                            <textarea id="@($"comment{r.Id}")" class="form-control mb-2" rows="2" maxlength="1000" @bind="actionComment"></textarea>
-                            <div class="d-flex flex-wrap gap-2">
-                                <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="() => ConfirmActionAsync(r.Id)">Подтвердить</button>
-                                <button class="btn btn-outline-secondary" disabled="@busy" @onclick="CancelAction">Не сейчас</button>
-                            </div>
-                        </div>
-                    }
-                    else
-                    {
                         <footer class="req-card-actions">
                             @if (r.Status == RequestStatus.New)
                             {
@@ -232,19 +238,18 @@
                                 }
                             }
                         </footer>
-                    }
 
                     @if (historyId == r.Id)
                     {
                         <ul class="req-history">
-                            @if (history.Count == 0) { <li class="admin-muted">Действий по заявке ещё не было.</li> }
-                            @foreach (var e in history)
+                            @if (history.Count == 0 && contactHistory.Count == 0) { <li class="admin-muted">Действий по заявке ещё не было.</li> }
+                            @foreach (var e in HistoryLines)
                             {
                                 <li>
-                                    <span class="admin-muted">@e.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
-                                    <strong>@(e.UserName ?? "—")</strong>:
-                                    @RequestWorkflow.StatusTitle(e.FromStatus) → @RequestWorkflow.StatusTitle(e.ToStatus)
-                                    @if (e.PaidAmount.HasValue) { <span>, заплачено @e.PaidAmount.Value.ToString("N2") руб.</span> }
+                                    <span class="admin-muted">@e.AtUtc.AddHours(3).ToString("dd.MM.yyyy HH:mm")</span>
+                                    <strong>@e.UserName</strong>: @e.Text
+                                    @if (e.Paid.HasValue) { <span>, заплачено @e.Paid.Value.ToString("N2") руб.</span> }
+                                    @if (e.Kg.HasValue) { <span>, вес @e.Kg.Value.ToString("N2") кг</span> }
                                     @if (!string.IsNullOrWhiteSpace(e.Comment)) { <span> — «@e.Comment»</span> }
                                 </li>
                             }
@@ -314,8 +319,19 @@
     private long actionId, historyId;
     private RequestStatus actionKind;
     private decimal? actionPaid;
+    private decimal? actionWeightKg;
+    private string? actionError;
     private string? actionComment;
     private List<RequestEvent> history = new();
+    private List<RequestContactEvent> contactHistory = new();
+    private sealed record HistoryLine(DateTime AtUtc, string UserName, string Text, decimal? Paid, decimal? Kg, string? Comment);
+    private IEnumerable<HistoryLine> HistoryLines =>
+        history.Select(e => new HistoryLine(e.CreatedAt.ToUniversalTime(), e.UserName ?? "—",
+            e.FromStatus == e.ToStatus ? "Уточнение данных" : RequestWorkflow.StatusTitle(e.FromStatus) + " → " + RequestWorkflow.StatusTitle(e.ToStatus),
+            e.PaidAmount, e.WeightKg, e.Comment))
+        .Concat(contactHistory.Select(e => new HistoryLine(e.CreatedAtUtc, e.UserName,
+            e.IsCalled ? "Отметил звонок клиенту" : "Снял отметку о звонке от " + e.CallAtUtc.AddHours(3).ToString("dd.MM.yyyy HH:mm"),
+            null, null, null))).OrderBy(e => e.AtUtc);
 
     protected override async Task OnInitializedAsync()
     {
@@ -390,6 +406,12 @@
     }
 
     private Task ReloadAsync() => RouteMode ? LoadRouteAsync() : LoadAsync(page);
+    private async Task CallChangedAsync()
+    {
+        var openHistory = historyId;
+        await ReloadAsync();
+        if (openHistory > 0) { historyId = 0; await ToggleHistoryAsync(openHistory); }
+    }
 
     private async Task CloseEditAsync(bool saved)
     {
@@ -446,11 +468,13 @@
         actionId = id;
         actionKind = kind;
         actionPaid = null;
+        actionWeightKg = null;
+        actionError = null;
         actionComment = null;
         notice = error = null;
     }
 
-    private void CancelAction() => actionId = 0;
+    private void CancelAction() { if (!busy) { actionId = 0; actionError = null; } }
 
     private async Task ConfirmActionAsync(long id)
     {
@@ -461,7 +485,7 @@
         {
             result = actionKind switch
             {
-                RequestStatus.Done => await Workflow.CompleteAsync(id, actionPaid, actionComment, CurrentUserId, CurrentUserName),
+                RequestStatus.Done => await Workflow.CompleteAsync(id, actionPaid, actionWeightKg, actionComment, CurrentUserId, CurrentUserName),
                 RequestStatus.Cancelled => await Workflow.CancelAsync(id, actionComment, CurrentUserId, CurrentUserName),
                 _ => await Workflow.ReopenAsync(id, actionComment, CurrentUserId, CurrentUserName)
             };
@@ -473,7 +497,7 @@
         }
         finally { busy = false; }
 
-        if (result is not null) { error = result; return; }
+        if (result is not null) { actionError = result; return; }
 
         notice = actionKind switch
         {
@@ -492,6 +516,8 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         history = await db.RequestEvents.AsNoTracking().Where(e => e.RequestId == id)
             .OrderBy(e => e.CreatedAt).ThenBy(e => e.Id).ToListAsync();
+        contactHistory = await db.RequestContactEvents.AsNoTracking().Where(e => e.RequestId == id)
+            .OrderBy(e => e.CreatedAtUtc).ThenBy(e => e.Id).ToListAsync();
         historyId = id;
     }
 

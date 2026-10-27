@@ -15,7 +15,13 @@
                 var saved = localStorage.getItem("ecobay.city");
                 var remember = localStorage.getItem("ecobay.city.remember") !== "0";
                 if (remember && saved && saved !== "all" && /^[a-z0-9-]{1,50}$/.test(saved)) {
-                    location.replace("/" + saved + location.hash);
+                    try {
+                        sessionStorage.setItem("ecobay.analytics.redirect", JSON.stringify({
+                            at: Date.now(), path: "/" + saved,
+                            referrer: document.referrer ? new URL(document.referrer).origin : ""
+                        }));
+                    } catch (e) { }
+                    location.replace("/" + saved + location.search + location.hash);
                 }
             } catch (e) { }
         })();
@@ -49,9 +55,10 @@
     <link rel="stylesheet" href="/css/custom/theme.css" />
     <link rel="stylesheet" href="/css/custom/responsive.css" />
     <link rel="stylesheet" href="/css/custom/animations.css" />
-    <link rel="stylesheet" href="/css/custom/ecobay.css?v=admin-mobile-1" />
+    <link rel="stylesheet" href="/css/custom/ecobay.css?v=request-workflow-1" />
 
     <link rel="stylesheet" href="/css/custom/admin-users-mobile.css?v=2" />
+    <link rel="stylesheet" href="/css/custom/analytics.css?v=1" />
 
     <HeadOutlet />
 </head>
@@ -73,9 +80,10 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollToPlugin.min.js"></script>
 
     <!-- Theme Files -->
-    <script src="/js/custom/custom.js?v=admin-mobile-1"></script>
+    <script src="/js/custom/custom.js?v=phone-ocr-2"></script>
+    <script src="/js/custom/admin-request-dialogs.js?v=1"></script>
 
-    <script src="/js/custom/phone-clicks.js?v=1"></script>
+    <script src="/js/custom/site-analytics.js?v=1"></script>
 
     <!-- Blazor подключаем последним: к моменту запуска интерактивных компонентов все функции custom.js уже определены -->
     <script src="/_framework/blazor.web.js" autostart="false"></script>

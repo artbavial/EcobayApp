@@ -601,13 +601,24 @@
             var p = "+" + digits;
             if (result.indexOf(p) === -1) result.push(p);
         };
-        // Частые ошибки OCR: O→0, l/I→1
-        var t = (text || "").replace(/[Oo]/g, "0").replace(/[lI|]/g, "1");
-        var full = /(?:\+\s*)?(?:375|8\s*0)[\s\-().]*\d{2}[\s\-().]*\d{3}[\s\-.]*\d{2}[\s\-.]*\d{2}/g;
+        // OCR may split any digits, read a Cyrillic О as zero or use typographic dashes.
+        // Keep exact digit counts and boundaries: do not take a phone-shaped suffix of a longer number.
+        var t = String(text || "");
+        if (t.normalize) t = t.normalize("NFKC");
+        t = t.replace(/[OoОо]/g, "0").replace(/[lIІі|]/g, "1")
+            .replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, "-")
+            .replace(/[\u200B-\u200D\uFEFF]/g, "");
+        var separator = "[\\s().\\-]{0,8}";
+        var subscriber = "(?:\\d" + separator + "){6}\\d";
+        var national = "\\d" + separator + "\\d" + separator + subscriber;
+        // +375, 375, 80, 8 (0...), 8-0..., including spaces between prefix digits.
+        var full = new RegExp("(^|[^\\d])((?:\\+" + separator + ")?(?:3" + separator +
+            "7" + separator + "5|8" + separator + "0)" + separator + national + ")(?!\\d)", "g");
         var m;
-        while ((m = full.exec(t))) add(m[0].replace(/\D/g, ""));
-        var local = /(?:^|[^\d])\(?(25|29|33|44)\)?[\s\-]*(\d{3})[\s\-]*(\d{2})[\s\-]*(\d{2})(?!\d)/g;
-        while ((m = local.exec(t))) add(m[1] + m[2] + m[3] + m[4]);
+        while ((m = full.exec(t))) add(m[2].replace(/\D/g, ""));
+        var mobileCode = "(?:2" + separator + "[59]|3" + separator + "3|4" + separator + "4)";
+        var local = new RegExp("(^|[^\\d])(" + mobileCode + separator + subscriber + ")(?!\\d)", "g");
+        while ((m = local.exec(t))) add(m[2].replace(/\D/g, ""));
         return result;
     }
 

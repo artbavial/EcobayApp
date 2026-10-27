@@ -1,0 +1,112 @@
+@using EcobayApp.Services
+@inject AnalyticsReports Reports
+@inject ILogger<AnalyticsDailySummary> Logger
+
+<section class="admin-card analytics-summary" id="traffic-summary">
+    <div class="analytics-section-head">
+        <div><span class="analytics-eyebrow">Полные сутки · Минск</span><h2 class="admin-card-title">Итоги за @day.ToString("dd.MM.yyyy")</h2></div>
+        <label class="analytics-summary-date">Дата сводки<input type="date" class="form-control" max="@AnalyticsReports.MinskToday.AddDays(-1).ToString("yyyy-MM-dd")" @bind="day" @bind:after="LoadAsync" disabled="@busy" /></label>
+    </div>
+    @if (busy) { <p class="admin-muted" role="status">Формируем сводку…</p> }
+    else if (error.Length > 0) { <p class="admin-status-error" role="alert">@error</p> }
+    else if (report is not null)
+    {
+        <p class="admin-muted">Учитываются выбранные город, источник, кампания, ключевая фраза и устройство. Сводка рассчитывается при открытии; диапазон основного отчёта её дату не меняет.</p>
+        <div class="analytics-summary-numbers">
+            <div><span>Визиты</span><strong>@current.Visits</strong></div>
+            <div><span>Визиты с обращением</span><strong>@current.ContactVisits</strong></div>
+            <div><span>Конверсия</span><strong>@current.Conversion.ToString("0.#")%</strong></div>
+            <div><span>Заявки с сайта</span><strong>@current.Requests</strong></div>
+        </div>
+        <div class="analytics-comparisons">
+            <span>Предыдущий день: <strong>@(Known(day.AddDays(-1)) ? $"{previous.Visits} визитов" : "нет полных данных")</strong></span>
+            <span>Неделю назад: <strong>@(Known(day.AddDays(-7)) ? $"{lastWeek.Visits} визитов" : "нет полных данных")</strong></span>
+            <span>Типичный этот день недели: <strong>@(ready ? $"{baselineVisits:0.#} визитов" : "мало истории")</strong></span>
+        </div>
+        @if (!ready)
+        {
+            <div class="analytics-note">Для устойчивого сравнения нужны четыре полных предыдущих таких дня недели после установки сбора. Пока рекомендации о падении не формируются; технические ошибки показываются сразу.</div>
+        }
+        @foreach (var note in notes.Take(3))
+        {
+            <article class="analytics-recommendation"><h3>@note.Title</h3><p>@note.Text</p><a href="@note.Target">Открыть показатели</a></article>
+        }
+        @if (ready && notes.Count == 0)
+        {
+            <div class="analytics-note">По заданным порогам существенных отклонений не обнаружено@(current.Visits < 20 ? "; объём визитов мал для выводов о конверсии" : ""). Это не подтверждение исправности всех систем.</div>
+        }
+        <p class="admin-muted mb-0 mt-3">Изменение не доказывает причину. Без данных рекламных кабинетов нельзя установить остаток бюджета или статус кампаний. Нулевые события могут означать как отсутствие трафика, так и проблему сбора.</p>
+    }
+</section>
+
+@code {
+    [Parameter] public TrafficFilter Filter { get; set; } = new(AnalyticsReports.MinskToday, AnalyticsReports.MinskToday);
+    [Parameter] public DateTime RefreshKey { get; set; }
+    private TrafficFilter? lastFilter;
+    private DateTime lastRefreshKey;
+    private DateTime day = AnalyticsReports.MinskToday.AddDays(-1);
+    private bool busy, ready;
+    private string error = "";
+    private TrafficReport? report;
+    private TrafficNumbers current = new(), previous = new(), lastWeek = new();
+    private decimal baselineVisits;
+    private List<Recommendation> notes = new();
+    private sealed record Recommendation(string Title, string Text, string Target);
+    private bool Known(DateTime date) => report?.InstalledAtUtc is DateTime installed && installed <= AnalyticsReports.UtcStart(date);
+    protected override async Task OnParametersSetAsync()
+    {
+        if (lastFilter != Filter || lastRefreshKey != RefreshKey) { lastFilter = Filter; lastRefreshKey = RefreshKey; await LoadAsync(); }
+    }
+    private async Task LoadAsync()
+    {
+        if (busy) return;
+        busy = true; error = ""; notes.Clear();
+        try
+        {
+            if (day.Date >= AnalyticsReports.MinskToday) throw new ArgumentException("Выберите завершённый день.");
+            report = await Reports.LoadAsync(Filter with { From = day.AddDays(-28), To = day });
+            TrafficNumbers Numbers(DateTime d) => report.Days.FirstOrDefault(x => x.Day == d.Date)?.Numbers ?? new();
+            current = Numbers(day); previous = Numbers(day.AddDays(-1)); lastWeek = Numbers(day.AddDays(-7));
+            var comparison = Enumerable.Range(1, 4).Select(i => Numbers(day.AddDays(-7 * i))).ToList();
+            static decimal Median(IEnumerable<int> values) { var a = values.OrderBy(x => x).ToArray(); return (a[1] + a[2]) / 2m; }
+            baselineVisits = Median(comparison.Select(x => x.Visits));
+            ready = report.InstalledAtUtc.HasValue && report.InstalledAtUtc.Value <= AnalyticsReports.UtcStart(day.AddDays(-28));
+            if (current.Errors > 0)
+                notes.Add(new("Ошибки подтверждения отправки", $"Зафиксировано {current.Errors} ошибок. Проверьте журнал приложения и сохранённые заявки: ошибка ответа не обязательно означает потерю заявки.", "#traffic-funnel"));
+            if (current.Invalid >= 3)
+                notes.Add(new("Ошибки заполнения формы", $"{current.Invalid} отклонённых отправок. Проверьте формат телефона и понятность подсказок; содержимое полей в аналитике не хранится.", "#traffic-funnel"));
+            if (ready)
+            {
+                foreach (var source in new[] { "yandex_ads", "google_ads", "yandex_search", "google_search" })
+                {
+                    int Count(DateTime d) => report.SourceDays.Where(x => x.Day == d.Date && x.Source == source).Sum(x => x.Visits);
+                    var usual = Median(Enumerable.Range(1, 4).Select(i => Count(day.AddDays(-7 * i))));
+                    var actual = Count(day);
+                    if (usual >= 20 && usual - actual >= 10 && actual <= usual * .7m)
+                    {
+                        var advice = source.EndsWith("_ads")
+                            ? "Проверьте расписание, бюджеты и статусы объявлений в рекламном кабинете. Данных о расходах у сайта нет."
+                            : "Проверьте поисковый трафик по посадочным страницам и доступность сайта; для установления причины понадобятся данные кабинета вебмастера.";
+                        notes.Add(new(SiteAnalytics.Title(source) + ": меньше переходов",
+                            $"{actual} вместо медианы {usual:0.#} за четыре таких дня недели (−{100m * (usual - actual) / usual:0.#}%). {advice}", "#traffic-sources"));
+                    }
+                }
+                if (baselineVisits >= 20 && baselineVisits - current.Visits >= 10 && current.Visits <= baselineVisits * .7m)
+                {
+                    var delta = 100m * (baselineVisits - current.Visits) / baselineVisits;
+                    notes.Add(new("Посещаемость ниже обычной", $"{current.Visits} вместо медианы {baselineVisits:0.#}: −{delta:0.#}%. Сравнение с четырьмя такими днями недели. Проверьте источники трафика, доступность сайта и сбор событий; для рекламы — расписание, бюджеты и статусы в кабинетах.", "#traffic-sources"));
+                }
+                var baselineContacts = Median(comparison.Select(x => x.ContactVisits));
+                var denominator = comparison.Sum(x => x.Visits);
+                var conversion = denominator == 0 ? 0 : 100m * comparison.Sum(x => x.ContactVisits) / denominator;
+                if (current.Visits >= 20 && denominator >= 80 && baselineContacts >= 5 &&
+                    baselineContacts - current.ContactVisits >= 3 && conversion > 0 && current.Conversion <= conversion * .6m)
+                    notes.Add(new("Доля обращений снизилась", $"Сейчас {current.Conversion:0.#}% против {conversion:0.#}% в сравнительных днях. Проверьте состав трафика, ошибки формы и работу мобильной страницы. Снижение не доказывает проблему цены.", "#traffic-funnel"));
+                if (current.Visits == 0 && baselineVisits >= 20)
+                    notes.Insert(0, new("Нет зарегистрированных визитов", "Сначала проверьте доступность сайта и работу /api/site-event. Ноль в аналитике сам по себе не доказывает отсутствие посетителей.", "#traffic-daily"));
+            }
+        }
+        catch (Exception ex) { Logger.LogWarning(ex, "Daily analytics summary failed"); error = ex is ArgumentException ? ex.Message : "Не удалось сформировать сводку. Проверьте миграцию БД."; }
+        finally { busy = false; }
+    }
+}

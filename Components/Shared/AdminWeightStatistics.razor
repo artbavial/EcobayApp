@@ -1,0 +1,70 @@
+@using EcobayApp.Services
+@using System.Globalization
+@inject RequestWeightReports Reports
+@inject ILogger<AdminWeightStatistics> Logger
+
+<section class="admin-card req-weight-report mb-3" style="height:auto">
+    <h2 class="admin-card-title">Вывоз · фактический вес</h2>
+    <p class="admin-muted">Отработанные в выбранном периоде по дате отработки, время Минска. Город и источник заявок учитываются; фильтр статуса не применяется. Вес калькулятора сюда не входит.</p>
+    @if (busy) { <p role="status" class="admin-muted">Загрузка веса…</p> }
+    else if (error is not null) { <div role="alert" class="admin-alert admin-alert-error">@error</div> }
+    else if (report is not null)
+    {
+        <div class="analytics-kpis mb-3">
+            <div class="analytics-kpi"><span>Вывезено, кг</span><strong>@report.TotalKg.ToString("N2")</strong><small>Только известный фактический вес</small></div>
+            <div class="analytics-kpi"><span>Средний вес, кг</span><strong>@report.AverageKg.ToString("N2")</strong><small>Среди @report.Measured заявок с весом</small></div>
+            <div class="analytics-kpi"><span>Отработано</span><strong>@report.Completed</strong><small>По дате отработки</small></div>
+            <div class="analytics-kpi"><span>Без указанного веса</span><strong>@report.Missing</strong><small>В том числе старые заявки</small></div>
+        </div>
+        <div class="analytics-grid">
+            <div>
+                <h3 class="req-weight-subtitle">Вес по дням, кг</h3>
+                <AnalyticsLineChart Title="Фактический вес по дате отработки, кг" Labels="report.Days.Select(d => d.Day).ToList()" DecimalValues="report.Days.Select(d => d.Kg).ToList()" Legend="Вес, кг" />
+            </div>
+            <div>
+                <h3 class="req-weight-subtitle">По городам</h3>
+                @if (report.Cities.Count == 0) { <p class="admin-muted">Отработанных заявок в периоде нет.</p> }
+                <div class="analytics-bars">
+                    @foreach (var city in report.Cities)
+                    {
+                        <div class="analytics-bar-item">
+                            <div><span>@city.Name</span><strong>@city.Kg.ToString("N2") кг</strong></div>
+                            <div class="analytics-bar-track"><span style="@Bar(city.Kg)"></span></div>
+                            <small class="admin-muted">Отработано @city.Completed · с весом @city.Measured · без веса @(city.Completed - city.Measured)</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <details class="mt-3"><summary class="req-weight-summary">Точные значения по дням</summary>
+            <div class="analytics-detail-grid mt-2">
+                @foreach (var day in report.Days)
+                {
+                    <article class="analytics-detail"><h3>@day.Day.ToString("dd.MM.yyyy")</h3><p class="mb-1">@day.Kg.ToString("N2") кг</p><small class="admin-muted">Отработано @day.Completed · без веса @(day.Completed - day.Measured)</small></article>
+                }
+            </div>
+        </details>
+        <p class="admin-muted mt-3 mb-0">Отменённые и возвращённые в работу не входят в итог. При повторной отработке считается текущий результат один раз. Уточнение веса меняет результат исходной даты отработки; история прежних значений сохраняется.</p>
+    }
+</section>
+
+@code {
+    [Parameter] public DateTime From { get; set; }
+    [Parameter] public DateTime To { get; set; }
+    [Parameter] public long? CityId { get; set; }
+    [Parameter] public string Source { get; set; } = "";
+    [Parameter] public DateTime RefreshKey { get; set; }
+    private DateTime lastKey;
+    private bool busy;
+    private string? error;
+    private RequestWeightReport? report;
+    protected override async Task OnParametersSetAsync()
+    {
+        if (lastKey == RefreshKey && report is not null) return;
+        lastKey = RefreshKey; busy = true; error = null;
+        try { report = await Reports.LoadAsync(From, To, CityId, Source); }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot load weight statistics"); error = ex is ArgumentException ? ex.Message : "Не удалось загрузить вес. Проверьте миграцию и доступ к БД."; }
+        finally { busy = false; }
+    }
+    private string Bar(decimal kg) => "width:" + (100m * kg / Math.Max(1, report!.Cities.Select(c => c.Kg).DefaultIfEmpty(0).Max())).ToString("0.##", CultureInfo.InvariantCulture) + "%";
+}

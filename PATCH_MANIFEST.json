@@ -1,0 +1,134 @@
+{
+  "baseline": "ecobay.zip + Statistics AllInOne + Phone OCR BY + CMS 0.9.4 Cities",
+  "migration": "20261027211554_AddRequestWeightAndCalls",
+  "files": [
+    {
+      "path": "Components/App.razor",
+      "sha256": "14f9f6eae65b17c66a4a15896dfdb5c1aaec3439376c603d463c0a36aef55339"
+    },
+    {
+      "path": "Components/Pages/AdminPanel.razor",
+      "sha256": "b87da96c8bd77655d453f1979fd08c060c05bd8a189bc492a62ec0e551653f65"
+    },
+    {
+      "path": "Components/Shared/AdminClientHistory.razor",
+      "sha256": "afd98ac7f98ca84033b999253ce745db9f9eca1fdc55aa77da9ac5809e99c6fb"
+    },
+    {
+      "path": "Components/Shared/AdminDashboard.razor",
+      "sha256": "d204ceead783698dcbdf05d9be8ffd8daf9a33c739d3c3513185689d1ddd02ca"
+    },
+    {
+      "path": "Components/Shared/AdminRequestCreate.razor",
+      "sha256": "246b5e8b0cfada77a11473cd8be3c50ec4e5edab88468919f4001c682748be8f"
+    },
+    {
+      "path": "Components/Shared/AdminRequestDialog.razor",
+      "sha256": "73732d9ad97230bae2867f099edf7f801f993a9fdf2128c9cb7341b69d0e6b55"
+    },
+    {
+      "path": "Components/Shared/AdminRequestEditorDialog.razor",
+      "sha256": "2f6b9caafb90e502160bfeebf2e8b7e740559538b10503b78562c2512c9e0eb6"
+    },
+    {
+      "path": "Components/Shared/AdminRequestTable.razor",
+      "sha256": "e5b062e91a25ced5c1ed7893e3c836f9dd56f53dd2c7d182eb54cd8ea242c498"
+    },
+    {
+      "path": "Components/Shared/AdminRequests.razor",
+      "sha256": "4ed30408ae3e7792242195a7b3ca54ccb0662890011e0844811e174d5abdce2a"
+    },
+    {
+      "path": "Components/Shared/AdminRoutes.razor",
+      "sha256": "84d7e4e1fe7d677a3601926ebc2a8a7ad274e5b1c3311960a802d90669c06329"
+    },
+    {
+      "path": "Components/Shared/AdminStatistics.razor",
+      "sha256": "f0b4162a8ace5ed2206c2051a02b1445ea5a9a0e17cac20b9eb81e1e79f3f9e2"
+    },
+    {
+      "path": "Components/Shared/AdminWeightStatistics.razor",
+      "sha256": "f20eac6d414f5f359fa6402427118524f5abe33fec9d9b7a7846d90130c254dd"
+    },
+    {
+      "path": "Components/Shared/AnalyticsLineChart.razor",
+      "sha256": "62c577194feba60393134254ec6a78002d558336f70567d360409c8020c5c727"
+    },
+    {
+      "path": "Components/Shared/RequestCallButton.razor",
+      "sha256": "4b9ddfae0756d38a713cd542c9ae8a09f7fbc03b53852f5b78c2c3446e2c2040"
+    },
+    {
+      "path": "Components/Shared/RequestModal.razor",
+      "sha256": "dda3c78bc7709cf6e9465b4b0840a026fbc3d1830a2808409e6586668287247d"
+    },
+    {
+      "path": "Contex/AppDBContext.cs",
+      "sha256": "0cbff5fea34cd0a054a692c278b7503900360a7035b0aad714737b35027cbe43"
+    },
+    {
+      "path": "Migrations/20261027211554_AddRequestWeightAndCalls.Designer.cs",
+      "sha256": "ab01ebc62f45bad30aabe81324b0cd218c719b15a4b6f998db809609b9a16196"
+    },
+    {
+      "path": "Migrations/20261027211554_AddRequestWeightAndCalls.cs",
+      "sha256": "8ad0260b19e291a8a631007021152d2702e6e592b4457c2bcf15b608e05cd14c"
+    },
+    {
+      "path": "Migrations/AppDBContextModelSnapshot.cs",
+      "sha256": "f8253e5be1bd4fa25606aa5743c407cfd521052fc60de438aca4c1e5b79ba268"
+    },
+    {
+      "path": "Models/Request.cs",
+      "sha256": "d609e518f7451fe69b169fce0d8f4b98dcb77976915c6c4625b74e51fac23d81"
+    },
+    {
+      "path": "Models/RequestContactEvent.cs",
+      "sha256": "49f12bb877b27dcb01a72db8df71386aebc302c7df1482ef8174a3693fb32c71"
+    },
+    {
+      "path": "Models/RequestEvent.cs",
+      "sha256": "5bf65b8a4af047ae4404e08b8e9da39eb3c53b103f582cf48580c098df9a9483"
+    },
+    {
+      "path": "Program.cs",
+      "sha256": "11a4695ce341162e5ee4693dca8d592148ba47244e34afa338956c9f3cc2731c"
+    },
+    {
+      "path": "README_REQUEST_WORKFLOW.md",
+      "sha256": "d75dabaf1415fa86f53f9f90ca461b07d5c2c6a7ffdfeabca5f2d02c6b6489c7"
+    },
+    {
+      "path": "Services/AdminReporting.cs",
+      "sha256": "0f93438ac92ac5f5489a60b5da44e18c7c324b1e9e16554c34b171cf336192bd"
+    },
+    {
+      "path": "Services/RequestContacts.cs",
+      "sha256": "67b505af34c492fd97f42a1f0ad579f16a1c92392f57179851bd4aa94313666a"
+    },
+    {
+      "path": "Services/RequestLocks.cs",
+      "sha256": "770f40a612ca6fe3048106f15bf1fc5e6d96f927694f4ce9cfb96dcf94c337cf"
+    },
+    {
+      "path": "Services/RequestWeightReports.cs",
+      "sha256": "51915f8e656dc08b1c85559551f78db96780e3a3a0e9ba2707ebfc374e16a059"
+    },
+    {
+      "path": "Services/RequestWorkflow.cs",
+      "sha256": "35392409e60d458855a7ebbaa3bb16bee10545099b5e8eb3191a084cab32823a"
+    },
+    {
+      "path": "Sql/2026-10-28_RequestWeightAndCalls.sql",
+      "sha256": "d4d8b20319fc35a452ee1533c8bcee4febcd27bbcfa174c7337246d94d3c0443"
+    },
+    {
+      "path": "wwwroot/css/custom/ecobay.css",
+      "sha256": "db6d6023674ac4307697e9af468fc87b8dad58b98e78c770781e1385f0a6b989"
+    },
+    {
+      "path": "wwwroot/js/custom/admin-request-dialogs.js",
+      "sha256": "794dae96db3d557fdaa9a198787710dabd1e5e39cdab8b200e629be736f63634"
+    }
+  ]
+}

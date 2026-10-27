@@ -29,6 +29,8 @@
                         <div style="white-space:pre-wrap;overflow-wrap:anywhere">@item.Message</div>
                         @if (!string.IsNullOrWhiteSpace(item.DriverComment)) { <p class="admin-muted mt-2 mb-0">Комментарий: @item.DriverComment</p> }
                         @if (item.PaidAmount.HasValue) { <p class="mb-0">Выплачено: @item.PaidAmount.Value.ToString("N2") руб.</p> }
+                        @if (item.WeightKg.HasValue) { <p class="mb-0">Вес: @item.WeightKg.Value.ToString("N2") кг</p> }
+                        @if (item.CustomerCalledAtUtc.HasValue) { <p class="admin-muted mb-0">Звонили: @item.CustomerCalledAtUtc.Value.AddHours(3).ToString("dd.MM.yyyy HH:mm") · @item.CustomerCalledByName</p> }
                     </details>
                 }
                 @if (total > rows.Count) { <p class="admin-muted mt-2 mb-0">Показаны последние @rows.Count из @total заявок.</p> }

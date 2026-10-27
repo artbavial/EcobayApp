@@ -10,9 +10,9 @@
 @inject ILogger<AdminRequestCreate> Logger
 
 <div class="admin-card mb-3 req-create">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-3 req-create-head">
         <h2 class="admin-card-title mb-0">@(EditId.HasValue ? $"Изменить заявку №{EditId}" : "Новая заявка вручную")</h2>
-        <button class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="() => OnClose.InvokeAsync(false)">Закрыть</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" disabled="@busy" @onclick="TryCloseAsync">Закрыть</button>
     </div>
 
     <div class="row g-3">
@@ -97,12 +97,23 @@
                     <textarea id="reqText" class="form-control" rows="3" maxlength="500" @bind="model.Message"
                               placeholder="Что вывозим, этаж, удобное время" disabled="@busy"></textarea>
                 </div>
+                @if (loadedStatus == RequestStatus.Done)
+                {
+                    <div class="col-12">
+                        <label class="admin-label" for="reqEditWeight">Фактический вес, кг</label>
+                        <input id="reqEditWeight" class="form-control" type="number" inputmode="decimal" min="0.01" max="1000000" step="0.01" @bind="model.WeightKg" disabled="@busy" />
+                        <small class="admin-muted">Можно уточнить вес отработанной заявки. У старой заявки без веса допустимо оставить поле пустым.</small>
+                    </div>
+                }
             </div>
             <AdminClientHistory Phone="@model.Phone" ExcludeRequestId="EditId" />
             @if (error is not null) { <div class="admin-alert admin-alert-error mt-3" role="alert">@error</div> }
-            <button class="admin-btn admin-btn-primary mt-3" disabled="@busy" @onclick="SaveAsync">
+            <div class="req-create-actions">
+            <button type="button" class="admin-btn admin-btn-primary" disabled="@busy" @onclick="SaveAsync">
                 @(busy ? "Сохранение..." : EditId.HasValue ? "Сохранить изменения" : "Добавить заявку")
             </button>
+            <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="TryCloseAsync">Отмена</button>
+            </div>
         </div>
     </div>
 </div>
@@ -114,6 +125,9 @@
     [Parameter] public long? EditId { get; set; }
 
     private bool hasStoredShot;
+    private RequestStatus? loadedStatus;
+    private decimal? originalWeightKg;
+    public Task TryCloseAsync() => busy ? Task.CompletedTask : OnClose.InvokeAsync(false);
 
     private sealed class Model
     {
@@ -124,6 +138,7 @@
         public string? Message { get; set; }
         public DateTime? PickupDate { get; set; }
         public TimeOnly? PickupTime { get; set; }
+        public decimal? WeightKg { get; set; }
     }
 
     private readonly Model model = new();
@@ -154,6 +169,8 @@
             model.PickupDate = r.PickupDate;
             model.PickupTime = r.PickupTime.HasValue ? TimeOnly.FromTimeSpan(r.PickupTime.Value) : null;
             hasStoredShot = r.ScreenshotPath != null;
+            loadedStatus = r.Status;
+            model.WeightKg = originalWeightKg = r.WeightKg;
             // В списке городов может не быть выключенного города заявки — добавим его, чтобы не потерять.
             if (model.CityId.HasValue && cities.All(c => c.Id != model.CityId))
             {
@@ -270,6 +287,7 @@
                 DECLARE @result int;
                 EXEC @result = sys.sp_getapplock @Resource={phoneLock}, @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000;
                 IF @result < 0 THROW 51000, 'Request is busy. Retry.', 1;");
+            if (EditId.HasValue) await RequestLocks.AcquireAsync(db, EditId.Value);
             var page = await db.PageCities.AsNoTracking().Where(p => p.CityId == model.CityId).OrderBy(p => p.Id).FirstOrDefaultAsync();
             if (page is null) { error = "У выбранного города нет страницы. Сохраните город во вкладке «Города»."; return; }
 
@@ -293,6 +311,19 @@
             {
                 var r = await db.Requests.FirstOrDefaultAsync(x => x.Id == EditId.Value);
                 if (r is null) { error = "Заявка не найдена."; return; }
+                if (r.Status != loadedStatus) { error = "Статус заявки уже изменили. Закройте и заново откройте окно."; return; }
+                if (r.Status == RequestStatus.Done && model.WeightKg != originalWeightKg)
+                {
+                    var weightError = RequestWorkflow.ValidateWeight(model.WeightKg);
+                    if (weightError is not null) { error = weightError; return; }
+                    if (r.WeightKg != originalWeightKg) { error = "Вес уже изменили в другом окне. Откройте заявку заново."; return; }
+                    var nextWeight = Math.Round(model.WeightKg!.Value, 2);
+                    db.RequestEvents.Add(new RequestEvent { RequestId = r.Id, FromStatus = r.Status, ToStatus = r.Status,
+                        PaidAmount = r.PaidAmount, WeightKg = nextWeight, UserId = actor.Id,
+                        UserName = actor.DisplayName ?? actor.Login, CreatedAt = DateTime.Now,
+                        Comment = $"Уточнение веса: {(r.WeightKg.HasValue ? r.WeightKg.Value.ToString("0.##") : "не указан")} → {nextWeight:0.##} кг." });
+                    r.WeightKg = nextWeight;
+                }
                 r.ClientId = client.Id;
                 r.PageCityId = page.Id;
                 r.Message = string.IsNullOrWhiteSpace(model.Message) ? null : model.Message.Trim();

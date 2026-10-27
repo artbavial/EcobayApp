@@ -80,7 +80,7 @@
         @switch (activeTab)
         {
             case AdminTab.Dashboard:
-                <AdminDashboard OnRequests="() => OpenRequests(true)" OnGoals="() => OpenSetting(SiteSetting.Goals)" />
+                <AdminDashboard CurrentUserId="currentUserId" OnRequests="() => OpenRequests(true)" OnGoals="() => OpenSetting(SiteSetting.Goals)" />
                 break;
             case AdminTab.Requests:
                 <AdminRequests TodayOnly="requestsTodayOnly" IsAdmin="true" CurrentUserId="currentUserId" CurrentUserName="@currentUserDisplay" />
@@ -126,7 +126,7 @@
                 break;
         }
     </div>
-    <footer class="admin-footer"><span class="admin-footer-version">ArtBavial Engine CMS v0.9</span>© 2026 Разработка ArtBavial Software. Все права защищены.</footer>
+    <footer class="admin-footer"><span class="admin-footer-version">ArtBavial Engine CMS v0.9.4</span>© 2026 Разработка ArtBavial Software. Все права защищены.</footer>
 </div>
 
 @code {

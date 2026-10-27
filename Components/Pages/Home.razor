@@ -245,7 +245,7 @@
                             <img src="images/hero/shape3.svg" alt="shape" />
                         </div>
 
-                        <EditForm Model="form" OnValidSubmit="OnSubmitAsync">
+                        <EditForm Model="form" OnValidSubmit="OnSubmitAsync" data-analytics-form="request">
 
                             <div class="heroForm">
                                 <article class="formContent">
@@ -603,20 +603,24 @@
                                 </article>
                             </div>
 
-                            <div class="my-4">
+                            <div class="my-4" data-analytics-calculator="true"
+                                 data-rate="@CurrentFromPriceKopeks.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                 data-rate-to="@(CurrentToPriceKopeks?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "")"
+                                 data-mode="@(IsDeliveryPriceModeActive ? "delivery" : "range")">
                                 <input type="number"
                                        class="form-control calculator-weight-input"
                                        placeholder="Введите вес (кг)"
                                        @bind="weight"
+                                       @bind:event="oninput"
+                                       @bind:after="Calculate"
                                        min="0"
-                                       step="0.1"
-                                       @oninput="Calculate" />
-                            </div>
+                                       step="0.1" />
 
                             <button class="starta-button" type="button" @onclick="Calculate">
                                 <span class="position-relative">Рассчитать</span>
                                 <span class="starta-button-hover"></span>
                             </button>
+                            </div>
 
                             <div class="calculator-result starta-desc fw-medium mt-4">
                                 @if (weight <= 0)
@@ -1811,21 +1815,31 @@
         formErrorMessage = null;
         try
         {
+            Guid? analyticsVisitId = null;
+            try { analyticsVisitId = await JS.InvokeAsync<Guid?>("ecobayAnalytics.visitId", TimeSpan.FromMilliseconds(750)); }
+            catch (Exception) { /* Analytics must never prevent a request. */ }
             var result = await PublicRequests.SubmitAsync(new PublicRequestInput(
-                submissionId, form.Name, form.Phone, form.Comment, pageCity?.Id));
+                submissionId, form.Name, form.Phone, form.Comment, pageCity?.Id, analyticsVisitId));
             acceptedRequestId = result.RequestId;
             form = new RequestFormModel();
             submissionId = Guid.NewGuid();
             isSuccessMessageVisible = true;
         }
-        catch (ArgumentException ex) { formErrorMessage = ex.Message; }
+        catch (ArgumentException ex) { formErrorMessage = ex.Message; await TrackFormIssueAsync("form_invalid"); }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Cannot submit public request");
             // Keep submissionId: retry after a lost response returns the existing receipt.
             formErrorMessage = "Не удалось подтвердить отправку. Повторите попытку — повторная заявка не создастся.";
+            await TrackFormIssueAsync("form_error");
         }
         finally { isSending = false; }
+    }
+
+    private async Task TrackFormIssueAsync(string kind)
+    {
+        try { await JS.InvokeVoidAsync("ecobayAnalytics.track", TimeSpan.FromMilliseconds(750), kind); }
+        catch (Exception) { /* No personal form contents are sent to analytics. */ }
     }
 
     public class RequestFormModel

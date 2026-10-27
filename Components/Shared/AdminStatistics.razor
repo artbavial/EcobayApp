@@ -34,7 +34,9 @@
         <div class="col-6 col-lg-3"><div class="admin-stat"><span>Отработано из выборки</span><strong>@rows.Sum(x => x.Done)</strong></div></div>
         <div class="col-6 col-lg-3"><div class="admin-stat"><span>Выплачено, руб.</span><strong style="font-size:24px;overflow-wrap:anywhere">@rows.Sum(x => x.Paid).ToString("N2")</strong></div></div>
     </div>
-    <section class="admin-card" style="height:auto">
+    <AdminWeightStatistics From="appliedFrom" To="appliedTo" CityId="appliedCity" Source="@appliedSource" RefreshKey="loadedAt" />
+    <AdminTrafficAnalytics From="appliedFrom" To="appliedTo" CityId="appliedCity" RefreshKey="loadedAt" />
+    <section class="admin-card mt-3" style="height:auto">
         <h2 class="admin-card-title">По городам</h2>
         <div class="statistics-cities">
             @foreach (var row in rows)
@@ -46,7 +48,7 @@
             }
         </div>
         <p class="admin-muted mt-3 mb-0">Отработанные и выплаты относятся к заявкам, созданным в выбранном периоде, по их текущему состоянию. Это не отчёт о выплатах по дате оплаты. Сбор кликов начинается с установки соответствующего обновления.</p>
-        <p class="admin-muted mt-2 mb-0">Посещения, уникальные посетители и источники рекламного трафика пока не собираются собственной системой. Эти показатели не подменяются количеством заявок или кликов.</p>
+        <p class="admin-muted mt-2 mb-0">Все заявки и исторические клики показаны выше. Ниже — аналитика визитов с момента установки нового сбора; заявки без идентификатора визита туда не приписываются.</p>
     </section>
 }
 
@@ -54,8 +56,10 @@
     private DateTime from = DateTime.UtcNow.AddHours(3).Date, to = DateTime.UtcNow.AddHours(3).Date;
     private DateTime appliedFrom, appliedTo, loadedAt;
     private long? cityFilter;
+    private long? appliedCity;
     private RequestStatus? statusFilter;
     private string source = "", error = "";
+    private string appliedSource = "";
     private bool busy, loaded;
     private List<City> cities = new();
     private List<StatsRow> rows = new();
@@ -106,7 +110,7 @@
                 var name = id.HasValue ? cities.FirstOrDefault(x => x.Id == id)?.Name ?? c?.Name ?? "Удалённый город" : "Общая страница / без города";
                 return new StatsRow(id, name, r?.Count ?? 0, c?.Count ?? 0, r?.Done ?? 0, r?.Paid ?? 0);
             }).OrderByDescending(x => x.Requests).ThenByDescending(x => x.Clicks).ThenBy(x => x.City).ToList();
-            appliedFrom = from.Date; appliedTo = to.Date; loadedAt = DateTime.UtcNow.AddHours(3); loaded = true;
+            appliedFrom = from.Date; appliedTo = to.Date; appliedCity = cityFilter; appliedSource = source; loadedAt = DateTime.UtcNow.AddHours(3); loaded = true;
         }
         catch (Exception ex) { Logger.LogError(ex, "Cannot load statistics"); error = "Не удалось загрузить статистику. Проверьте доступ и подключение к БД."; }
         finally { busy = false; }

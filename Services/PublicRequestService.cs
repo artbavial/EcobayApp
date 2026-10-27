@@ -6,7 +6,7 @@ using EcobayApp.Models;
 using Microsoft.EntityFrameworkCore;
 namespace EcobayApp.Services;
 
-public sealed record PublicRequestInput(Guid SubmissionId, string? Name, string? Phone, string? Message, long? PageCityId);
+public sealed record PublicRequestInput(Guid SubmissionId, string? Name, string? Phone, string? Message, long? PageCityId, Guid? AnalyticsVisitId = null);
 public sealed record PublicRequestResult(long RequestId, bool Reused);
 public sealed record RequestMailPayload(string Name, string Phone, string? Message, string Source, string? CityName);
 
@@ -63,7 +63,8 @@ public sealed class PublicRequestService(IDbContextFactory<AppDBContext> factory
             db.Clients.Add(client);
         }
         // Anonymous submissions must not overwrite an existing client's identity or notes.
-        var request = new Request { Client = client, PageCityId = page?.Id, Message = message, Source = source, DateCreate = DateTime.Now };
+        var request = new Request { Client = client, PageCityId = page?.Id, Message = message, Source = source,
+            DateCreate = DateTime.Now, AnalyticsVisitId = input.AnalyticsVisitId };
         db.Requests.Add(request);
         await db.SaveChangesAsync();
         db.RequestSubmissions.Add(new() { Id = input.SubmissionId, RequestId = request.Id, Fingerprint = fingerprint, CreatedAtUtc = now });

@@ -5,16 +5,16 @@
 @inject IDbContextFactory<AppDBContext> DbFactory
 
 @* Окно с полной информацией о заявке. Администратор может изменить заявку здесь же. *@
-<div class="req-modal-overlay" role="dialog" aria-modal="true" @onclick="() => CloseAsync()">
-    <div class="req-modal" @onclick:stopPropagation="true">
-        <button type="button" class="req-modal-close" aria-label="Закрыть" @onclick="() => CloseAsync()"><i class="fa-solid fa-xmark"></i></button>
-
-        @if (editing)
+@if (editing)
+{
+    <AdminRequestEditorDialog EditId="RequestId" CurrentUserId="CurrentUserId" OnClose="OnEditClosedAsync" />
+}
+else
+{
+    <AdminRequestDialog Label="@($"Заявка №{RequestId}")" OnCancel="CloseAsync">
+        @if (row is null)
         {
-            <AdminRequestCreate EditId="RequestId" CurrentUserId="CurrentUserId" OnClose="OnEditClosedAsync" />
-        }
-        else if (row is null)
-        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="CloseAsync">Закрыть</button>
             <p class="admin-muted py-4 mb-0">@(loaded ? "Заявка не найдена." : "Загрузка...")</p>
         }
         else
@@ -37,6 +37,7 @@
                     <dt>Обработал</dt><dd>@row.ProcessedByName, @row.ProcessedAt.Value.ToString("dd.MM.yyyy HH:mm")</dd>
                 }
                 @if (row.PaidAmount.HasValue) { <dt>Выплачено</dt><dd><strong>@row.PaidAmount.Value.ToString("N2") руб.</strong></dd> }
+                @if (row.Status == RequestStatus.Done) { <dt>Вес</dt><dd>@(row.WeightKg.HasValue ? row.WeightKg.Value.ToString("N2") + " кг" : "не указан")</dd> }
                 @if (!string.IsNullOrWhiteSpace(row.DriverComment)) { <dt>Комментарий</dt><dd>@row.DriverComment</dd> }
             </dl>
             @if (IsAdmin) { <AdminClientHistory Phone="@row.Phone" ExcludeRequestId="RequestId" /> }
@@ -49,12 +50,13 @@
             }
             <div class="d-flex flex-wrap gap-2">
                 <a class="admin-btn admin-btn-primary" href="tel:@row.Phone"><i class="fa-solid fa-phone"></i> Позвонить</a>
+                <RequestCallButton Row="row" OnChanged="CallChangedAsync" />
                 @if (IsAdmin) { <button class="btn btn-outline-secondary" @onclick="() => editing = true"><i class="fa-solid fa-pen"></i> Изменить</button> }
                 <button class="btn btn-link ms-auto" @onclick="() => CloseAsync()">Закрыть</button>
             </div>
         }
-    </div>
-</div>
+    </AdminRequestDialog>
+}
 
 @code {
     [Parameter, EditorRequired] public long RequestId { get; set; }
@@ -82,4 +84,5 @@
     }
 
     private Task CloseAsync() => OnClose.InvokeAsync(changed);
+    private async Task CallChangedAsync() { changed = true; await LoadAsync(); }
 }

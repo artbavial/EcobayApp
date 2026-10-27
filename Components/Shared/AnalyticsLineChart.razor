@@ -1,0 +1,73 @@
+@using System.Globalization
+<div class="analytics-line">
+    @if (primary.Count == 0 || primary.All(x => x == 0) && secondary.All(x => x == 0))
+    {
+        <div class="analytics-empty">За этот период нет событий для графика.</div>
+    }
+    else
+    {
+        <div class="analytics-mobile-scale"><span>0</span><span>Максимум: @Max.ToString("0.##")</span></div>
+        <svg viewBox="0 0 640 240" role="img" aria-label="@Title">
+            <title>@Title</title>
+            @for (var i = 0; i <= 4; i++)
+            {
+                var y = 18 + i * 46;
+                <g>
+                    <line x1="42" y1="@y" x2="622" y2="@y" stroke="#e2e9e3" />
+                    <text x="34" y="@(y + 4)" text-anchor="end" fill="#5d6c62" font-size="12">@Axis(Max * (4 - i) / 4)</text>
+                </g>
+            }
+            <polyline points="@Points(primary)" fill="none" stroke="#348247" stroke-width="3" stroke-linejoin="round" />
+            @if (secondary.Count > 0)
+            {
+                <polyline points="@Points(secondary)" fill="none" stroke="#287eaa" stroke-width="2.5" stroke-dasharray="5 3" />
+            }
+            @for (var i = 0; i < primary.Count; i++)
+            {
+                var index = i;
+                <g>
+                    <circle cx="@F(X(i))" cy="@F(Y(primary[i]))" r="4" fill="#348247" tabindex="0">
+                        <title>@(Label(i)): @Legend: @primary[i].ToString("0.##")@(secondary.Count > i ? $"; {SecondLegend}: {secondary[i]:0.##}" : "")</title>
+                    </circle>
+                    @if (i == 0 || i == primary.Count - 1 || primary.Count > 4 && i == primary.Count / 2)
+                    {
+                        <g><text x="@F(X(index))" y="230" text-anchor="@(i == 0 ? "start" : i == primary.Count - 1 ? "end" : "middle")" fill="#5d6c62" font-size="12">@Label(index)</text></g>
+                    }
+                </g>
+            }
+        </svg>
+        <div class="analytics-mobile-scale"><span>@Label(0)</span><span>@Label(primary.Count - 1)</span></div>
+        <label class="analytics-point-picker">
+            <span>@Label(SafeIndex) · @Legend: <strong>@primary[SafeIndex].ToString("0.##")</strong>@if (secondary.Count > SafeIndex) { <span> · @SecondLegend: <strong>@secondary[SafeIndex].ToString("0.##")</strong></span> }</span>
+            @if (primary.Count > 1)
+            {
+                <input type="range" min="0" max="@(primary.Count - 1)" @bind="selectedIndex" @bind:event="oninput" aria-label="@($"День графика: {Title}")" />
+            }
+        </label>
+    }
+    <div class="analytics-chart-key"><span><i style="background:#348247"></i>@Legend</span>@if (Second.Count > 0) { <span><i style="background:#287eaa"></i>@SecondLegend</span> }</div>
+</div>
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Legend { get; set; } = "";
+    [Parameter] public string SecondLegend { get; set; } = "";
+    [Parameter] public List<DateTime> Labels { get; set; } = new();
+    [Parameter] public List<int> Values { get; set; } = new();
+    [Parameter] public List<int> Second { get; set; } = new();
+    [Parameter] public List<decimal>? DecimalValues { get; set; }
+    private List<decimal> primary = new(), secondary = new();
+    protected override void OnParametersSet()
+    {
+        primary = DecimalValues ?? Values.Select(x => (decimal)x).ToList();
+        secondary = Second.Select(x => (decimal)x).ToList();
+    }
+    private int selectedIndex;
+    private int SafeIndex => Math.Clamp(selectedIndex, 0, Math.Max(0, primary.Count - 1));
+    private double Max => Math.Max(4, (double)primary.Concat(secondary).DefaultIfEmpty(0).Max());
+    private double X(int i) => primary.Count <= 1 ? 330 : 42 + 580d * i / (primary.Count - 1);
+    private double Y(decimal n) => 202 - 184d * (double)n / Max;
+    private string Label(int i) => Labels.Count > i ? Labels[i].ToString("dd.MM") : "";
+    private static string F(double n) => n.ToString("0.##", CultureInfo.InvariantCulture);
+    private string Axis(double n) => DecimalValues is null ? Math.Round(n).ToString("0") : n.ToString("0.##");
+    private string Points(List<decimal> list) => string.Join(" ", list.Select((n, i) => $"{F(X(i))},{F(Y(n))}"));
+}

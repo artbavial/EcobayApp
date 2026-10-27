@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton<AnalyticsHostHasher>();
+builder.Services.AddScoped<AnalyticsReports>();
 
 // ВАЖНО: раньше здесь было принудительное builder.Environment.EnvironmentName = "Development".
 // На боевом сервере это отключало страницу ошибок и HSTS и показывало пользователям подробности исключений.
@@ -54,6 +56,8 @@ builder.Services.AddSingleton<IPasswordHasher<AdminUser>, PasswordHasher<AdminUs
 builder.Services.AddScoped<AdminAuthService>();
 builder.Services.AddScoped<SitePermissions>();
 builder.Services.AddScoped<RequestWorkflow>();
+builder.Services.AddScoped<RequestContacts>();
+builder.Services.AddScoped<RequestWeightReports>();
 builder.Services.AddScoped<PublicRequestService>();
 builder.Services.AddHostedService<RequestEmailWorker>();
 builder.Services.AddSingleton<RequestFileStore>();
@@ -108,7 +112,8 @@ builder.Services.AddRateLimiter(options =>
 		var isLoginPost = HttpMethods.IsPost(http.Request.Method) &&
 			http.Request.Path.StartsWithSegments("/admin/login", StringComparison.OrdinalIgnoreCase);
 
-        var isPhoneClick = HttpMethods.IsPost(http.Request.Method) && http.Request.Path == "/api/phone-click";
+        var isPhoneClick = HttpMethods.IsPost(http.Request.Method) &&
+            (http.Request.Path == "/api/phone-click" || http.Request.Path == "/api/site-event");
         if (isPhoneClick)
         {
             var clickIp = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -214,6 +219,7 @@ app.MapPost("/api/phone-click", async Task<IResult> (HttpContext http, PhoneClic
     return Results.NoContent();
 });
 
+app.MapSiteAnalytics();
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();
 

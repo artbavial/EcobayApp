@@ -24,6 +24,9 @@ public static class AdminReporting
             Status = r.Status,
             Address = r.Address,
             PaidAmount = r.PaidAmount,
+            WeightKg = r.WeightKg,
+            CustomerCalledAtUtc = r.CustomerCalledAtUtc,
+            CustomerCalledByName = r.CustomerCalledByName,
             DriverComment = r.DriverComment,
             ProcessedAt = r.ProcessedAt,
             ProcessedByName = r.ProcessedByName,
@@ -67,6 +70,9 @@ public sealed class AdminRequestRow
     public RequestStatus Status { get; set; }
     public string? Address { get; set; }
     public decimal? PaidAmount { get; set; }
+    public decimal? WeightKg { get; set; }
+    public DateTime? CustomerCalledAtUtc { get; set; }
+    public string? CustomerCalledByName { get; set; }
     public string? DriverComment { get; set; }
     public DateTime? ProcessedAt { get; set; }
     public string? ProcessedByName { get; set; }

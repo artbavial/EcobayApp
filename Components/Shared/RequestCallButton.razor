@@ -1,0 +1,40 @@
+@using EcobayApp.Services
+@inject RequestContacts Contacts
+@inject ILogger<RequestCallButton> Logger
+
+<div class="req-call-control">
+    <button type="button" class="btn btn-sm @(Row.CustomerCalledAtUtc.HasValue ? "btn-success" : "btn-outline-secondary")"
+            disabled="@busy" aria-pressed="@(Row.CustomerCalledAtUtc.HasValue ? "true" : "false")"
+            title="@(Row.CustomerCalledAtUtc.HasValue ? "Снять ошибочную отметку о звонке" : "Отметить, что клиенту звонили. Статус заявки не изменится.")"
+            @onclick="ToggleAsync" @onclick:stopPropagation="true">
+        <i class="fa-solid fa-phone-volume" aria-hidden="true"></i>
+        @(busy ? "Сохранение…" : Row.CustomerCalledAtUtc.HasValue ? "Звонили" : "Отметить звонок")
+    </button>
+    @if (Row.CustomerCalledAtUtc.HasValue)
+    {
+        <small class="req-call-time">@Row.CustomerCalledAtUtc.Value.AddHours(3).ToString("dd.MM.yyyy HH:mm") · @Row.CustomerCalledByName</small>
+    }
+    @if (error is not null) { <small class="admin-status-error" role="alert">@error</small> }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AdminRequestRow Row { get; set; } = default!;
+    [Parameter] public EventCallback OnChanged { get; set; }
+    private bool busy;
+    private string? error;
+    private async Task ToggleAsync()
+    {
+        if (busy) return;
+        busy = true; error = null;
+        try
+        {
+            var result = await Contacts.ToggleAsync(Row.Id, Row.CustomerCalledAtUtc);
+            if (result.Error is not null) { error = result.Error; await OnChanged.InvokeAsync(); return; }
+            Row.CustomerCalledAtUtc = result.CalledAtUtc;
+            Row.CustomerCalledByName = result.UserName;
+            await OnChanged.InvokeAsync();
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot mark call for {RequestId}", Row.Id); error = "Не удалось сохранить отметку. Повторите попытку."; }
+        finally { busy = false; }
+    }
+}

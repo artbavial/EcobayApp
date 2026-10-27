@@ -25,6 +25,7 @@ namespace EcobayApp.Models
 		public string? Comment { get; set; }
 
 		public decimal? PaidAmount { get; set; }
+        public decimal? WeightKg { get; set; }
 
 		public long? UserId { get; set; }
 

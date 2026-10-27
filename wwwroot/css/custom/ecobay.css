@@ -897,6 +897,115 @@ button.menuIcon {
 .city-admin-items li.selected .city-admin-item { background: rgba(46, 125, 50, 0.1); }
 .city-admin-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .city-admin-item-main small { color: rgb(120, 120, 120); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-content .city-admin-list.admin-card {
+  position: static;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  max-width: 100%;
+  max-height: none;
+  overflow: visible;
+}
+.admin-content .city-admin-items,
+.admin-content .city-admin-items > li { min-width: 0; max-width: 100%; }
+.admin-content .city-admin-item {
+  display: block;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 60px;
+  padding: 8px;
+}
+.admin-content .city-admin-item-main { width: 100%; gap: 4px; }
+.admin-content .city-admin-item-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.admin-content .city-admin-item-heading > strong {
+  flex: 1 1 120px;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.admin-content .city-admin-item-heading .admin-badge {
+  flex: 0 1 auto;
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 2px 7px;
+}
+.admin-content .city-admin-item-main .city-admin-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 10px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow: visible;
+}
+.city-admin-item-path { flex: 1 1 80px; min-width: 0; overflow-wrap: anywhere; }
+.city-admin-item-fill { flex: none; white-space: nowrap; }
+.city-admin-summary { font-size: 13px; line-height: 1.4; }
+/* Request editor/action dialogs: top layer instead of expanding the page above a card. */
+html.admin-request-dialog-open,
+html.admin-request-dialog-open body { overflow: hidden; overscroll-behavior: none; }
+.admin-request-dialog {
+  box-sizing: border-box; position: fixed; inset: 0; margin: auto; border: 0;
+  width: min(960px, calc(100vw - 32px)); max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px); padding: 0; border-radius: 16px;
+  background: #fff; color: #222; overflow: auto; overscroll-behavior: contain;
+  box-shadow: 0 20px 70px rgba(0,0,0,.25);
+}
+.admin-request-dialog::backdrop { background: rgba(15,20,15,.6); }
+.admin-request-dialog-content { min-width: 0; padding: 24px; }
+dialog.admin-request-dialog .req-create.admin-card { padding: 0; box-shadow: none; height: auto; margin: 0 !important; }
+.admin-request-dialog .row > *, .admin-request-dialog .req-create { min-width: 0; }
+.admin-request-dialog .req-create-head { position: sticky; top: -24px; background: #fff; padding: 10px 0; z-index: 2; }
+.admin-request-dialog .req-create-head h2 { min-width: 0; font-size: 20px; overflow-wrap: anywhere; }
+.admin-request-dialog .req-create-head button { flex: none; min-height: 44px; }
+.req-create-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 0; margin-top: 10px; }
+.admin-request-dialog .req-create-actions { position: sticky; bottom: -24px; background: #fff; z-index: 1; border-top: 1px solid #e1e8e2; }
+.admin-request-dialog .form-control, .admin-request-dialog .form-select { min-width: 0; max-width: 100%; min-height: 44px; }
+.admin-request-dialog button, .req-call-control button { min-height: 44px; }
+.req-call-control { display: grid; justify-items: start; gap: 4px; min-width: 0; max-width: 100%; }
+.req-call-control button { white-space: normal; }
+.req-call-time { display: block; font-size: 12px; line-height: 1.5; color: #4b6a53; overflow-wrap: anywhere; }
+.req-table-contact { min-width: 150px; max-width: 240px; }
+.req-weight-report { --analytics-muted: #596c5f; --analytics-border: #dde7df; --analytics-green: #348247; }
+.req-weight-subtitle { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.req-weight-summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-size: 14px; }
+@media (max-width: 767.98px) {
+  .admin-request-dialog { top: 8px; bottom: auto; margin: 0 auto; width: calc(100vw - 16px); max-width: calc(100vw - 16px); max-height: calc(var(--request-dialog-height, 100dvh) - 16px); border-radius: 12px; }
+  .admin-request-dialog-content { padding: 16px; }
+  .admin-request-dialog .req-create-head { top: -16px; }
+  .admin-request-dialog .req-create-actions { bottom: -16px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+  .admin-request-dialog .req-create-head h2 { font-size: 18px; }
+  .admin-request-dialog .form-control, .admin-request-dialog .form-select { font-size: 16px; }
+  .admin-request-dialog .req-dropzone { min-height: 120px; }
+  .req-create-actions > button { flex: 1 1 130px; }
+  .admin-content .req-dashboard-table-wrap { overflow: visible; }
+  .req-dashboard-table, .req-dashboard-table tbody { display: block; width: 100%; min-width: 0; }
+  .req-dashboard-table thead { display: none; }
+  .req-dashboard-table tbody { display: grid; gap: 12px; }
+  .req-dashboard-table tr { display: block; border: 1px solid #dfe7df; border-radius: 12px; padding: 12px; min-width: 0; }
+  .req-dashboard-table td { display: grid; grid-template-columns: minmax(75px, 30%) minmax(0, 1fr); gap: 10px; padding: 6px 0; border: 0; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .req-dashboard-table td::before { content: attr(data-label); color: #657569; font-size: 12px; font-weight: 600; }
+  .req-dashboard-table td[colspan] { display: block; }
+  .req-dashboard-table td[colspan]::before { display: none; }
+  .req-dashboard-table td > * { min-width: 0; max-width: 100%; }
+  .req-dashboard-table .req-table-contact > * { grid-column: 2; }
+  .req-dashboard-table .req-table-contact::before { grid-row: 1 / 4; }
+}
 .city-admin-chevron { color: rgb(170, 170, 170); display: none; }
 .city-admin-editor .admin-card { height: auto; }
 .city-admin-empty { text-align: center; color: rgb(120, 120, 120); padding: 50px 20px; }

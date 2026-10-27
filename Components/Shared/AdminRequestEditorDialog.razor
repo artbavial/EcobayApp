@@ -1,0 +1,11 @@
+<AdminRequestDialog Label="@(EditId.HasValue ? $"Изменение заявки №{EditId}" : "Новая заявка")" OnCancel="CancelAsync">
+    <AdminRequestCreate @ref="editor" EditId="EditId" CurrentUserId="CurrentUserId" OnClose="OnClose" />
+</AdminRequestDialog>
+
+@code {
+    [Parameter] public long? EditId { get; set; }
+    [Parameter] public long CurrentUserId { get; set; }
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+    private AdminRequestCreate? editor;
+    private Task CancelAsync() => editor?.TryCloseAsync() ?? Task.CompletedTask;
+}

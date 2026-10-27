@@ -39,6 +39,11 @@ namespace EcobayApp.Models
 
 		/// <summary>Сколько заплатили клиенту, руб.</summary>
 		public decimal? PaidAmount { get; set; }
+        /// <summary>Фактический вес при отработке, кг. У старых заявок неизвестен.</summary>
+        public decimal? WeightKg { get; set; }
+        public DateTime? CustomerCalledAtUtc { get; set; }
+        public long? CustomerCalledByUserId { get; set; }
+        [MaxLength(100)] public string? CustomerCalledByName { get; set; }
 
 		/// <summary>Комментарий водителя/администратора к последнему действию.</summary>
 		[MaxLength(1000)]
@@ -54,6 +59,7 @@ namespace EcobayApp.Models
 
 		/// <summary>Заявка добавлена вручную в панели управления.</summary>
 		public bool IsManual { get; set; }
+        public Guid? AnalyticsVisitId { get; set; }
 
 		public long? CreatedByUserId { get; set; }
 

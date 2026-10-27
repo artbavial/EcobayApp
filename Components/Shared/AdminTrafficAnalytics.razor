@@ -1,0 +1,226 @@
+@using EcobayApp.Services
+@using System.Globalization
+@inject AnalyticsReports Reports
+@inject ILogger<AdminTrafficAnalytics> Logger
+
+<div class="analytics-workspace">
+    <section class="admin-card analytics-filter">
+        <div class="analytics-section-head">
+            <div><span class="analytics-eyebrow">Источники · интерес · обращения</span><h2 class="admin-card-title">Посетители и действия на сайте</h2></div>
+            <span class="analytics-time">Сутки по Минску</span>
+        </div>
+        <div class="analytics-filter-grid">
+            <label>Источник<select class="form-select" @bind="trafficSource" disabled="@busy"><option value="">Все источники</option>
+                <option value="yandex_ads">Яндекс Директ</option><option value="google_ads">Google Реклама</option>
+                <option value="yandex_search">Яндекс: поиск</option><option value="google_search">Google: поиск</option>
+                <option value="direct">Прямой / не определён</option><option value="referral">Другие сайты</option><option value="other_campaign">Другие кампании</option>
+            </select></label>
+            <label>Кампания<input class="form-control" placeholder="Часть названия" maxlength="200" @bind="campaign" disabled="@busy" /></label>
+            <label>Ключевая фраза рекламы<input class="form-control" placeholder="Переданная utm_term" maxlength="200" @bind="term" disabled="@busy" /></label>
+            <label>Устройство<select class="form-select" @bind="device" disabled="@busy"><option value="">Все устройства</option><option value="mobile">Телефон</option><option value="desktop">Компьютер</option><option value="tablet">Планшет</option></select></label>
+        </div>
+        <div class="analytics-filter-actions"><button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="LoadAsync">@(busy ? "Загрузка…" : "Обновить аналитику")</button>
+            <span class="admin-muted">Период и город берутся из верхнего фильтра после «Применить». Статус и ручные заявки на аналитику визитов не влияют.</span>
+        </div>
+    </section>
+    @if (error.Length > 0) { <div class="admin-alert admin-alert-error" role="alert">@error</div> }
+    @if (report is not null)
+    {
+        <div class="analytics-report-meta">@applied.From.ToString("dd.MM.yyyy") – @applied.To.ToString("dd.MM.yyyy") · обновлено @loadedAt.ToString("HH:mm")</div>
+        <div class="analytics-kpis">
+            @foreach (var kpi in Kpis)
+            {
+                <article class="analytics-kpi"><span>@kpi.Name</span><strong>@kpi.Value</strong><small>@kpi.Hint</small></article>
+            }
+        </div>
+        @if (report.Total.Visits == 0)
+        {
+            <div class="analytics-note">Визитов по фильтру пока нет. Данные появятся только после установки миграции и начала сбора; старые визиты восстановить нельзя. Блокировщики, отключённый JavaScript и служебные учётные записи могут исключать посещения.</div>
+        }
+        <AnalyticsDailySummary Filter="applied" RefreshKey="loadedAt" />
+        <div class="analytics-grid">
+            <section class="admin-card" id="traffic-daily">
+                <h2 class="admin-card-title">Посещаемость по дням</h2>
+                <AnalyticsLineChart Title="Визиты и уникальные посетители по дням" Labels="Dates" Values="VisitValues" Second="VisitorValues" Legend="Визиты" SecondLegend="Посетители" />
+                <p class="admin-muted mb-0">Посетитель — анонимный идентификатор браузера, не установленная личность. Новый визит после 30 минут бездействия или нового размеченного источника.</p>
+            </section>
+            <section class="admin-card" id="traffic-sources">
+                <h2 class="admin-card-title">Откуда приходят</h2>
+                @if (report.Total.Visits > 0)
+                {
+                    <div class="analytics-donut-layout">
+                        <div class="analytics-donut" style="@Donut" role="img" aria-label="Доли визитов по источникам">
+                            <div><strong>@report.Total.Visits</strong><span>визитов</span></div>
+                        </div>
+                        <ul class="analytics-legend">
+                            @for (var i = 0; i < report.Sources.Count; i++)
+                            {
+                                var row = report.Sources[i];
+                                <li><i style="@($"background:{Colors[i % Colors.Length]}")"></i><span>@row.Name</span><strong>@row.Numbers.Visits</strong><small>@Percent(row.Numbers.Visits, report.Total.Visits)%</small></li>
+                            }
+                        </ul>
+                    </div>
+                }
+                else { <div class="analytics-empty">Данные ещё не накоплены.</div> }
+                <div class="analytics-source-totals"><span>Реклама: <strong>@Paid</strong></span><span>Поиск: <strong>@Organic</strong></span><span>Прямой / неизвестный: <strong>@Direct</strong></span></div>
+                <p class="admin-muted mt-3 mb-0">Для надёжного разделения рекламы и поиска нужны корректные рекламные метки. Неразмеченную рекламу нельзя гарантированно отличить от обычного поиска.</p>
+            </section>
+            <section class="admin-card">
+                <h2 class="admin-card-title">Обращения по дням</h2>
+                <AnalyticsLineChart Title="Нажатия на телефон и сохранённые заявки" Labels="Dates" Values="CallValues" Second="RequestValues" Legend="Нажатия на телефон" SecondLegend="Заявки с сайта" />
+                <p class="admin-muted mb-0">Заявки подтверждаются сохранением в БД. Нажатие на номер не означает состоявшийся разговор.</p>
+            </section>
+            <section class="admin-card">
+                <h2 class="admin-card-title">Интерес к калькулятору</h2>
+                <AnalyticsLineChart Title="Расчёты и визиты с калькулятором" Labels="Dates" Values="CalcValues" Second="CalcVisitValues" Legend="Расчёты" SecondLegend="Визиты с калькулятором" />
+                <p class="admin-muted mb-0">Начальный расчёт при загрузке не учитывается. Повтор одного состояния подряд в том же визите не увеличивает счётчик.</p>
+            </section>
+            <section class="admin-card" id="traffic-funnel">
+                <h2 class="admin-card-title">Форма и обращения</h2>
+                <AnalyticsBars Items="Funnel" />
+                <div class="analytics-mini-metrics">
+                    <span>Попыток отправки <strong>@report.Total.Attempts</strong></span>
+                    <span>Ошибок заполнения <strong>@report.Total.Invalid</strong></span>
+                    <span>Ошибок подтверждения <strong>@report.Total.Errors</strong></span>
+                    <span>Калькулятор и обращение <strong>@report.Total.CalcContacts визитов</strong></span>
+                </div>
+                <p class="admin-muted mb-0">Ступени — независимые количества визитов, а не строгая последовательность. Калькулятор и обращение в одном визите не доказывают причинность. Клиентские события могут быть заблокированы, а заявка всё равно сохранится.</p>
+            </section>
+            <section class="admin-card">
+                <h2 class="admin-card-title">Хосты по дням</h2>
+                <AnalyticsLineChart Title="Уникальные сетевые адреса в пределах дня" Labels="Dates" Values="HostValues" Legend="Уникальные хосты" />
+                <p class="admin-muted mb-0">Хост — сетевой адрес, а не человек: один адрес может быть у нескольких людей. IP не хранится; дневные хеши нельзя сопоставить между разными днями. За прокси показатель требует корректной настройки доверенных прокси.</p>
+            </section>
+            <section class="admin-card"><h2 class="admin-card-title">Города входа · визиты</h2><AnalyticsBars Items="CityBars" /><p class="admin-muted mt-3 mb-0">Город определяется посадочной страницей, не геолокацией. Последующие действия относятся к источнику и городу входа визита.</p></section>
+            <section class="admin-card"><h2 class="admin-card-title">Популярные страницы</h2><AnalyticsBars Items="report.Pages" /></section>
+            <section class="admin-card"><h2 class="admin-card-title">Устройства</h2><AnalyticsBars Items="DeviceBars" /><p class="admin-muted mt-3 mb-0">Приблизительная классификация по браузеру.</p></section>
+            <section class="admin-card"><h2 class="admin-card-title">Где нажимают телефон</h2><AnalyticsBars Items="report.Phones" /></section>
+            <section class="admin-card"><h2 class="admin-card-title">Вес в калькуляторе</h2><AnalyticsBars Items="report.Weights" /><p class="admin-muted mt-3 mb-0">Введённый интересующий вес, не фактически вывезенная техника.</p></section>
+            <section class="admin-card"><h2 class="admin-card-title">Просмотренные блоки</h2><AnalyticsBars Items="report.Blocks" /><p class="admin-muted mt-3 mb-0">Блок появился в видимой области; это не доказательство прочтения.</p></section>
+        </div>
+        <section class="admin-card">
+            <h2 class="admin-card-title">Эффективность источников</h2>
+            <div class="analytics-detail-grid">
+                @foreach (var row in report.Sources)
+                {
+                    <article class="analytics-detail"><h3>@row.Name</h3>@Numbers(row.Numbers)</article>
+                }
+            </div>
+        </section>
+        <section class="admin-card">
+            <h2 class="admin-card-title">Кампании · ключевые фразы · объявления</h2>
+            <p class="admin-muted">Только переданные метки рекламы. Ключевая фраза — не точный поисковый запрос пользователя. Показываются первые 50 групп по визитам; для остальных уточните фильтр.</p>
+            @if (report.Campaigns.Count == 0) { <div class="analytics-empty">Размеченных рекламных визитов пока нет.</div> }
+            <div class="analytics-detail-grid">
+                @foreach (var row in report.Campaigns.Take(50))
+                {
+                    <article class="analytics-detail"><h3>@row.Name</h3>@Numbers(row.Numbers)</article>
+                }
+            </div>
+        </section>
+        <div class="analytics-grid">
+            <section class="admin-card"><h2 class="admin-card-title">Сайты перехода</h2><AnalyticsBars Items="report.Referrers" /><p class="admin-muted mt-3 mb-0">Сохраняется только домен, без адреса страницы и её параметров.</p></section>
+            <section class="admin-card"><h2 class="admin-card-title">Браузеры · визиты</h2><AnalyticsBars Items="report.Browsers" /></section>
+        </div>
+        <details class="admin-card analytics-day-details">
+            <summary>Точные дневные значения</summary>
+            <div class="analytics-detail-grid mt-3">
+                @foreach (var day in report.Days)
+                {
+                    <article class="analytics-detail"><h3>@day.Day.ToString("dd.MM.yyyy")</h3>
+                        <dl><div><dt>Посетители</dt><dd>@day.Numbers.Visitors</dd></div><div><dt>Хосты</dt><dd>@day.Hosts</dd></div></dl>
+                        @Numbers(day.Numbers)
+                    </article>
+                }
+            </div>
+        </details>
+        <p class="admin-muted">Отчёт строится по визитам, начавшимся в выбранном периоде, и действиям этих визитов в этом же периоде. Переходящий через полночь визит не создаётся заново: часть событий может не попасть в следующий дневной отчёт. Уникальные посетители за период не равны сумме дневных. Максимальная выборка — 50 000 визитов; более крупную нужно сузить фильтрами.</p>
+    }
+</div>
+
+@code {
+    [Parameter] public DateTime From { get; set; }
+    [Parameter] public DateTime To { get; set; }
+    [Parameter] public long? CityId { get; set; }
+    [Parameter] public DateTime RefreshKey { get; set; }
+    private DateTime lastKey, loadedAt;
+    private string trafficSource = "", campaign = "", term = "", device = "", error = "";
+    private bool busy;
+    private TrafficReport? report;
+    private TrafficFilter applied = new(AnalyticsReports.MinskToday, AnalyticsReports.MinskToday);
+    private static readonly string[] Colors = { "#348247", "#287eaa", "#cf9438", "#7864a7", "#bc6965", "#6b9582", "#8994a0" };
+    private List<DateTime> Dates => report!.Days.Select(x => x.Day).ToList();
+    private List<int> VisitValues => report!.Days.Select(x => x.Numbers.Visits).ToList();
+    private List<int> VisitorValues => report!.Days.Select(x => x.Numbers.Visitors).ToList();
+    private List<int> CallValues => report!.Days.Select(x => x.Numbers.Calls).ToList();
+    private List<int> RequestValues => report!.Days.Select(x => x.Numbers.Requests).ToList();
+    private List<int> CalcValues => report!.Days.Select(x => x.Numbers.Calculations).ToList();
+    private List<int> CalcVisitValues => report!.Days.Select(x => x.Numbers.CalcVisits).ToList();
+    private List<int> HostValues => report!.Days.Select(x => x.Hosts).ToList();
+    private List<TrafficCount> CityBars => report!.Cities.Select(x => new TrafficCount(x.Name, x.Numbers.Visits)).ToList();
+    private List<TrafficCount> DeviceBars => report!.Devices.Select(x => new TrafficCount(x.Name, x.Numbers.Visits)).ToList();
+    private int Paid => report!.Sources.Where(x => x.Name is "Яндекс Директ" or "Google Реклама").Sum(x => x.Numbers.Visits);
+    private int Organic => report!.Sources.Where(x => x.Name is "Яндекс: поиск" or "Google: поиск").Sum(x => x.Numbers.Visits);
+    private int Direct => report!.Sources.Where(x => x.Name == "Прямой / не определён").Sum(x => x.Numbers.Visits);
+    private List<TrafficCount> Funnel => new() {
+        new("Всего визитов", report!.Total.Visits), new("Начали форму", report.Total.Starts),
+        new("С отправленной заявкой", report.Total.RequestVisits), new("С нажатием на телефон", report.Total.CallVisits),
+        new("С любым обращением", report.Total.ContactVisits)
+    };
+    private IEnumerable<(string Name, string Value, string Hint)> Kpis
+    {
+        get
+        {
+            var n = report!.Total;
+            yield return ("Визиты", n.Visits.ToString("N0"), "Не просмотры страниц");
+            yield return ("Посетители", n.Visitors.ToString("N0"), "Уникальные браузеры за период");
+            yield return ("Просмотры", n.Views.ToString("N0"), "Открытия публичных страниц");
+            yield return ("Конверсия", n.Conversion.ToString("0.#") + "%", "Визиты с формой или кликом звонка");
+            yield return ("Использовали калькулятор", n.CalcVisits.ToString("N0"), "Визитов · расчётов: " + n.Calculations);
+            yield return ("Нажали телефон", n.Calls.ToString("N0"), "Нажатия, не разговоры");
+            yield return ("Заявки с сайта", n.Requests.ToString("N0"), "Сохранённые и связанные с визитом");
+            yield return ("Визиты с обращением", n.ContactVisits.ToString("N0"), "Без двойного учёта звонка и формы");
+        }
+    }
+    private static string Percent(int part, int total) => (total == 0 ? 0 : 100m * part / total).ToString("0.#");
+    private string Donut
+    {
+        get
+        {
+            decimal start = 0; var stops = new List<string>();
+            for (var i = 0; i < report!.Sources.Count; i++)
+            {
+                var end = start + 100m * report.Sources[i].Numbers.Visits / Math.Max(1, report.Total.Visits);
+                stops.Add($"{Colors[i % Colors.Length]} {start.ToString(CultureInfo.InvariantCulture)}% {end.ToString(CultureInfo.InvariantCulture)}%");
+                start = end;
+            }
+            return "background:conic-gradient(" + string.Join(",", stops) + ")";
+        }
+    }
+    private RenderFragment Numbers(TrafficNumbers n) => @<dl>
+        <div><dt>Визиты</dt><dd>@n.Visits</dd></div><div><dt>Калькулятор · визиты / расчёты</dt><dd>@n.CalcVisits / @n.Calculations</dd></div>
+        <div><dt>Нажатия на телефон</dt><dd>@n.Calls</dd></div><div><dt>Заявки с сайта</dt><dd>@n.Requests</dd></div>
+        <div><dt>Визиты с обращением</dt><dd>@n.ContactVisits</dd></div><div><dt>Конверсия</dt><dd>@n.Conversion.ToString("0.#")%</dd></div>
+    </dl>;
+    protected override async Task OnParametersSetAsync()
+    {
+        if (lastKey != RefreshKey || report is null) { lastKey = RefreshKey; await LoadAsync(); }
+    }
+    private async Task LoadAsync()
+    {
+        if (busy) return;
+        busy = true; error = "";
+        try
+        {
+            var next = new TrafficFilter(From.Date, To.Date, CityId, trafficSource, campaign.Trim(), term.Trim(), device);
+            var nextReport = await Reports.LoadAsync(next);
+            report = nextReport; applied = next; loadedAt = DateTime.UtcNow.AddHours(3);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Traffic report failed");
+            error = ex is ArgumentException ? ex.Message : "Не удалось загрузить аналитику. Проверьте применение миграции и доступ к БД.";
+        }
+        finally { busy = false; }
+    }
+}

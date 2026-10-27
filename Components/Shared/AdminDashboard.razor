@@ -10,8 +10,12 @@
     <div><h2 class="admin-card-title mb-1">Обзор работы</h2>
         <span class="admin-muted">На @loadedAt.ToString("dd.MM.yyyy HH:mm"). Периоды включают сегодняшний день.</span>
     </div>
-    <button class="btn btn-outline-secondary" disabled="@busy" @onclick="LoadAsync">Обновить</button>
+    <button type="button" class="admin-btn admin-btn-primary" disabled="@busy" @onclick="() => { creating = true; editId = null; }"><i class="fa-solid fa-plus"></i> Новая заявка</button>
 </div>
+@if (creating || editId.HasValue)
+{
+    <AdminRequestEditorDialog @key="editId" EditId="editId" CurrentUserId="CurrentUserId" OnClose="CloseEditorAsync" />
+}
 @if (error is not null) { <div class="admin-alert admin-alert-error mb-3">@error</div> }
 @if (loaded)
 {
@@ -31,7 +35,6 @@
             <span>Всего заявок в базе</span><strong>@total</strong><small class="admin-muted">Все города и даты</small>
         </div></div>
     </div>
-    <AdminEmailQueue RefreshKey="loadedAt" />
     <div class="row g-3 mb-3">
         <div class="col-lg-6">
             <div class="admin-card">
@@ -103,13 +106,22 @@
             <h2 class="admin-card-title mb-0">Сегодня: последние @todayRows.Count из @todayCount заявок</h2>
             <button class="admin-btn admin-btn-primary admin-btn-sm" @onclick="() => OnRequests.InvokeAsync()">Смотреть больше</button>
         </div>
-        <AdminRequestTable Rows="todayRows" />
+        <AdminRequestTable Rows="todayRows" OnEdit="id => { editId = id; creating = false; }" OnChanged="LoadAsync" />
     </div>
+    <div class="mt-3"><AdminEmailQueue RefreshKey="loadedAt" /></div>
 }
 
 @code {
     [Parameter] public EventCallback OnRequests { get; set; }
     [Parameter] public EventCallback OnGoals { get; set; }
+    [Parameter] public long CurrentUserId { get; set; }
+    private bool creating;
+    private long? editId;
+    private async Task CloseEditorAsync(bool saved)
+    {
+        creating = false; editId = null;
+        if (saved) await LoadAsync();
+    }
     private bool busy, loaded;
     private string? error;
     private DateTime today, loadedAt;
@@ -181,7 +193,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "Cannot load dashboard");
-            error = "Не удалось загрузить дашборд. Нажмите «Обновить».";
+            error = "Не удалось загрузить дашборд. Повторно откройте вкладку или обновите страницу.";
         }
         finally { busy = false; }
     }
