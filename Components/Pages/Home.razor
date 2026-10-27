@@ -1,8 +1,9 @@
-﻿@page "/"
+@page "/"
 @page "/{slug:nonfile?}"
 @rendermode InteractiveServer
 @inject AppDBContext Db
-@inject IEmailSender EmailSender
+@inject PublicRequestService PublicRequests
+@inject ILogger<Home> Logger
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @using EcobayApp.Contex
@@ -23,7 +24,7 @@
 </HeadContent>
 
 
-<div id="scroll-content" data-interactive-page>
+<div id="scroll-content" data-interactive-page data-call-city="@(currentCity?.Slug ?? "")">
     <!-- hero -->
     <header id="top" class="d-flex flex-column">
         <!-- Desktop Menu -->
@@ -296,7 +297,7 @@
                                 else if (isSuccessMessageVisible)
                                 {
                                     <p class="starta-desc mt-3" style="color:#28a745;">
-                                        Заявка успешно отправлена. Мы свяжемся с вами в ближайшее время.
+                                        Заявка №@acceptedRequestId принята. Мы свяжемся с вами в ближайшее время.
                                     </p>
                                 }
                             </div>
@@ -1797,112 +1798,34 @@
     private bool isSending;
     private bool isSuccessMessageVisible;
 
+    private Guid submissionId = Guid.NewGuid();
+    private long? acceptedRequestId;
+
     private async Task OnSubmitAsync()
     {
-        if (isSending)
-            return;
-
+        if (isSending) return;
+        if (isSuccessMessageVisible && string.IsNullOrWhiteSpace(form.Phone) &&
+            string.IsNullOrWhiteSpace(form.Name) && string.IsNullOrWhiteSpace(form.Comment)) return;
         isSending = true;
         isSuccessMessageVisible = false;
         formErrorMessage = null;
-
         try
         {
-            form.Phone = NormalizePhone(form.Phone ?? string.Empty);
-
-            var digits = new string((form.Phone ?? string.Empty)
-                .Where(char.IsDigit)
-                .ToArray());
-
-            if (string.IsNullOrWhiteSpace(form.Phone) || digits.Length == 0)
-            {
-                formErrorMessage = "Укажите телефон.";
-                return;
-            }
-
-            if (digits.Length < 9 || digits.Length > 15)
-            {
-                formErrorMessage = "Телефон должен содержать от 9 до 15 цифр.";
-                return;
-            }
-
-            var last9 = GetLast9Digits(form.Phone!);
-            if (string.IsNullOrEmpty(last9))
-            {
-                formErrorMessage = "Не удалось распознать номер телефона.";
-                return;
-            }
-
-            var client = await Db.Clients
-                .FirstOrDefaultAsync(c => c.Phone.EndsWith(last9));
-
-            if (client == null)
-            {
-                client = new Client
-                {
-                    Name = form.Name ?? string.Empty,
-                    Phone = form.Phone,
-                    Comment = form.Comment,
-                    CityId = currentCity?.Id
-                };
-
-                Db.Clients.Add(client);
-                await Db.SaveChangesAsync();
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(form.Name))
-                    client.Name = form.Name;
-
-                if (!string.IsNullOrWhiteSpace(form.Comment))
-                    client.Comment = form.Comment;
-
-                await Db.SaveChangesAsync();
-            }
-
-            var request = new Request
-            {
-                ClientId = client.Id,
-                PageCityId = pageCity?.Id,
-                DateCreate = DateTime.Now,
-                Message = form.Comment,
-                Source = slug is null ? "/" : $"/{slug}"
-            };
-
-            Db.Requests.Add(request);
-            await Db.SaveChangesAsync();
-
-            // Read the current active goal: the admin may have changed it since this page was opened.
-            var goalYear = DateTime.Now.Year;
-            var activeGoalId = await Db.Goals.AsNoTracking()
-                .Where(g => g.IsActive && g.Year == goalYear)
-                .OrderByDescending(g => g.StartDate).ThenByDescending(g => g.Id)
-                .Select(g => (long?)g.Id).FirstOrDefaultAsync();
-            if (activeGoalId.HasValue)
-            {
-                await Db.Goals
-                    .Where(g => g.Id == activeGoalId.Value && g.IsActive)
-                    .ExecuteUpdateAsync(u => u
-                        .SetProperty(g => g.ActualClients, g => g.ActualClients + 1)
-                        .SetProperty(g => g.ActualItems, g => g.ActualItems + 1));
-            }
-
-            try
-            {
-                await EmailSender.SendRequestCreatedAsync(client, request, currentCity, pageCity);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Email send error: " + ex);
-            }
-
+            var result = await PublicRequests.SubmitAsync(new PublicRequestInput(
+                submissionId, form.Name, form.Phone, form.Comment, pageCity?.Id));
+            acceptedRequestId = result.RequestId;
             form = new RequestFormModel();
+            submissionId = Guid.NewGuid();
             isSuccessMessageVisible = true;
         }
-        finally
+        catch (ArgumentException ex) { formErrorMessage = ex.Message; }
+        catch (Exception ex)
         {
-            isSending = false;
+            Logger.LogError(ex, "Cannot submit public request");
+            // Keep submissionId: retry after a lost response returns the existing receipt.
+            formErrorMessage = "Не удалось подтвердить отправку. Повторите попытку — повторная заявка не создастся.";
         }
+        finally { isSending = false; }
     }
 
     public class RequestFormModel

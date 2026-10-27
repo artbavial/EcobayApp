@@ -39,6 +39,7 @@
                 @if (row.PaidAmount.HasValue) { <dt>Выплачено</dt><dd><strong>@row.PaidAmount.Value.ToString("N2") руб.</strong></dd> }
                 @if (!string.IsNullOrWhiteSpace(row.DriverComment)) { <dt>Комментарий</dt><dd>@row.DriverComment</dd> }
             </dl>
+            @if (IsAdmin) { <AdminClientHistory Phone="@row.Phone" ExcludeRequestId="RequestId" /> }
             @if (row.HasScreenshot)
             {
                 <a class="req-card-shot mb-3" href="@($"/admin/files/requests/{row.Id}")" target="_blank" rel="noopener">

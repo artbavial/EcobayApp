@@ -1,4 +1,4 @@
-﻿using EcobayApp.Models;
+using EcobayApp.Models;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
@@ -85,6 +85,7 @@ public class EmailSender : IEmailSender
 	private async Task SendAsync(MimeMessage email)
 	{
 		using var smtp = new MailKit.Net.Smtp.SmtpClient();
+        smtp.Timeout = 30000;
 		await smtp.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, SecureSocketOptions.StartTls);
 		await smtp.AuthenticateAsync(_settings.SmtpUser, _settings.SmtpPass);
 		await smtp.SendAsync(email);

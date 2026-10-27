@@ -1,4 +1,4 @@
-﻿using EcobayApp.Models;
+using EcobayApp.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EcobayApp.Contex
@@ -22,9 +22,18 @@ namespace EcobayApp.Contex
 		public DbSet<RequestEvent> RequestEvents { get; set; } = null!;
 		public DbSet<Feedback> Feedbacks { get; set; } = null!;
 
+        public DbSet<RequestSubmission> RequestSubmissions { get; set; } = null!;
+        public DbSet<RequestEmailOutbox> RequestEmailOutbox { get; set; } = null!;
+        public DbSet<PhoneClick> PhoneClicks { get; set; } = null!;
+
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
-			base.OnModelCreating(modelBuilder);
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<RequestSubmission>().HasIndex(x => new { x.Fingerprint, x.CreatedAtUtc });
+            modelBuilder.Entity<RequestEmailOutbox>().HasIndex(x => x.RequestId).IsUnique();
+            modelBuilder.Entity<RequestEmailOutbox>().HasIndex(x => new { x.SentAtUtc, x.AvailableAtUtc });
+            modelBuilder.Entity<PhoneClick>().HasIndex(x => new { x.CreatedAtUtc, x.CityId });
+
 
 			// Важно: для City.IsActive не задаём HasDefaultValue — иначе EF не сможет
 			// вставить город со значением false. Значение по умолчанию (true) для уже

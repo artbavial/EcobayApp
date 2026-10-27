@@ -2,14 +2,20 @@ using System.ComponentModel.DataAnnotations;
 
 namespace EcobayApp.Models
 {
-	public static class AdminRoles
-	{
-		public const string Admin = "Admin";
-		public const string Driver = "Driver";
-		public const string AdminOrDriver = Admin + "," + Driver;
-
-		public static string Title(string? role) => role == Driver ? "Водитель" : "Администратор";
-	}
+    public static class AdminRoles
+    {
+        public const string Admin = "Admin";
+        public const string Manager = "Manager";
+        public const string Driver = "Driver";
+        public const string Staff = Admin + "," + Manager;
+        public const string All = Staff + "," + Driver;
+        public const string AdminOrDriver = All; // Compatibility with existing page attributes.
+        public static bool IsKnown(string? role) => role is Admin or Manager or Driver;
+        public static string Title(string? role) => role switch
+        {
+            Admin => "Администратор", Manager => "Руководитель", Driver => "Водитель", _ => "Неизвестная роль"
+        };
+    }
 
 	/// <summary>Пользователь панели управления.</summary>
 	public class AdminUser
@@ -40,7 +46,7 @@ namespace EcobayApp.Models
 
 		public bool IsActive { get; set; } = true;
 
-		/// <summary>Роль: Admin — вся панель; Driver — только обработка заявок.</summary>
+		/// <summary>Роль: Admin — все права; Manager — работа и контент без цен/пользователей; Driver — обработка заявок.</summary>
 		[Required]
 		[MaxLength(20)]
 		public string Role { get; set; } = AdminRoles.Admin;

@@ -1,6 +1,6 @@
 @page "/adminpanel"
 @page "/admin"
-@attribute [Authorize(Roles = AdminRoles.Admin)]
+@attribute [Authorize(Roles = AdminRoles.Staff)]
 @rendermode InteractiveServer
 
 @using System.Security.Claims
@@ -10,6 +10,7 @@
 @using EcobayApp.Services
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDBContext> DbFactory
+@inject SitePermissions Permissions
 @inject AdminAuthService Auth
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -17,6 +18,7 @@
 <PageTitle>Панель управления | Ecobay.by</PageTitle>
 <HeadContent>
     <meta name="robots" content="noindex, nofollow" />
+    <link rel="stylesheet" href="/css/custom/site-settings.css?v=1" />
 </HeadContent>
 
 <div class="admin-shell admin-panel-shell">
@@ -46,7 +48,7 @@
         @if (mustChangePassword)
         {
             <div class="admin-alert admin-alert-warn mb-3">
-                <strong>Смените пароль.</strong> Вы вошли с паролем из файла конфигурации. Задайте свой пароль во вкладке «Пользователи».
+                <strong>Смените пароль.</strong> Вы вошли с паролем из файла конфигурации. Задайте свой пароль в разделе «Настройки сайта → Мой профиль».
             </div>
         }
 
@@ -59,12 +61,10 @@
         <ul class="admin-tabs">
             <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Dashboard ? "active" : "")" @onclick="() => SetTab(AdminTab.Dashboard)"><i class="fa-solid fa-chart-line"></i> Дашборд</button></li>
             <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Requests ? "active" : "")" @onclick="() => OpenRequests(false)"><i class="fa-solid fa-inbox"></i> Заявки</button></li>
-            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Goals ? "active" : "")" @onclick="() => SetTab(AdminTab.Goals)"><i class="fa-solid fa-bullseye"></i> Цели</button></li>
             <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Routes ? "active" : "")" @onclick="() => SetTab(AdminTab.Routes)"><i class="fa-solid fa-route"></i> Маршруты</button></li>
             <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Feedback ? "active" : "")" @onclick="() => SetTab(AdminTab.Feedback)"><i class="fa-solid fa-comment-dots"></i> Обращения</button></li>
-            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Cities ? "active" : "")" @onclick="() => SetTab(AdminTab.Cities)"><i class="fa-solid fa-city"></i> Города</button></li>
-            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.MainPage ? "active" : "")" @onclick="() => SetTab(AdminTab.MainPage)"><i class="fa-solid fa-flag"></i> Главная сайта</button></li>
-            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Users ? "active" : "")" @onclick="() => SetTab(AdminTab.Users)"><i class="fa-solid fa-users-gear"></i> Пользователи</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Statistics ? "active" : "")" @onclick="() => SetTab(AdminTab.Statistics)"><i class="fa-solid fa-chart-column"></i> Статистика</button></li>
+            <li><button type="button" data-admin-section class="@(activeTab == AdminTab.Settings ? "active" : "")" @onclick="() => SetTab(AdminTab.Settings)"><i class="fa-solid fa-gear"></i> Настройки сайта</button></li>
         </ul>
             <div class="admin-navigation-account">
                 <a class="admin-link" href="/?all=1" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть сайт</a>
@@ -80,30 +80,49 @@
         @switch (activeTab)
         {
             case AdminTab.Dashboard:
-                <AdminDashboard OnRequests="() => OpenRequests(true)" OnGoals="() => SetTab(AdminTab.Goals)" />
+                <AdminDashboard OnRequests="() => OpenRequests(true)" OnGoals="() => OpenSetting(SiteSetting.Goals)" />
                 break;
             case AdminTab.Requests:
                 <AdminRequests TodayOnly="requestsTodayOnly" IsAdmin="true" CurrentUserId="currentUserId" CurrentUserName="@currentUserDisplay" />
                 break;
-            case AdminTab.Goals:
-                <AdminGoals />
-                break;
             case AdminTab.Routes:
                 <AdminRoutes />
                 break;
-
             case AdminTab.Feedback:
                 <AdminFeedback />
                 break;
-
-            case AdminTab.Cities:
-                <AdminCities />
+            case AdminTab.Statistics:
+                <AdminStatistics />
                 break;
-            case AdminTab.MainPage:
-                @MainPageTab()
-                break;
-            case AdminTab.Users:
-                @UsersTab()
+            case AdminTab.Settings:
+                <div class="site-settings-nav" aria-label="Подразделы настроек сайта">
+                    <button type="button" class="@(activeSetting == SiteSetting.MainPage ? "active" : "")" @onclick="() => OpenSetting(SiteSetting.MainPage)"><i class="fa-solid fa-flag"></i> Главная страница</button>
+                    <button type="button" class="@(activeSetting == SiteSetting.Cities ? "active" : "")" @onclick="() => OpenSetting(SiteSetting.Cities)"><i class="fa-solid fa-city"></i> Города</button>
+                    <button type="button" class="@(activeSetting == SiteSetting.Goals ? "active" : "")" @onclick="() => OpenSetting(SiteSetting.Goals)"><i class="fa-solid fa-bullseye"></i> Цели</button>
+                    @if (isFullAdmin)
+                    {
+                        <button type="button" class="@(activeSetting == SiteSetting.Users ? "active" : "")" @onclick="() => OpenSetting(SiteSetting.Users)"><i class="fa-solid fa-users-gear"></i> Пользователи</button>
+                    }
+                    <button type="button" class="@(activeSetting == SiteSetting.Profile ? "active" : "")" @onclick="() => OpenSetting(SiteSetting.Profile)"><i class="fa-solid fa-user"></i> Мой профиль</button>
+                </div>
+                @switch (activeSetting)
+                {
+                    case SiteSetting.MainPage:
+                        @MainPageTab()
+                        break;
+                    case SiteSetting.Cities:
+                        <AdminCities />
+                        break;
+                    case SiteSetting.Goals:
+                        <AdminGoals />
+                        break;
+                    case SiteSetting.Users:
+                        @if (isFullAdmin) { <AdminUsers CurrentUserId="currentUserId" MustChangePassword="mustChangePassword" OnDisplayNameChanged="@(name => currentUserDisplay = name)" /> }
+                        break;
+                    case SiteSetting.Profile:
+                        <AdminUsers @key="SiteSetting.Profile" ProfileOnly="true" CurrentUserId="currentUserId" MustChangePassword="mustChangePassword" OnDisplayNameChanged="@(name => currentUserDisplay = name)" />
+                        break;
+                }
                 break;
         }
     </div>
@@ -111,7 +130,10 @@
 </div>
 
 @code {
-    private enum AdminTab { Dashboard, Requests, Routes, Goals, Feedback, Cities, MainPage, Users }
+    private enum AdminTab { Dashboard, Requests, Routes, Feedback, Statistics, Settings }
+    private enum SiteSetting { MainPage, Cities, Goals, Users, Profile }
+    private SiteSetting activeSetting = SiteSetting.MainPage;
+    private bool isFullAdmin;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
@@ -133,16 +155,15 @@
 
     private string ActiveTabTitle => activeTab switch
     {
-        AdminTab.Dashboard => "Дашборд",
-        AdminTab.Requests => "Заявки",
-        AdminTab.Goals => "Цели",
-        AdminTab.Routes => "Маршруты",
-        AdminTab.Feedback => "Обращения",
-        AdminTab.Cities => "Города",
-        AdminTab.MainPage => "Главная сайта",
-        AdminTab.Users => "Пользователи",
+        AdminTab.Dashboard => "Дашборд", AdminTab.Requests => "Заявки", AdminTab.Routes => "Маршруты",
+        AdminTab.Feedback => "Обращения", AdminTab.Statistics => "Статистика", AdminTab.Settings => "Настройки сайта",
         _ => "Панель управления"
     };
+    private void OpenSetting(SiteSetting setting)
+    {
+        if (setting == SiteSetting.Users && !isFullAdmin) setting = SiteSetting.Profile;
+        activeSetting = setting; activeTab = AdminTab.Settings;
+    }
 
     private void SetTab(AdminTab tab) => activeTab = tab;
 
@@ -154,6 +175,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var actor = await Permissions.RequireStaffAsync();
+        isFullAdmin = actor.Role == AdminRoles.Admin;
         if (AuthState is not null)
         {
             var user = (await AuthState).User;
@@ -165,7 +188,7 @@
         var me = await db.AdminUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == currentUserId);
         mustChangePassword = me?.MustChangePassword == true;
         if (mustChangePassword)
-            activeTab = AdminTab.Users;
+            OpenSetting(SiteSetting.Profile);
 
         await LoadMainPageAsync(db);
     }
@@ -266,15 +289,15 @@
                     </div>
                     <div class="mb-3">
                         <label class="admin-label">Цена ОТ (коп./кг)</label>
-                        <InputNumber class="form-control" TValue="decimal?" @bind-Value="mainPage.Price" />
+                        <InputNumber class="form-control" TValue="decimal?" @bind-Value="mainPage.Price" disabled="@(!isFullAdmin)" />
                     </div>
                     <div class="mb-3">
                         <label class="admin-label">Цена ДО (коп./кг)</label>
-                        <InputNumber class="form-control" TValue="int?" @bind-Value="mainPage.PriceToKopeks" />
+                        <InputNumber class="form-control" TValue="int?" @bind-Value="mainPage.PriceToKopeks" disabled="@(!isFullAdmin)" />
                         <small class="admin-muted">Если пусто — показывается только цена «от».</small>
                     </div>
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="mainDelivery" @bind="mainPage.IsDeliveryPriceMode" />
+                        <input class="form-check-input" type="checkbox" id="mainDelivery" @bind="mainPage.IsDeliveryPriceMode" disabled="@(!isFullAdmin)" />
                         <label class="form-check-label" for="mainDelivery">Цена зависит от способа вывоза</label>
                     </div>
 
@@ -323,32 +346,49 @@
 
     private async Task SaveMainPageAsync()
     {
+        if (saving) return;
         mainMessage = null; mainError = false;
         if (string.IsNullOrWhiteSpace(mainPage.Title)) { mainMessage = "Укажите Title страницы."; mainError = true; return; }
-        if (mainPage.Price is < 0 || mainPage.PriceToKopeks is < 0) { mainMessage = "Цена не может быть отрицательной."; mainError = true; return; }
-
         saving = true;
         try
         {
+            var actor = await Permissions.RequireStaffAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
-            mainPage.UpdatedAt = DateTime.Now;
-            if (mainPage.Id == 0) db.MainPageSettings.Add(mainPage);
-            else db.MainPageSettings.Update(mainPage);
+            var stored = await db.MainPageSettings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            if (stored is null)
+            {
+                if (actor.Role != AdminRoles.Admin) throw new UnauthorizedAccessException("Начальную настройку выполняет администратор.");
+                stored = DbSeeder.CreateDefaultMainPage(); db.MainPageSettings.Add(stored);
+            }
+            stored.Title = mainPage.Title;
+            stored.Description = mainPage.Description;
+            stored.KeyWords = mainPage.KeyWords;
+            stored.HeroTitle = mainPage.HeroTitle;
+            stored.HeroText = mainPage.HeroText;
+            stored.Phone = mainPage.Phone;
+            stored.IsCityListShown = mainPage.IsCityListShown;
+            stored.IsCitySelectorEnabled = mainPage.IsCitySelectorEnabled;
+            stored.IsRememberCityEnabled = mainPage.IsRememberCityEnabled;
+            stored.CitySelectorTitle = mainPage.CitySelectorTitle;
+            stored.CitySelectorText = mainPage.CitySelectorText;
+            if (actor.Role == AdminRoles.Admin)
+            {
+                if (mainPage.Price is < 0 || mainPage.PriceToKopeks is < 0) throw new ArgumentException("Цена не может быть отрицательной.");
+                stored.Price = mainPage.Price; stored.PriceToKopeks = mainPage.PriceToKopeks;
+                stored.IsDeliveryPriceMode = mainPage.IsDeliveryPriceMode;
+            }
+            stored.UpdatedAt = DateTime.Now;
             await db.SaveChangesAsync();
+            mainPage = stored;
             mainMessage = "Сохранено.";
         }
-        catch (Exception ex)
-        {
-            mainMessage = "Ошибка сохранения: " + ex.GetBaseException().Message; mainError = true;
-        }
-        finally
-        {
-            saving = false;
-        }
+        catch (Exception ex) { mainMessage = ex is UnauthorizedAccessException or ArgumentException ? ex.Message : "Не удалось сохранить главную страницу."; mainError = true; }
+        finally { saving = false; }
     }
 
     private async Task SaveGlobalPromoAsync()
     {
+        if (saving) return;
         globalPromoMessage = null; globalPromoError = false;
         if (globalPromo.IsActive && (string.IsNullOrWhiteSpace(globalPromo.Title) || string.IsNullOrWhiteSpace(globalPromo.Text)))
         {
@@ -359,12 +399,15 @@
         saving = true;
         try
         {
+            await Permissions.RequireStaffAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
             globalPromo.CityId = null;
             globalPromo.Title = string.IsNullOrWhiteSpace(globalPromo.Title) ? "Внимание!" : globalPromo.Title.Trim();
             globalPromo.Text ??= "";
-            if (globalPromo.Id == 0) db.PromoMessages.Add(globalPromo);
-            else db.PromoMessages.Update(globalPromo);
+            var storedPromo = await db.PromoMessages.Where(p => p.CityId == null).OrderBy(p => p.Id).FirstOrDefaultAsync();
+            if (storedPromo is null) { storedPromo = new PromoMessage(); db.PromoMessages.Add(storedPromo); }
+            storedPromo.CityId = null; storedPromo.Title = globalPromo.Title;
+            storedPromo.Text = globalPromo.Text; storedPromo.IsActive = globalPromo.IsActive;
 
             // Галочка «показывать на страницах городов» хранится в настройках страницы — сохраняем только её.
             var settings = await db.MainPageSettings.OrderBy(m => m.Id).FirstOrDefaultAsync();
@@ -391,9 +434,4 @@
     // USERS
     // =====================================================================
 
-    private RenderFragment UsersTab() => __builder =>
-    {
-        <AdminUsers CurrentUserId="currentUserId" MustChangePassword="mustChangePassword"
-                    OnDisplayNameChanged="@(name => currentUserDisplay = name)" />
-    };
 }

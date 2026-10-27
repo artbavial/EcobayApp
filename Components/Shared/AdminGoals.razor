@@ -4,9 +4,11 @@
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDBContext> DbFactory
 @inject ILogger<AdminGoals> Logger
+@inject SitePermissions Permissions
 
 <div class="admin-card">
-    <h2 class="admin-card-title">Цели и ручная корректировка прогресса</h2>
+    <h2 class="admin-card-title">Цели и прогресс</h2>
+    @if (!isFullAdmin) { <p class="admin-hint">Можно изменить плановые показатели. Факт, ручная добавка, активация и автодобавка доступны только администратору.</p> }
     <div class="d-flex gap-2 align-items-end mb-3">
         <div><label class="admin-label" for="goalsYear">Год</label>
             <input class="form-control" id="goalsYear" type="number" min="2020" max="2100" @bind="selectedYear" disabled="@busy" /></div>
@@ -25,20 +27,20 @@
                     <div class="col-sm-6"><label class="admin-label" for="targetItems">Цель: единиц техники</label>
                         <input class="form-control" id="targetItems" type="number" min="1" max="1000000000" @bind="edit.TargetItems" disabled="@busy" /></div>
                     <div class="col-sm-6"><label class="admin-label" for="actualClients">Фактически: клиентов</label>
-                        <input class="form-control" id="actualClients" type="number" min="0" max="1000000000" @bind="edit.ActualClients" disabled="@busy" /></div>
+                        <input class="form-control" id="actualClients" type="number" min="0" max="1000000000" @bind="edit.ActualClients" disabled="@(busy || !isFullAdmin)" /></div>
                     <div class="col-sm-6"><label class="admin-label" for="actualItems">Фактически: единиц техники</label>
-                        <input class="form-control" id="actualItems" type="number" min="0" max="1000000000" @bind="edit.ActualItems" disabled="@busy" /></div>
+                        <input class="form-control" id="actualItems" type="number" min="0" max="1000000000" @bind="edit.ActualItems" disabled="@(busy || !isFullAdmin)" /></div>
                     <div class="col-sm-6"><label class="admin-label" for="inactiveRequests">Ручная добавка к прогрессу</label>
-                        <input class="form-control" id="inactiveRequests" type="number" min="0" max="1000000000" @bind="edit.InactiveRequests" disabled="@busy" />
+                        <input class="form-control" id="inactiveRequests" type="number" min="0" max="1000000000" @bind="edit.InactiveRequests" disabled="@(busy || !isFullAdmin)" />
                         <small class="admin-muted">Поле БД InactiveRequests. Это количество, не процент.</small></div>
                     <div class="col-sm-6"><label class="admin-label" for="goalStart">Дата начала</label>
-                        <input class="form-control" id="goalStart" type="date" @bind="edit.StartDate" disabled="@busy" /></div>
+                        <input class="form-control" id="goalStart" type="date" @bind="edit.StartDate" disabled="@(busy || !isFullAdmin)" /></div>
                 </div>
                 <div class="form-check form-switch my-3">
-                    <input class="form-check-input" id="goalActive" type="checkbox" @bind="edit.IsActive" disabled="@busy" />
+                    <input class="form-check-input" id="goalActive" type="checkbox" @bind="edit.IsActive" disabled="@(busy || !isFullAdmin)" />
                     <label class="form-check-label" for="goalActive">Активная цель этого года</label>
                 </div>
-                <button class="admin-btn admin-btn-primary" disabled="@busy" @onclick="SaveAsync">@(busy ? "Сохранение..." : "Сохранить цели и прогресс")</button>
+                <button class="admin-btn admin-btn-primary" disabled="@(busy || (!isFullAdmin && edit.Id == 0))" @onclick="SaveAsync">@(busy ? "Сохранение..." : (isFullAdmin ? "Сохранить цели и прогресс" : "Сохранить план"))</button>
             </div>
             <div class="col-lg-5">
                 <div class="admin-hint">
@@ -59,7 +61,7 @@
     }
 </div>
 
-@if (edit is not null && edit.Id != 0)
+@if (isFullAdmin && edit is not null && edit.Id != 0)
 {
     <div class="admin-card mt-3">
         <h2 class="admin-card-title">Автодобавка каждый час</h2>
@@ -103,6 +105,7 @@
     private int selectedYear = DateTime.Today.Year;
     private Goal? edit, original;
     private bool busy;
+    private bool isFullAdmin;
     private string? error, message;
     private decimal ClientPercent => edit is null ? 0 : AdminReporting.Percent(AdminReporting.Completed(edit), edit.TargetClients);
     private decimal ItemPercent => edit is null ? 0 : AdminReporting.Percent(edit.ActualItems, edit.TargetItems);
@@ -134,6 +137,7 @@
         busy = true;
         try
         {
+            await Permissions.RequireAdminAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
             var now = DateTime.Now;
             var hourStart = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0);
@@ -159,7 +163,11 @@
         finally { busy = false; }
     }
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        isFullAdmin = (await Permissions.RequireStaffAsync()).Role == AdminRoles.Admin;
+        await LoadAsync();
+    }
     private async Task LoadAsync()
     {
         if (busy) return;
@@ -194,7 +202,24 @@
         busy = true;
         try
         {
+            var actor = await Permissions.RequireStaffAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
+            if (actor.Role == AdminRoles.Manager)
+            {
+                if (edit.Id == 0) { error = "Создание цели доступно администратору. Руководитель изменяет план существующей цели."; return; }
+                var oldPlan = original;
+                if (oldPlan is null) { error = "Сначала загрузите цель."; return; }
+                var changed = await db.Goals.Where(g => g.Id == oldPlan.Id && g.Year == oldPlan.Year &&
+                        g.TargetClients == oldPlan.TargetClients && g.TargetItems == oldPlan.TargetItems)
+                    .ExecuteUpdateAsync(u => u.SetProperty(g => g.TargetClients, edit.TargetClients)
+                        .SetProperty(g => g.TargetItems, edit.TargetItems));
+                if (changed == 0) { error = "План изменился в другой сессии. Загрузите данные повторно."; return; }
+                var fresh = await db.Goals.AsNoTracking().SingleAsync(g => g.Id == edit.Id);
+                edit = fresh; original = Clone(fresh); FillAuto();
+                message = "Плановые показатели сохранены. Факт и настройки прогресса не изменены.";
+                return;
+            }
+
             await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
             if (edit.Id == 0)
             {

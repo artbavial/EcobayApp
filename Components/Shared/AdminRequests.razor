@@ -20,6 +20,18 @@
     <AdminRequestCreate @key="editId" CurrentUserId="CurrentUserId" EditId="editId" OnClose="CloseEditAsync" />
 }
 
+@if (IsAdmin && clientHistoryPhone is not null)
+{
+    <div class="req-modal-overlay" role="dialog" aria-modal="true" aria-label="История клиента" @onclick="() => clientHistoryPhone = null">
+        <div class="req-modal" @onclick:stopPropagation="true">
+            <button type="button" class="req-modal-close" aria-label="Закрыть историю" @onclick="() => clientHistoryPhone = null"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            <h2 class="admin-card-title pe-4">История клиента</h2>
+            <p>@clientHistoryPhone</p>
+            <AdminClientHistory @key="clientHistoryPhone" Phone="@clientHistoryPhone" />
+        </div>
+    </div>
+}
+
 <div class="admin-card">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
         <h2 class="admin-card-title mb-0">@(RouteMode ? "Маршрутный лист" : "Заявки")</h2>
@@ -135,6 +147,10 @@
                         <div class="req-card-client">
                             <strong>@(string.IsNullOrWhiteSpace(r.Name) ? "Без имени" : r.Name)</strong>
                             <a class="req-card-phone" href="@($"tel:{r.Phone}")"><i class="fa-solid fa-phone"></i> @r.Phone</a>
+                            @if (IsAdmin)
+                            {
+                                <button type="button" class="btn btn-outline-secondary btn-sm" style="min-width:44px;min-height:44px" title="История клиента" aria-label="История клиента @r.Phone" @onclick="() => clientHistoryPhone = r.Phone"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></button>
+                            }
                         </div>
                         @if (!string.IsNullOrWhiteSpace(r.Address))
                         {
@@ -258,7 +274,7 @@
 
 @code {
     [Parameter] public bool TodayOnly { get; set; }
-    /// <summary>Администратор: создание и возврат отработанной заявки. Удаление — только для admin.</summary>
+    /// <summary>Администратор: создание и возврат отработанной заявки. Удаление — для роли Admin.</summary>
     [Parameter] public bool IsAdmin { get; set; } = true;
     [Parameter] public long CurrentUserId { get; set; }
     [Parameter] public string CurrentUserName { get; set; } = "";
@@ -290,6 +306,7 @@
     private long? appliedCityId;
     private bool busy, hasResult, creating;
     private bool canDeleteRequests;
+    private string? clientHistoryPhone;
     private int Pages => Math.Max(1, (int)Math.Ceiling((double)total / appliedSize));
     private List<City> cities = new();
     private List<AdminRequestRow> rows = new();
@@ -499,79 +516,42 @@
         var success = false;
         try
         {
-            // Проверка не зависит от IsAdmin / CurrentUserId, переданных в компонент.
             var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             canDeleteRequests = await AdminAuth.CanDeleteRequestsAsync(principal);
             if (!canDeleteRequests)
             {
-                error = "Удалять заявки может только главный администратор (admin).";
-                Logger.LogWarning("Request deletion denied for principal {Actor}, request {RequestId}",
-                    principal.Identity?.Name, id);
+                error = "Удалять заявки может только администратор.";
+                Logger.LogWarning("Request deletion denied for principal {Actor}, request {RequestId}", principal.Identity?.Name, id);
                 return;
             }
-
-            if (!await JS.InvokeAsync<bool>("confirm", "Удалить заявку? Счётчики целей автоматически не изменятся."))
-                return;
-
-            // Пока пользователь подтверждал действие, его доступ мог измениться.
+            if (!await JS.InvokeAsync<bool>("confirm", "Удалить заявку? Счётчики целей автоматически не изменятся.")) return;
             principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
             canDeleteRequests = await AdminAuth.CanDeleteRequestsAsync(principal);
-            if (!canDeleteRequests)
-            {
-                error = "Право удаления больше недоступно. Войдите заново.";
-                return;
-            }
-
+            if (!canDeleteRequests) { error = "Право удаления больше недоступно. Войдите заново."; return; }
             await using var db = await DbFactory.CreateDbContextAsync();
             await using var transaction = await db.Database.BeginTransactionAsync();
-            // Блокировка записи учётки до завершения транзакции исключает изменение
-            // её прав/метки безопасности между последней проверкой и удалением.
             var actorIdValue = principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             var stamp = principal.FindFirst(AdminAuthService.SecurityStampClaim)?.Value;
             if (!long.TryParse(actorIdValue, out var actorId))
-            {
-                canDeleteRequests = false;
-                error = "Недействительная сессия. Войдите заново.";
-                return;
-            }
+            { canDeleteRequests = false; error = "Недействительная сессия. Войдите заново."; return; }
             var actor = await db.AdminUsers
                 .FromSqlInterpolated($"SELECT * FROM [AdminUsers] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {actorId}")
                 .AsNoTracking().SingleOrDefaultAsync();
             if (actor is null || !actor.IsActive || actor.Role != AdminRoles.Admin ||
-                !string.Equals(actor.Login, AdminAuthService.MainAdminLogin, StringComparison.Ordinal) ||
                 string.IsNullOrEmpty(stamp) || actor.SecurityStamp != stamp)
-            {
-                canDeleteRequests = false;
-                error = "Удалять заявки может только главный администратор (admin) с действующей сессией.";
-                return;
-            }
-
+            { canDeleteRequests = false; error = "Удалять заявки может только администратор с действующей сессией."; return; }
             if (!await db.Requests.AnyAsync(r => r.Id == id))
-            {
-                error = "Заявка не найдена: возможно, её уже удалили.";
-                return;
-            }
+            { error = "Заявка не найдена: возможно, её уже удалили."; return; }
             await db.RequestEvents.Where(e => e.RequestId == id).ExecuteDeleteAsync();
             var deleted = await db.Requests.Where(r => r.Id == id).ExecuteDeleteAsync();
-            if (deleted == 0)
-            {
-                error = "Заявка уже удалена другим сеансом. Обновите список.";
-                return;
-            }
+            if (deleted == 0) { error = "Заявка уже удалена другим сеансом. Обновите список."; return; }
             await transaction.CommitAsync();
-            Logger.LogInformation("Main administrator {ActorId} deleted request {RequestId}", actorId, id);
+            Logger.LogInformation("Administrator {ActorId} deleted request {RequestId}", actorId, id);
             success = true;
         }
         catch (Exception ex)
-        {
-            Logger.LogError(ex, "Cannot delete request {RequestId}", id);
-            error = "Не удалось удалить заявку.";
-        }
+        { Logger.LogError(ex, "Cannot delete request {RequestId}", id); error = "Не удалось удалить заявку."; }
         finally { busy = false; }
-        if (success)
-        {
-            await ReloadAsync();
-            notice = "Заявка удалена.";
-        }
+        if (success) { await ReloadAsync(); notice = "Заявка удалена."; }
     }
 }

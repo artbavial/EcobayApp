@@ -5,6 +5,7 @@
 @inject IDbContextFactory<AppDBContext> DbFactory
 @inject IJSRuntime JS
 @inject ILogger<AdminRoutes> Logger
+@inject SitePermissions Permissions
 
 @* Маршрутные листы: администратор выбирает водителя и день, добавляет заявки и задаёт порядок объезда. *@
 
@@ -269,6 +270,7 @@
         error = null;
         try
         {
+            await Permissions.RequireStaffAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
             await action(db);
         }

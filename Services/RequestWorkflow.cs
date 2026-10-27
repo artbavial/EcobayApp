@@ -10,8 +10,10 @@ public sealed class RequestWorkflow
     public const decimal MaxPaid = 1_000_000m;
 
     private readonly IDbContextFactory<AppDBContext> _dbFactory;
+    private readonly SitePermissions _permissions;
 
-    public RequestWorkflow(IDbContextFactory<AppDBContext> dbFactory) => _dbFactory = dbFactory;
+    public RequestWorkflow(IDbContextFactory<AppDBContext> dbFactory, SitePermissions permissions)
+    { _dbFactory = dbFactory; _permissions = permissions; }
 
     public static string StatusTitle(RequestStatus s) => s switch
     {
@@ -34,6 +36,9 @@ public sealed class RequestWorkflow
 
     private async Task<string?> ChangeAsync(long id, RequestStatus to, decimal? paid, string? comment, long userId, string userName)
     {
+        var actor = await _permissions.CurrentAsync();
+        if (actor is null) return "Недействительная сессия. Войдите заново.";
+        userId = actor.Id; userName = actor.DisplayName ?? actor.Login;
         comment = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
         if (comment?.Length > 1000) return "Комментарий слишком длинный (максимум 1000 символов).";
 
@@ -49,6 +54,8 @@ public sealed class RequestWorkflow
         await using var db = await _dbFactory.CreateDbContextAsync();
         var r = await db.Requests.FirstOrDefaultAsync(x => x.Id == id);
         if (r is null) return "Заявка не найдена (возможно, удалена).";
+        if (actor.Role == AdminRoles.Driver && to == RequestStatus.New && r.Status == RequestStatus.Done)
+            return "Возврат отработанной заявки доступен администратору или руководителю.";
         if (r.Status == to) return $"Заявка уже в статусе «{StatusTitle(to)}». Обновите список.";
         if (to == RequestStatus.Done && r.Status == RequestStatus.Cancelled)
             return "Отменённую заявку сначала верните в работу.";

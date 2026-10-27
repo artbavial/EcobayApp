@@ -1,0 +1,76 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject ILogger<AdminContactStats> Logger
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <section class="admin-card" style="height:auto;min-width:0">
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+                <div><h2 class="admin-card-title mb-1">Нажатия на звонок сегодня</h2><small class="admin-muted">@day.ToString("dd.MM.yyyy") · время Минска · на @loadedAt.ToString("HH:mm")</small></div>
+                <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="LoadAsync" title="Обновить статистику" aria-label="Обновить статистику"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+            </div>
+            @if (error is not null) { <p class="admin-status-error" role="alert">@error</p> }
+            else
+            {
+                <div class="admin-stat mb-3" style="padding:0;box-shadow:none"><strong>@rows.Sum(x => x.Count)</strong><span>нажатий за сегодня</span></div>
+                <div style="display:grid;gap:8px">
+                    @foreach (var row in rows)
+                    {
+                        <div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #edf0ed;min-width:0"><span style="min-width:0;overflow-wrap:anywhere">@row.City</span><strong>@row.Count</strong></div>
+                    }
+                </div>
+                <p class="admin-muted mt-3 mb-0">Это нажатия на номер, а не состоявшиеся разговоры. Повторные осознанные нажатия считаются отдельно. Данные собираются с момента установки обновления.</p>
+            }
+        </section>
+    </div>
+    <div class="col-lg-4">
+        <section class="admin-card" style="height:auto">
+            <h2 class="admin-card-title">Уведомления о заявках</h2>
+            <p>В очереди: <strong>@pending</strong></p>
+            <p>Ожидают повтора после ошибки: <strong>@failed</strong></p>
+            <p class="admin-muted mb-0">Ошибка почты не отменяет сохранённую заявку. Повторная отправка выполняется автоматически.</p>
+        </section>
+    </div>
+</div>
+
+@code {
+    [Parameter] public DateTime RefreshKey { get; set; }
+    private DateTime lastRefreshKey, day, loadedAt;
+    private bool busy;
+    private string? error;
+    private int pending, failed;
+    private List<ClickRow> rows = new();
+    private sealed record ClickRow(string City, int Count);
+    protected override async Task OnParametersSetAsync()
+    {
+        if (lastRefreshKey != RefreshKey || rows.Count == 0) { lastRefreshKey = RefreshKey; await LoadAsync(); }
+    }
+    private async Task LoadAsync()
+    {
+        if (busy) return;
+        busy = true; error = null;
+        try
+        {
+            // Site reporting day is Minsk (UTC+03), independent of server local time.
+            var now = DateTime.UtcNow.AddHours(3);
+            day = now.Date;
+            var start = DateTime.SpecifyKind(day.AddHours(-3), DateTimeKind.Utc);
+            var end = start.AddDays(1);
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var groups = await db.PhoneClicks.AsNoTracking().Where(x => x.CreatedAtUtc >= start && x.CreatedAtUtc < end)
+                .GroupBy(x => new { x.CityId, x.CityName }).Select(g => new { g.Key.CityId, g.Key.CityName, Count = g.Count() }).ToListAsync();
+            var cities = await db.Cities.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.Name).Select(x => new { x.Id, x.Name }).ToListAsync();
+            rows = cities.Select(c => new ClickRow(c.Name, groups.Where(g => g.CityId == c.Id).Sum(g => g.Count))).ToList();
+            foreach (var group in groups.Where(g => g.CityId.HasValue && !cities.Any(c => c.Id == g.CityId.Value)))
+                rows.Add(new ClickRow(group.CityName + " (неактивный город)", group.Count));
+            rows.Add(new ClickRow("Общая страница / контакты", groups.Where(g => !g.CityId.HasValue).Sum(g => g.Count)));
+            pending = await db.RequestEmailOutbox.CountAsync(x => x.SentAtUtc == null);
+            failed = await db.RequestEmailOutbox.CountAsync(x => x.SentAtUtc == null && x.LastError != null);
+            loadedAt = now;
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot load contact stats"); error = "Не удалось загрузить статистику. Проверьте, что обновление БД применено."; }
+        finally { busy = false; }
+    }
+}

@@ -1,4 +1,4 @@
-﻿using System.Threading.RateLimiting;
+using System.Threading.RateLimiting;
 using EcobayApp.Components;
 using EcobayApp.Contex;
 using EcobayApp.Models;
@@ -52,7 +52,10 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddSingleton<IPasswordHasher<AdminUser>, PasswordHasher<AdminUser>>();
 builder.Services.AddScoped<AdminAuthService>();
+builder.Services.AddScoped<SitePermissions>();
 builder.Services.AddScoped<RequestWorkflow>();
+builder.Services.AddScoped<PublicRequestService>();
+builder.Services.AddHostedService<RequestEmailWorker>();
 builder.Services.AddSingleton<RequestFileStore>();
 
 // Каждый час добавляет заданное количество к прогрессу цели (если включено в панели).
@@ -105,6 +108,13 @@ builder.Services.AddRateLimiter(options =>
 		var isLoginPost = HttpMethods.IsPost(http.Request.Method) &&
 			http.Request.Path.StartsWithSegments("/admin/login", StringComparison.OrdinalIgnoreCase);
 
+        var isPhoneClick = HttpMethods.IsPost(http.Request.Method) && http.Request.Path == "/api/phone-click";
+        if (isPhoneClick)
+        {
+            var clickIp = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            return RateLimitPartition.GetFixedWindowLimiter("phone-click:" + clickIp, _ => new FixedWindowRateLimiterOptions
+            { PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 });
+        }
 		if (!isLoginPost)
 			return RateLimitPartition.GetNoLimiter("other");
 
@@ -171,7 +181,38 @@ app.MapGet("/admin/files/requests/{id:long}", async (long id, IDbContextFactory<
 	var rel = await db.Requests.Where(r => r.Id == id).Select(r => r.ScreenshotPath).FirstOrDefaultAsync();
 	var path = store.Resolve(rel);
 	return path is null ? Results.NotFound() : Results.File(path, RequestFileStore.ContentType(path));
-}).RequireAuthorization(policy => policy.RequireRole(AdminRoles.Admin, AdminRoles.Driver));
+}).RequireAuthorization(policy => policy.RequireRole(AdminRoles.Admin, AdminRoles.Manager, AdminRoles.Driver));
+
+// Only click events, not successful telephone conversations. No visitor phone/IP is stored.
+app.MapPost("/api/phone-click", async Task<IResult> (HttpContext http, PhoneClickInput input, IDbContextFactory<AppDBContext> factory) =>
+{
+    if (http.Request.ContentLength is > 2048 || input.Id == Guid.Empty) return Results.BadRequest();
+    var origin = http.Request.Headers["Origin"].ToString();
+    if (http.Request.Headers["Sec-Fetch-Site"] == "cross-site") return Results.StatusCode(403);
+    if (!string.IsNullOrEmpty(origin) && (!Uri.TryCreate(origin, UriKind.Absolute, out var originUri) ||
+        !string.Equals(originUri.Authority, http.Request.Host.Value, StringComparison.OrdinalIgnoreCase)))
+        return Results.StatusCode(403);
+    var path = input.Path ?? "/";
+    if (path.Length > 300 || !path.StartsWith('/') || path.StartsWith("//") || path.Contains('?') || path.Contains('#'))
+        return Results.BadRequest();
+    await using var db = await factory.CreateDbContextAsync();
+    var slug = path.Trim('/');
+    City? city = null;
+    if (slug.Length > 0 && slug is not "contacts" and not "user-agreement")
+    {
+        if (slug.Length > 50 || slug.Any(c => !(c is >= 'a' and <= 'z' or >= '0' and <= '9' or '-')))
+            return Results.BadRequest();
+        city = await db.Cities.AsNoTracking().FirstOrDefaultAsync(c => c.Slug == slug && c.IsActive);
+        if (city is null) return Results.BadRequest();
+    }
+    if (await db.PhoneClicks.AnyAsync(x => x.Id == input.Id)) return Results.NoContent();
+    db.PhoneClicks.Add(new PhoneClick { Id = input.Id, Path = path, CityId = city?.Id,
+        CityName = city?.Name ?? "Общая страница", CreatedAtUtc = DateTime.UtcNow });
+    try { await db.SaveChangesAsync(); }
+    catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 2601 or 2627)
+    { return Results.NoContent(); }
+    return Results.NoContent();
+});
 
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();

@@ -1,0 +1,114 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject SitePermissions Permissions
+@inject ILogger<AdminStatistics> Logger
+
+<section class="admin-card mb-3" style="height:auto">
+    <h2 class="admin-card-title">Статистика сайта</h2>
+    <div class="row g-2 align-items-end">
+        <div class="col-6 col-lg-2"><label class="admin-label" for="statsFrom">С даты</label><input id="statsFrom" class="form-control" type="date" @bind="from" disabled="@busy" /></div>
+        <div class="col-6 col-lg-2"><label class="admin-label" for="statsTo">По дату</label><input id="statsTo" class="form-control" type="date" @bind="to" disabled="@busy" /></div>
+        <div class="col-sm-6 col-lg-3"><label class="admin-label" for="statsCity">Город</label><select id="statsCity" class="form-select" @bind="cityFilter" disabled="@busy"><option value="">Все города</option><option value="0">Общая страница / без города</option>@foreach (var city in cities) { <option value="@city.Id">@city.Name</option> }</select></div>
+        <div class="col-sm-6 col-lg-3"><label class="admin-label" for="statsStatus">Статус заявок</label><select id="statsStatus" class="form-select" @bind="statusFilter" disabled="@busy"><option value="">Все статусы</option><option value="@RequestStatus.New">Новые</option><option value="@RequestStatus.Done">Отработанные</option><option value="@RequestStatus.Cancelled">Отменённые</option></select></div>
+        <div class="col-sm-6 col-lg-2"><label class="admin-label" for="statsSource">Заявки</label><select id="statsSource" class="form-select" @bind="source" disabled="@busy"><option value="">Все источники</option><option value="site">С сайта</option><option value="manual">Вручную</option></select></div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+        <button type="button" class="admin-btn admin-btn-primary" disabled="@busy" @onclick="LoadAsync">@(busy ? "Загрузка…" : "Применить")</button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(1)">Сегодня</button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="YesterdayAsync">Вчера</button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(7)">7 дней</button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="() => PresetAsync(30)">30 дней</button>
+    </div>
+    <p class="admin-muted mt-3 mb-0">Период и город применяются ко всем показателям. Статус и источник применяются только к заявкам, не к нажатиям. Нажатия — не состоявшиеся разговоры.</p>
+</section>
+@if (!string.IsNullOrEmpty(error)) { <div class="admin-alert admin-alert-error mb-3" role="alert">@error</div> }
+@if (loaded)
+{
+    <p class="admin-muted">@appliedFrom.ToString("dd.MM.yyyy") — @appliedTo.ToString("dd.MM.yyyy") включительно · время Минска · обновлено @loadedAt.ToString("HH:mm")</p>
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-lg-3"><div class="admin-stat"><span>Заявки по фильтру</span><strong>@rows.Sum(x => x.Requests)</strong></div></div>
+        <div class="col-6 col-lg-3"><div class="admin-stat"><span>Нажатия на звонок</span><strong>@rows.Sum(x => x.Clicks)</strong></div></div>
+        <div class="col-6 col-lg-3"><div class="admin-stat"><span>Отработано из выборки</span><strong>@rows.Sum(x => x.Done)</strong></div></div>
+        <div class="col-6 col-lg-3"><div class="admin-stat"><span>Выплачено, руб.</span><strong style="font-size:24px;overflow-wrap:anywhere">@rows.Sum(x => x.Paid).ToString("N2")</strong></div></div>
+    </div>
+    <section class="admin-card" style="height:auto">
+        <h2 class="admin-card-title">По городам</h2>
+        <div class="statistics-cities">
+            @foreach (var row in rows)
+            {
+                <article class="statistics-city">
+                    <h3>@row.City</h3>
+                    <dl><div><dt>Заявки</dt><dd>@row.Requests</dd></div><div><dt>Нажатия на звонок</dt><dd>@row.Clicks</dd></div><div><dt>Отработано</dt><dd>@row.Done</dd></div><div><dt>Выплачено, руб.</dt><dd>@row.Paid.ToString("N2")</dd></div></dl>
+                </article>
+            }
+        </div>
+        <p class="admin-muted mt-3 mb-0">Отработанные и выплаты относятся к заявкам, созданным в выбранном периоде, по их текущему состоянию. Это не отчёт о выплатах по дате оплаты. Сбор кликов начинается с установки соответствующего обновления.</p>
+        <p class="admin-muted mt-2 mb-0">Посещения, уникальные посетители и источники рекламного трафика пока не собираются собственной системой. Эти показатели не подменяются количеством заявок или кликов.</p>
+    </section>
+}
+
+@code {
+    private DateTime from = DateTime.UtcNow.AddHours(3).Date, to = DateTime.UtcNow.AddHours(3).Date;
+    private DateTime appliedFrom, appliedTo, loadedAt;
+    private long? cityFilter;
+    private RequestStatus? statusFilter;
+    private string source = "", error = "";
+    private bool busy, loaded;
+    private List<City> cities = new();
+    private List<StatsRow> rows = new();
+    private sealed record StatsRow(long? Id, string City, int Requests, int Clicks, int Done, decimal Paid);
+    private sealed class RequestGroup { public long? Id { get; set; } public int Count { get; set; } public int Done { get; set; } public decimal Paid { get; set; } }
+    protected override async Task OnInitializedAsync()
+    {
+        await Permissions.RequireStaffAsync();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        cities = await db.Cities.AsNoTracking().OrderBy(c => c.SortOrder).ThenBy(c => c.Name).ToListAsync();
+        await LoadAsync();
+    }
+    private Task PresetAsync(int days) { to = DateTime.UtcNow.AddHours(3).Date; from = to.AddDays(1-days); return LoadAsync(); }
+    private Task YesterdayAsync() { from = to = DateTime.UtcNow.AddHours(3).Date.AddDays(-1); return LoadAsync(); }
+    private async Task LoadAsync()
+    {
+        if (busy) return;
+        error = "";
+        if (to < from || (to.Date-from.Date).Days > 365) { error = "Выберите период до 366 дней; дата окончания не раньше начала."; return; }
+        busy = true;
+        try
+        {
+            await Permissions.RequireStaffAsync();
+            var startUtc = new DateTimeOffset(DateTime.SpecifyKind(from.Date, DateTimeKind.Unspecified), TimeSpan.FromHours(3)).UtcDateTime;
+            var endUtc = new DateTimeOffset(DateTime.SpecifyKind(to.Date.AddDays(1), DateTimeKind.Unspecified), TimeSpan.FromHours(3)).UtcDateTime;
+            // Existing requests store server-local timestamps. Convert only query bounds, not stored history.
+            var reqStart = startUtc.ToLocalTime(); var reqEnd = endUtc.ToLocalTime();
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var req = db.Requests.AsNoTracking().Where(r => r.DateCreate >= reqStart && r.DateCreate < reqEnd);
+            if (statusFilter.HasValue) req = req.Where(r => r.Status == statusFilter.Value);
+            if (source == "site") req = req.Where(r => !r.IsManual);
+            else if (source == "manual") req = req.Where(r => r.IsManual);
+            var projected = AdminReporting.Rows(req);
+            if (cityFilter == 0) projected = projected.Where(r => r.CityId == null);
+            else if (cityFilter.HasValue) projected = projected.Where(r => r.CityId == cityFilter.Value);
+            var requests = await projected.GroupBy(r => r.CityId).Select(g => new RequestGroup {
+                Id = g.Key, Count = g.Count(), Done = g.Count(r => r.Status == RequestStatus.Done),
+                Paid = g.Sum(r => r.Status == RequestStatus.Done ? r.PaidAmount ?? 0 : 0)
+            }).ToListAsync();
+            var clicks = db.PhoneClicks.AsNoTracking().Where(c => c.CreatedAtUtc >= startUtc && c.CreatedAtUtc < endUtc);
+            if (cityFilter == 0) clicks = clicks.Where(c => c.CityId == null);
+            else if (cityFilter.HasValue) clicks = clicks.Where(c => c.CityId == cityFilter.Value);
+            var groupedClicks = await clicks.GroupBy(c => c.CityId).Select(g => new { Id = g.Key, Count = g.Count(), Name = g.Max(x => x.CityName) }).ToListAsync();
+            var ids = cities.Select(c => (long?)c.Id).Concat(requests.Select(x => x.Id)).Concat(groupedClicks.Select(x => x.Id)).Append(null).Distinct();
+            if (cityFilter.HasValue) ids = ids.Where(id => cityFilter == 0 ? id == null : id == cityFilter);
+            rows = ids.Select(id => {
+                var r = requests.FirstOrDefault(x => x.Id == id); var c = groupedClicks.FirstOrDefault(x => x.Id == id);
+                var name = id.HasValue ? cities.FirstOrDefault(x => x.Id == id)?.Name ?? c?.Name ?? "Удалённый город" : "Общая страница / без города";
+                return new StatsRow(id, name, r?.Count ?? 0, c?.Count ?? 0, r?.Done ?? 0, r?.Paid ?? 0);
+            }).OrderByDescending(x => x.Requests).ThenByDescending(x => x.Clicks).ThenBy(x => x.City).ToList();
+            appliedFrom = from.Date; appliedTo = to.Date; loadedAt = DateTime.UtcNow.AddHours(3); loaded = true;
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot load statistics"); error = "Не удалось загрузить статистику. Проверьте доступ и подключение к БД."; }
+        finally { busy = false; }
+    }
+}

@@ -1,0 +1,78 @@
+@using EcobayApp.Contex
+@using EcobayApp.Models
+@using EcobayApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDBContext> DbFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject AdminAuthService Auth
+@inject ILogger<AdminClientHistory> Logger
+
+@if (allowed && valid)
+{
+    <div class="admin-hint mt-3 mb-3" style="min-width:0;overflow-wrap:anywhere">
+        @if (loading) { <span class="admin-muted">Проверка истории клиента…</span> }
+        else if (error is not null) { <span class="admin-status-error">@error</span> }
+        else
+        {
+            @if (openCount > 0)
+            {
+                <div class="admin-alert admin-alert-warn mb-2" role="status"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> По этому номеру уже есть необработанные заявки: @openCount. Проверьте, не является ли новое обращение повтором.</div>
+            }
+            <details>
+                <summary style="cursor:pointer;min-height:44px;padding:10px 0"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> История клиента: @total заявок</summary>
+                @if (total == 0) { <p class="admin-muted mb-0">Предыдущих заявок по этому номеру нет.</p> }
+                @foreach (var item in rows)
+                {
+                    <details class="mt-2" style="padding:10px;border:1px solid #e4e9e4;border-radius:10px;min-width:0">
+                        <summary style="cursor:pointer;overflow-wrap:anywhere">№@item.Id · @item.Date.ToString("dd.MM.yyyy HH:mm") · @RequestWorkflow.StatusTitle(item.Status) · @item.City</summary>
+                        <div class="mt-2" style="white-space:pre-wrap;overflow-wrap:anywhere">@(item.Address ?? "Адрес не указан")</div>
+                        <div style="white-space:pre-wrap;overflow-wrap:anywhere">@item.Message</div>
+                        @if (!string.IsNullOrWhiteSpace(item.DriverComment)) { <p class="admin-muted mt-2 mb-0">Комментарий: @item.DriverComment</p> }
+                        @if (item.PaidAmount.HasValue) { <p class="mb-0">Выплачено: @item.PaidAmount.Value.ToString("N2") руб.</p> }
+                    </details>
+                }
+                @if (total > rows.Count) { <p class="admin-muted mt-2 mb-0">Показаны последние @rows.Count из @total заявок.</p> }
+            </details>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string? Phone { get; set; }
+    [Parameter] public long? ExcludeRequestId { get; set; }
+    private string? loadedKey, error;
+    private bool allowed, valid, loading;
+    private int version, total, openCount;
+    private List<AdminRequestRow> rows = new();
+    protected override async Task OnParametersSetAsync()
+    {
+        var phone = PhoneUtil.Normalize(Phone);
+        var key = phone + ":" + ExcludeRequestId;
+        if (key == loadedKey) return;
+        loadedKey = key;
+        var mine = ++version;
+        rows.Clear(); total = openCount = 0; error = null;
+        valid = PhoneUtil.IsValid(phone);
+        if (!valid) { allowed = false; loading = false; return; }
+        loading = true;
+        try
+        {
+            var user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+            var authorized = (user.IsInRole(AdminRoles.Admin) || user.IsInRole(AdminRoles.Manager)) && await Auth.IsPrincipalValidAsync(user);
+            if (mine != version) return;
+            allowed = authorized;
+            if (!allowed) return;
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var ids = ClientPhoneLookup.ByPhone(db, phone).Select(c => c.Id);
+            var query = db.Requests.AsNoTracking().Where(r => ids.Contains(r.ClientId));
+            if (ExcludeRequestId.HasValue) query = query.Where(r => r.Id != ExcludeRequestId.Value);
+            var count = await query.CountAsync();
+            var open = await query.CountAsync(r => r.Status == RequestStatus.New);
+            var result = await AdminReporting.Rows(query).OrderByDescending(r => r.Date).ThenByDescending(r => r.Id).Take(30).ToListAsync();
+            if (mine != version) return;
+            total = count; openCount = open; rows = result;
+        }
+        catch (Exception ex) { Logger.LogError(ex, "Cannot load client history"); if (mine == version) error = "Не удалось проверить историю. Повторно измените номер или обновите страницу."; }
+        finally { if (mine == version) loading = false; }
+    }
+}

@@ -5,12 +5,16 @@
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDBContext> DbFactory
 @inject ILogger<AdminCities> Logger
+@inject SitePermissions Permissions
 
 <div class="city-admin @(editCity is null ? "" : "is-editing")">
     <aside class="city-admin-list admin-card">
         <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
             <h2 class="admin-card-title mb-0">Города</h2>
+            @if (isFullAdmin)
+            {
             <button class="admin-btn admin-btn-primary admin-btn-sm" disabled="@busy" @onclick="CreateNew"><i class="fa-solid fa-plus"></i> Добавить</button>
+            }
         </div>
         <p class="admin-muted mb-2">На сайте: <strong>@cities.Count(c => c.IsActive && c.HasPage)</strong> из @cities.Count. Только активные города показываются посетителям.</p>
         @if (cities.Count > 6)
@@ -57,7 +61,7 @@
                         }
                     </div>
                     <div class="form-check form-switch admin-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="cityActive" @bind="editCity.IsActive" />
+                        <input class="form-check-input" type="checkbox" id="cityActive" @bind="editCity.IsActive" disabled="@(!isFullAdmin)" />
                         <label class="form-check-label" for="cityActive">@(editCity.IsActive ? "Активен — виден на сайте" : "Выключен — скрыт с сайта")</label>
                     </div>
                 </div>
@@ -76,24 +80,24 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="admin-label" for="cName">Название (именительный падеж) *</label>
-                                    <input id="cName" class="form-control" @bind="editCity.Name" placeholder="Гомель" />
+                                    <input id="cName" class="form-control" @bind="editCity.Name" disabled="@(!isFullAdmin)" placeholder="Гомель" />
                                 </div>
                                 <div class="col-md-6">
                                     <label class="admin-label" for="cNameIn">В предложном падеже *</label>
-                                    <input id="cNameIn" class="form-control" @bind="editCity.NameIn" placeholder="Гомеле" />
+                                    <input id="cNameIn" class="form-control" @bind="editCity.NameIn" disabled="@(!isFullAdmin)" placeholder="Гомеле" />
                                     <small class="admin-muted">Для фраз «в Гомеле».</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="admin-label" for="cSlug">Адрес страницы *</label>
                                     <div class="input-group">
                                         <span class="input-group-text">ecobay.by/</span>
-                                        <input id="cSlug" class="form-control" @bind="editCity.Slug" placeholder="gomel" />
+                                        <input id="cSlug" class="form-control" @bind="editCity.Slug" disabled="@(!isFullAdmin)" placeholder="gomel" />
                                     </div>
                                     <small class="admin-muted">Латиница, цифры, дефис. Меняйте осторожно: старые ссылки в рекламе перестанут работать.</small>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="admin-label" for="cSort">Порядок в списке</label>
-                                    <input id="cSort" class="form-control" type="number" @bind="editCity.SortOrder" />
+                                    <input id="cSort" class="form-control" type="number" @bind="editCity.SortOrder" disabled="@(!isFullAdmin)" />
                                     <small class="admin-muted">Меньше — выше.</small>
                                 </div>
                             </div>
@@ -112,20 +116,20 @@
                                 </div>
                                 <div class="col-6 col-md-4">
                                     <label class="admin-label" for="pPrice">Цена ОТ, коп./кг</label>
-                                    <InputNumber id="pPrice" class="form-control" TValue="decimal?" @bind-Value="editPage.Price" />
+                                    <InputNumber id="pPrice" class="form-control" TValue="decimal?" @bind-Value="editPage.Price" disabled="@(!isFullAdmin)" />
                                 </div>
                                 <div class="col-6 col-md-4">
                                     <label class="admin-label" for="pPriceTo">Цена ДО, коп./кг</label>
-                                    <InputNumber id="pPriceTo" class="form-control" TValue="int?" @bind-Value="editPage.PriceToKopeks" />
+                                    <InputNumber id="pPriceTo" class="form-control" TValue="int?" @bind-Value="editPage.PriceToKopeks" disabled="@(!isFullAdmin)" />
                                 </div>
                                 <div class="col-md-4">
                                     <label class="admin-label" for="cPrice">Цена города по умолчанию</label>
-                                    <InputNumber id="cPrice" class="form-control" TValue="decimal?" @bind-Value="editCity.DefaultPrice" />
+                                    <InputNumber id="cPrice" class="form-control" TValue="decimal?" @bind-Value="editCity.DefaultPrice" disabled="@(!isFullAdmin)" />
                                     <small class="admin-muted">Если «Цена ОТ» пуста.</small>
                                 </div>
                                 <div class="col-12">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="pDelivery" @bind="editPage.IsDeliveryPriceMode" />
+                                        <input class="form-check-input" type="checkbox" id="pDelivery" @bind="editPage.IsDeliveryPriceMode" disabled="@(!isFullAdmin)" />
                                         <label class="form-check-label" for="pDelivery">Цена зависит от способа вывоза</label>
                                         <small class="admin-muted d-block">«От» — мы приезжаем и вывозим. «До» — клиент сам привозит в передвижной пункт.</small>
                                     </div>
@@ -232,6 +236,7 @@
     private List<CityRow> cities = new();
     private string? filter, message;
     private bool busy, isError;
+    private bool isFullAdmin;
     private EditorTab activeTab = EditorTab.Main;
     private City? editCity;
     private PageCity? editPage;
@@ -258,7 +263,11 @@
         }
     }
 
-    protected override Task OnInitializedAsync() => LoadListAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        isFullAdmin = (await Permissions.RequireStaffAsync()).Role == AdminRoles.Admin;
+        await LoadListAsync();
+    }
 
     private async Task LoadListAsync()
     {
@@ -277,6 +286,7 @@
 
     private void CreateNew()
     {
+        if (!isFullAdmin) return;
         message = null;
         activeTab = EditorTab.Main;
         editCity = new City
@@ -344,13 +354,35 @@
         busy = true;
         try
         {
+            var actor = await Permissions.RequireStaffAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
+            if (actor.Role != AdminRoles.Admin)
+            {
+                if (editCity.Id == 0) throw new UnauthorizedAccessException("Создавать города может только администратор.");
+                var storedCity = await db.Cities.SingleOrDefaultAsync(c => c.Id == editCity.Id)
+                    ?? throw new InvalidOperationException("Город больше не существует.");
+                var storedPage = await db.PageCities.Where(p => p.CityId == storedCity.Id).OrderBy(p => p.Id).FirstOrDefaultAsync()
+                    ?? throw new UnauthorizedAccessException("Создание страницы города доступно администратору.");
+                var storedPromo = await db.PromoMessages.Where(p => p.CityId == storedCity.Id).OrderBy(p => p.Id).FirstOrDefaultAsync()
+                    ?? new PromoMessage { CityId = storedCity.Id };
+                storedCity.DefaultPhone = editCity.DefaultPhone;
+                storedPage.Title = editPage.Title;
+                storedPage.Description = editPage.Description;
+                storedPage.KeyWords = editPage.KeyWords;
+                storedPage.HeroTitle = editPage.HeroTitle;
+                storedPage.LocalIntro = editPage.LocalIntro;
+                storedPage.CoverageText = editPage.CoverageText;
+                storedPage.PickupDetails = editPage.PickupDetails;
+                storedPage.PhoneCity = editPage.PhoneCity;
+                storedPromo.Title = editPromo.Title; storedPromo.Text = editPromo.Text; storedPromo.IsActive = editPromo.IsActive;
+                editCity = storedCity; editPage = storedPage; editPromo = storedPromo;
+            }
             var (error, tab) = await ValidateAsync(db);
             if (error is not null) { message = error; isError = true; activeTab = tab; return; }
 
             await using var tx = await db.Database.BeginTransactionAsync();
             var isNew = editCity.Id == 0;
-            if (isNew) db.Cities.Add(editCity); else db.Cities.Update(editCity);
+            if (isNew) db.Cities.Add(editCity); else if (actor.Role == AdminRoles.Admin) db.Cities.Update(editCity);
             await db.SaveChangesAsync();
 
             if (string.IsNullOrWhiteSpace(editPage.Title))
@@ -364,7 +396,7 @@
             }
             editPage.CityId = editCity.Id;
             editPage.PhoneCity = string.IsNullOrWhiteSpace(editPage.PhoneCity) ? null : editPage.PhoneCity.Trim();
-            if (editPage.Id == 0) db.PageCities.Add(editPage); else db.PageCities.Update(editPage);
+            if (editPage.Id == 0) db.PageCities.Add(editPage); else if (actor.Role == AdminRoles.Admin) db.PageCities.Update(editPage);
 
             editPromo.CityId = editCity.Id;
             editPromo.Text ??= "";

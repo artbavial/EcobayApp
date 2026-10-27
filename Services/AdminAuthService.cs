@@ -26,9 +26,6 @@ namespace EcobayApp.Services
 		public const string Scheme = CookieAuthenticationDefaults.AuthenticationScheme;
 		public const string SecurityStampClaim = "ecobay:stamp";
 
-		/// <summary>Главная учётная запись: только она может удалять заявки.</summary>
-		public const string MainAdminLogin = "admin";
-
 		/// <summary>Сколько неудачных попыток подряд разрешено до блокировки.</summary>
 		public const int MaxFailedAttempts = 5;
 
@@ -76,7 +73,7 @@ namespace EcobayApp.Services
 			if (user.LockoutUntil.HasValue && user.LockoutUntil.Value > now)
 				return new AdminLoginResult(AdminLoginStatus.LockedOut, null, user.LockoutUntil);
 
-			if (!user.IsActive)
+			if (!user.IsActive || !AdminRoles.IsKnown(user.Role))
 				return new AdminLoginResult(AdminLoginStatus.Disabled);
 
 			var verify = _hasher.VerifyHashedPassword(user, user.PasswordHash, password);
@@ -112,13 +109,14 @@ namespace EcobayApp.Services
 
 		public ClaimsPrincipal CreatePrincipal(AdminUser user)
 		{
+            if (!AdminRoles.IsKnown(user.Role)) throw new InvalidOperationException("Unknown user role.");
 			var claims = new List<Claim>
 			{
 				new(ClaimTypes.NameIdentifier, user.Id.ToString()),
 				new(ClaimTypes.Name, user.Login),
 				new("ecobay:display", string.IsNullOrWhiteSpace(user.DisplayName) ? user.Login : user.DisplayName!),
 				new(SecurityStampClaim, user.SecurityStamp),
-				new(ClaimTypes.Role, user.Role == AdminRoles.Driver ? AdminRoles.Driver : AdminRoles.Admin)
+				new(ClaimTypes.Role, user.Role)
 			};
 
 			return new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme));
@@ -135,18 +133,20 @@ namespace EcobayApp.Services
 
 			var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
 			var stamp = principal.FindFirstValue(SecurityStampClaim);
+            var role = principal.FindFirstValue(ClaimTypes.Role);
+            if (!AdminRoles.IsKnown(role)) return false;
 			if (!long.TryParse(idValue, out var id) || string.IsNullOrEmpty(stamp))
 				return false;
 
 			await using var db = await _dbFactory.CreateDbContextAsync();
 			return await db.AdminUsers
 				.AsNoTracking()
-				.AnyAsync(u => u.Id == id && u.IsActive && u.SecurityStamp == stamp);
+				.AnyAsync(u => u.Id == id && u.IsActive && u.SecurityStamp == stamp && u.Role == role);
 		}
 
         /// <summary>
         /// Проверяет право удаления по серверному principal и актуальной записи в БД.
-        /// Параметры компонентов, отображаемое имя и одни только claims не дают это право.
+        /// Право одинаково у всех пользователей роли Admin; логин значения не имеет.
         /// </summary>
         public async Task<bool> CanDeleteRequestsAsync(ClaimsPrincipal? principal)
         {
@@ -160,7 +160,7 @@ namespace EcobayApp.Services
 
             await using var db = await _dbFactory.CreateDbContextAsync();
             return await db.AdminUsers.AsNoTracking().AnyAsync(u =>
-                u.Id == id && u.Login == MainAdminLogin && u.Role == AdminRoles.Admin &&
+                u.Id == id && u.Role == AdminRoles.Admin &&
                 u.IsActive && u.SecurityStamp == stamp);
         }
 

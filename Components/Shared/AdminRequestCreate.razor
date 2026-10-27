@@ -4,6 +4,7 @@
 @using Microsoft.EntityFrameworkCore
 @implements IDisposable
 @inject IDbContextFactory<AppDBContext> DbFactory
+@inject SitePermissions Permissions
 @inject RequestFileStore Files
 @inject IJSRuntime JS
 @inject ILogger<AdminRequestCreate> Logger
@@ -97,6 +98,7 @@
                               placeholder="Что вывозим, этаж, удобное время" disabled="@busy"></textarea>
                 </div>
             </div>
+            <AdminClientHistory Phone="@model.Phone" ExcludeRequestId="EditId" />
             @if (error is not null) { <div class="admin-alert admin-alert-error mt-3" role="alert">@error</div> }
             <button class="admin-btn admin-btn-primary mt-3" disabled="@busy" @onclick="SaveAsync">
                 @(busy ? "Сохранение..." : EditId.HasValue ? "Сохранить изменения" : "Добавить заявку")
@@ -253,12 +255,25 @@
         busy = true;
         try
         {
+            var actor = await Permissions.RequireStaffAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
+            if (!EditId.HasValue)
+            {
+                var knownClients = ClientPhoneLookup.ByPhone(db, phone).Select(c => c.Id);
+                var openCount = await db.Requests.CountAsync(r => knownClients.Contains(r.ClientId) && r.Status == RequestStatus.New);
+                if (openCount > 0 && !await JS.InvokeAsync<bool>("confirm",
+                    $"По этому телефону уже есть необработанные заявки: {openCount}. Создать отдельную новую заявку?")) return;
+            }
+            await using var transaction = await db.Database.BeginTransactionAsync();
+            var phoneLock = "ecobay:phone:" + phone;
+            await db.Database.ExecuteSqlInterpolatedAsync($@"
+                DECLARE @result int;
+                EXEC @result = sys.sp_getapplock @Resource={phoneLock}, @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000;
+                IF @result < 0 THROW 51000, 'Request is busy. Retry.', 1;");
             var page = await db.PageCities.AsNoTracking().Where(p => p.CityId == model.CityId).OrderBy(p => p.Id).FirstOrDefaultAsync();
             if (page is null) { error = "У выбранного города нет страницы. Сохраните город во вкладке «Города»."; return; }
 
-            var last9 = PhoneUtil.Last9(phone);
-            var client = await db.Clients.FirstOrDefaultAsync(c => c.Phone.EndsWith(last9));
+            var client = await ClientPhoneLookup.ByPhone(db, phone).OrderBy(c => c.Id).FirstOrDefaultAsync();
             if (client is null)
             {
                 client = new Client { Name = model.Name?.Trim() ?? "", Phone = phone, CityId = model.CityId };
@@ -286,6 +301,7 @@
                 r.PickupTime = pickupTime;
                 if (shot is not null) r.ScreenshotPath = shot;
                 await db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 busy = false;
                 await OnClose.InvokeAsync(true);
                 return;
@@ -300,7 +316,7 @@
                 Address = string.IsNullOrWhiteSpace(model.Address) ? null : model.Address.Trim(),
                 Source = "admin:manual",
                 IsManual = true,
-                CreatedByUserId = CurrentUserId,
+                CreatedByUserId = actor.Id,
                 ScreenshotPath = shot,
                 PickupDate = model.PickupDate?.Date,
                 PickupTime = pickupTime
@@ -313,6 +329,7 @@
                 .ExecuteUpdateAsync(u => u
                     .SetProperty(g => g.ActualClients, g => g.ActualClients + 1)
                     .SetProperty(g => g.ActualItems, g => g.ActualItems + 1));
+            await transaction.CommitAsync();
         }
         catch (Exception ex)
         {

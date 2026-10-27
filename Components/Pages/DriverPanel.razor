@@ -62,6 +62,6 @@
         var user = (await AuthState).User;
         long.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out userId);
         userName = user.FindFirstValue("ecobay:display") ?? user.Identity?.Name ?? "";
-        isAdmin = user.IsInRole(AdminRoles.Admin);
+        isAdmin = user.IsInRole(AdminRoles.Admin) || user.IsInRole(AdminRoles.Manager);
     }
 }
